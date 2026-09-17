@@ -210,6 +210,9 @@ public sealed partial class NativeGame : MonoBehaviour
         GUI.matrix=Matrix4x4.identity;DrawRect(new Rect(0,0,Screen.width,Screen.height),bg);
         guiOffset=new Vector2((Screen.width-1920*scale)*.5f,(Screen.height-1080*scale)*.5f);
         GUI.matrix=Matrix4x4.TRS(new Vector3(guiOffset.x,guiOffset.y,0),Quaternion.identity,new Vector3(scale,scale,1)); DrawRect(new Rect(0,0,1920,1080),bg);
+#if DITTOCHES_PORTABLE_PREVIEW
+        if(validationPointer.HasValue)Event.current.mousePosition=validationPointer.Value;
+#endif
         if(lobby) DrawLobby(); else DrawGame();DrawTransientTooltip();if(Time.unscaledTime<screenTransitionUntil){float fade=Mathf.Clamp01((screenTransitionUntil-Time.unscaledTime)/.34f);DrawRect(new Rect(0,0,1920,1080),new Color(.005f,.012f,.025f,fade));}GUI.matrix=old;
     }
     private void DrawTransientTooltip()
@@ -576,6 +579,15 @@ public sealed partial class NativeGame : MonoBehaviour
         if(selectedItem<0||selectedItem>=inventory.Count)return;
         int item=inventory[selectedItem];
         if(artPack==0&&battling&&board.Contains(unit)){NotifyPlacement("전장 장비 변경은 준비 단계에 가능합니다");return;}
+        if(artPack==0)
+        {
+            var change=DigimonBuildCatalog.PreviewEquipment(unit.items,item);
+            if(!change.allowed){NotifyPlacement(change.message);return;}
+            inventory.RemoveAt(selectedItem);
+            if(change.removed)inventory.AddRange(unit.items);
+            unit.items.Clear();unit.items.AddRange(change.items);selectedItem=-1;
+            lastReward=UnitName(unit.def)+" · "+change.message;NotifyPlacement(lastReward);Save();return;
+        }
         if(item==14)
         {
             if(unit.items.Count==0){NotifyPlacement("회수할 장비가 없는 유닛입니다");return;}
@@ -716,10 +728,22 @@ public sealed partial class NativeGame : MonoBehaviour
     private bool RoleActive(string role){return TraitLevel("역할",role)>0;}
     private Fighter SelectTarget(Fighter attacker)
     {
+        if(artPack==0){attacker.target=FindDigimonTarget(attacker,attacker.target);return attacker.target;}
         if(attacker.target!=null&&!attacker.target.dead)return attacker.target;
         attacker.target=FindCombatTarget(attacker);return attacker.target;
     }
-    private Fighter FindCombatTarget(Fighter attacker){IEnumerable<Fighter> enemies=fighters.Where(x=>!x.dead&&x.enemy!=attacker.enemy);if(attacker.unit.def.role=="마법사")return enemies.OrderBy(x=>x.hp/x.maxHp).ThenBy(x=>Vector2.Distance(attacker.pos,x.pos)).FirstOrDefault();if(attacker.unit.def.role=="사수")return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.72f:1f)).FirstOrDefault();return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.58f:1f)).FirstOrDefault();}
+    private Fighter FindDigimonTarget(Fighter attacker,Fighter current)
+    {
+        int range=Meta(attacker.unit.def.id).range;
+        bool valid=current!=null&&!current.dead&&current.hp>0&&current.enemy!=attacker.enemy&&fighters.Contains(current);
+        if(valid&&DigimonCombatMath.InAttackRange(attacker.pos.x,attacker.pos.y,current.pos.x,current.pos.y,range))return current;
+        var enemies=fighters.Where(x=>!x.dead&&x.hp>0&&x.enemy!=attacker.enemy)
+            .OrderBy(x=>DigimonCombatMath.HexDistance(attacker.pos.x,attacker.pos.y,x.pos.x,x.pos.y)).ToArray();
+        var reachable=enemies.FirstOrDefault(x=>DigimonCombatMath.InAttackRange(attacker.pos.x,attacker.pos.y,x.pos.x,x.pos.y,range));
+        // Keep a reachable target locked; do not oscillate between equally close enemies.
+        return reachable??(valid?current:enemies.FirstOrDefault());
+    }
+    private Fighter FindCombatTarget(Fighter attacker){if(artPack==0)return FindDigimonTarget(attacker,null);IEnumerable<Fighter> enemies=fighters.Where(x=>!x.dead&&x.enemy!=attacker.enemy);if(attacker.unit.def.role=="마법사")return enemies.OrderBy(x=>x.hp/x.maxHp).ThenBy(x=>Vector2.Distance(attacker.pos,x.pos)).FirstOrDefault();if(attacker.unit.def.role=="사수")return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.72f:1f)).FirstOrDefault();return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.58f:1f)).FirstOrDefault();}
     private void UpdateCombat(float dt)
     {
         UpdateDigimonSkills(dt);

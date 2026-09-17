@@ -143,12 +143,13 @@ public sealed partial class NativeGame
     {
         if(unit==null||selectedItem<0||selectedItem>=inventory.Count)return false;
         int item=inventory[selectedItem];
+        if(artPack==0)return DigimonBuildCatalog.PreviewEquipment(unit.items,item).allowed&&!(battling&&board.Contains(unit));
         if(item==14)return unit.items.Count>0;
         return (item<=3&&unit.items.Any(i=>i<=3))||unit.items.Count<2;
     }
-    private string EquipmentHint()
+    private Unit EquipmentHoverTarget(out string blocked)
     {
-        if(selectedItem<0||selectedItem>=inventory.Count)return "";
+        blocked="";
         int hit=PickFormationTarget(Event.current.mousePosition);
         Unit target=hit>=56?bench[hit-56]:!battling&&scoutedRival<0&&hit>=28?board[hit-28]:null;
         if(battling&&target==null)
@@ -157,17 +158,35 @@ public sealed partial class NativeGame
             {
                 Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(fighter.unit.def.id,fighter.unit.star):1.4f)),feet=arena.Project(FighterWorld(fighter));
                 if(!new Rect(feet.x-40,head.y,80,Mathf.Max(24,feet.y-head.y)).Contains(Event.current.mousePosition))continue;
-                if(fighter.enemy)return "상대 유닛에는 장비를 장착할 수 없습니다";
+                if(fighter.enemy){blocked="상대 유닛에는 장비를 장착할 수 없습니다";return null;}
                 target=fighter.unit;break;
             }
         }
+        if(artPack==0&&battling&&target!=null&&board.Contains(target))blocked="전장 장비 변경은 준비 단계에 가능합니다";
+        return target;
+    }
+    private string EquipmentHint()
+    {
+        if(selectedItem<0||selectedItem>=inventory.Count)return "";
+        string blocked;Unit target=EquipmentHoverTarget(out blocked);
+        if(blocked!="")return blocked;
         int item=inventory[selectedItem];
         if(target==null)return ItemNames[item]+" · 장착할 아군 유닛을 선택하세요";
-        if(artPack==0&&battling&&board.Contains(target))return "전장 장비 변경은 준비 단계에 가능합니다";
+        if(artPack==0)return UnitName(target.def)+" · "+DigimonBuildCatalog.PreviewEquipment(target.items,item).message;
         if(item==14)return target.items.Count>0?UnitName(target.def)+" · 장비 "+target.items.Count+"개 회수":"회수할 장비가 없는 유닛입니다";
         int partner=target.items.FindIndex(i=>i<=3);
         if(item<=3&&partner>=0)return UnitName(target.def)+" · "+ItemNames[ItemRecipes[target.items[partner],item]]+" 자동 합성";
         return target.items.Count>=2?"장비 슬롯이 가득 찼습니다 · 재료 합성 또는 "+ItemNames[14]+"를 이용하세요":UnitName(target.def)+" · "+ItemNames[item]+" 장착";
+    }
+    private bool DrawEquipmentPreview()
+    {
+        if(artPack!=0||selectedItem<0||selectedItem>=inventory.Count||!GUI.enabled||showCarousel)return false;
+        string blocked;Unit target=EquipmentHoverTarget(out blocked);if(target==null)return false;
+        var ids=board.Contains(target)?board.Where(u=>u!=null).Select(u=>u.def.id):Enumerable.Empty<string>();
+        var preview=DigimonEquipmentPreview.Create(target.def.id,target.star,ids,target.items,inventory[selectedItem]);
+        DigimonEquipmentPreview.Draw(new Rect(1686,106,218,720),UnitName(target.def)+" "+new string('★',target.star),
+            DigimonSkillCatalog.Find(target.def.id),preview,board.Contains(target)?"현재 전장 시너지 적용":"대기석 · 시너지 미포함",blocked);
+        return true;
     }
     private bool ValidBoardDestination(int cell)
     {

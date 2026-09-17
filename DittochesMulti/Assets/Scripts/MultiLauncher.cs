@@ -14,7 +14,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; public int[] items; }
     [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision; public bool ready; public Unit[] board, bench; public string[] shop; public int[] inventory; }
-    [Serializable] public class Fighter { public int key, side, star,slot; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
+    [Serializable] public class Fighter { public int key, side, star,slot,attackRange; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
     [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
@@ -272,6 +272,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
         float scale=rawScale>=.85f?Mathf.Floor(rawScale*20f)/20f:rawScale;
         float offsetX=Mathf.Floor((Screen.width-1600*scale)/2f),offsetY=Mathf.Floor((Screen.height-1000*scale)/2f);
         GUI.matrix=Matrix4x4.TRS(new Vector3(offsetX,offsetY,0),Quaternion.identity,new Vector3(scale,scale,1));
+#if DITTOCHES_PORTABLE_PREVIEW
+        if(onlineValidationPointer.HasValue)Event.current.mousePosition=onlineValidationPointer.Value;
+#endif
         Color oldColor=GUI.color; Panel(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),Color.black); GUI.color=oldColor;
         DrawBackdrop();
         GUI.enabled=string.IsNullOrEmpty(onlineSkillId);
@@ -558,6 +561,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         DrawOnlineEquipment(me,editable);
         DrawOnlineUnitEquipment(me,room);
         if(artPack==0)DrawOnlineTraits(me);
+        DrawOnlineEquipmentPreview(me,editable);
         if (!fresh) GUI.Label(new Rect(310, 80, 970, 50), "연결 복구 중 · 조작을 잠시 중지합니다.", text);
         if (room.phase == "finished")
         {

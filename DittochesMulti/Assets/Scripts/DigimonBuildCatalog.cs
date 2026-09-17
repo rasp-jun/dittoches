@@ -71,4 +71,24 @@ public static class DigimonBuildCatalog
             ((i.recipe[0]==a&&i.recipe[1]==b)||(i.recipe[0]==b&&i.recipe[1]==a)));
         return item==null?-1:item.id;
     }
+    public sealed class EquipmentChange
+    {
+        public bool allowed,removed;public int result=-1;public int[] items;public string message;
+    }
+    public static EquipmentChange PreviewEquipment(IEnumerable<int> equipped,int item)
+    {
+        var items=equipped.ToList();var change=new EquipmentChange{items=items.ToArray()};
+        if(item<0||item>=Data.items.Length){change.message="유효하지 않은 장비입니다";return change;}
+        if(item==14)
+        {
+            change.allowed=items.Count>0;change.removed=change.allowed;
+            change.message=change.allowed?"장비 "+items.Count+"개를 보관함으로 회수":"회수할 장비가 없습니다";
+            if(change.allowed)change.items=new int[0];return change;
+        }
+        int partner=items.FindIndex(i=>i>=0&&i<4),result=partner>=0?Combine(items[partner],item):-1;
+        if(result>=0){items[partner]=result;change.message=Data.items[result].name+" 자동 합성";}
+        else if(items.Count>=2){change.message="장비 2칸이 가득 찼습니다.\n재료 합성 또는 데이터 추출기를 이용하세요.";return change;}
+        else{result=item;items.Add(item);change.message=Data.items[item].name+" 장착";}
+        change.allowed=true;change.result=result;change.items=items.ToArray();return change;
+    }
 }

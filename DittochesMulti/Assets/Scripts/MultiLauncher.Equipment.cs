@@ -116,6 +116,18 @@ public sealed partial class MultiLauncher
         }
         GUI.Label(new Rect(r.x+24,r.y+493,610,36),"첫 지급: 기본 재료 4종 + 추출기 · 이후 라운드마다 양쪽 동일 보급",new GUIStyle(small){fontSize=13});
     }
+    void DrawOnlineEquipmentPreview(Player me,bool editable)
+    {
+        if(artPack!=0||!editable||!GUI.enabled||onlineItem<0||onlineItem>=me.inventory.Length||arena==null)return;
+        int seat=arena.HitBench(Event.current.mousePosition),cell=arena.HitCell(Event.current.mousePosition);
+        bool onBoard=seat<0&&cell>=28;
+        Unit unit=seat>=0?At(me.bench,seat):onBoard?At(me.board,cell-28):null;
+        if(unit==null)return;
+        var ids=onBoard?me.board.Select(u=>u.id):Enumerable.Empty<string>();
+        var preview=DigimonEquipmentPreview.Create(unit.id,unit.star,ids,unit.items??new int[0],me.inventory[onlineItem]);
+        DigimonEquipmentPreview.Draw(new Rect(1305,290,270,638),Def(unit.id).name+" "+new string('★',unit.star),
+            DigimonSkillCatalog.Find(unit.id),preview,onBoard?"현재 전장 시너지 적용":"대기석 · 시너지 미포함");
+    }
     void DrawUnitItemBadges(Unit unit,Vector3 ground)
     {
         if(unit.items==null||unit.items.Length==0)return;

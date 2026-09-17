@@ -18,6 +18,13 @@ public sealed partial class MultiLauncher
         if(Event.current.type==EventType.Repaint)
         {
             arena.BeginFrame(selectedArea=="board"&&selectedSlot>=0?selectedSlot+28:-1,editable?hit:-1,selectedArea=="bench"?selectedSlot:-1,editable&&selectedSlot>=0);
+            Unit selected=SelectedOnlineUnit(me);
+            if(artPack==0&&!combat&&selected!=null)
+            {
+                int rangeCell=selectedArea=="board"?selectedSlot+28:-1;
+                if(editable&&GUI.enabled&&!busy&&seat<0&&hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<me.level))rangeCell=hit;
+                if(rangeCell>=28)arena.HighlightHexAttackRange(rangeCell%7,rangeCell/7,DigimonSkillCatalog.Find(selected.id).attackRange);
+            }
             if(editable&&GUI.enabled&&!busy&&selectedSlot>=0)
                 arena.HighlightDestination(hit,seat,seat>=0||(hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<me.level)));
             if(combat&&room.frames!=null&&room.frames.Length>0)
@@ -30,6 +37,8 @@ public sealed partial class MultiLauncher
                     Fighter to=System.Array.Find(room.frames[next].units,u=>u.key==f.key)??f;
                     float x=Mathf.Lerp(f.x,to.x,progress-frame),y=Mathf.Lerp(f.y,to.y,progress-frame);
                     if(room.side==1){x=6-x;y=7-y;}
+                    bool focused=f.side==room.side&&selectedArea=="board"&&f.slot==selectedSlot;
+                    if(artPack==0&&focused)arena.HighlightHexAttackRange(x,y,f.attackRange>0?f.attackRange:DigimonSkillCatalog.Find(f.id).attackRange);
                     arena.SetActor("fighter:"+f.key,TacticalArena.CellWorld(x,y),LobbyPortrait(f.id),f.side==room.side?Color.green:Color.red);
                     if(artPack==0)
                     {
@@ -41,7 +50,7 @@ public sealed partial class MultiLauncher
                         arena.FaceActor("fighter:"+f.key,facing);
                         arena.PoseDigimon("fighter:"+f.key,f.id,Vector2.Distance(new Vector2(f.x,f.y),new Vector2(to.x,to.y))*5,
                             (to.x-f.x)*(room.side==1?-1:1),playhead,age,Mathf.Max(0,.35f-(playhead-f.attackAt)),0,f.star);
-                        arena.DecorateActor("fighter:"+f.key,false,0,Mathf.Clamp01(1-(playhead-f.hitAt)/.18f));
+                        arena.DecorateActor("fighter:"+f.key,focused,0,Mathf.Clamp01(1-(playhead-f.hitAt)/.18f));
                     }
                 }
             }
@@ -64,6 +73,9 @@ public sealed partial class MultiLauncher
             arena.Render();
         }
         GUI.DrawTexture(TacticalArena.MultiViewport,arena.Texture,ScaleMode.StretchToFill,false);
+        var rangeUnit=SelectedOnlineUnit(me);
+        if(artPack==0&&rangeUnit!=null&&(!combat||selectedArea=="board"))
+            GUI.Label(new Rect(350,176,880,26),Def(rangeUnit.id).name+" · 기본 공격 "+DigimonSkillCatalog.Find(rangeUnit.id).attackRange+"칸  /  하늘색: 공격 범위",centered);
         if(!combat)GUI.Label(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":onlineItem>=0?"장비를 받을 아군 선택 · ESC / 우클릭 취소":"유닛 선택 → 이동할 칸 선택  ·  ESC / 우클릭 취소",centered);
         if(combat)DrawCombat(room,remaining);
         else for(int row=0;row<8;row++)for(int col=0;col<7;col++)

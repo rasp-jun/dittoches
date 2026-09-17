@@ -281,6 +281,14 @@ public sealed partial class TacticalArena : IDisposable
             if(x*x+y*y<=range*range)Tint(tiles[i],i>=28?new Color(.25f,.55f,.64f):new Color(.48f,.4f,.66f));
         }
     }
+    public void HighlightHexAttackRange(float col,float row,int range)
+    {
+        for(int i=0;i<tiles.Length;i++)
+            if(DigimonCombatMath.InAttackRange(col,row,i%7,i/7,range))
+                Tint(tiles[i],new Color(.12f,.75f,1f));
+        int x=Mathf.RoundToInt(col),y=Mathf.RoundToInt(row);
+        if(x>=0&&x<7&&y>=0&&y<8)Tint(tiles[y*7+x],new Color(.72f,.57f,.26f));
+    }
     public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0,bool invalid=false)
     {
         Actor actor;if(!actors.TryGetValue(key,out actor))return;

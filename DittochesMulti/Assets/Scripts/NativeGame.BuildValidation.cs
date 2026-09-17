@@ -5,6 +5,38 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    void ValidateTacticalRules()
+    {
+        artPack=0;battling=false;fighters.Clear();
+        var source=CreateFighter(new Unit(RosterById["agumon"]),false,new Vector2(3,4));
+        var near=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+        var far=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,0));far.hp=1;
+        fighters.Add(source);fighters.Add(far);fighters.Add(near);source.target=far;
+        Require(SelectTarget(source)==near,"reachable enemy replaces distant weak target");
+        far.pos=new Vector2(3,3.5f);Require(SelectTarget(source)==near,"reachable target stays locked");
+        near.pos=new Vector2(3,0);far.pos=new Vector2(3,2);
+        Require(SelectTarget(source)==near,"stable chase when neither target is reachable");
+        near.dead=true;Require(SelectTarget(source)==far,"dead target replaced");
+        far.enemy=false;Require(SelectTarget(source)==null,"allies excluded");fighters.Clear();
+        foreach(string id in new[]{"agumon","weregarurumon","wargreymon"})
+        {
+            var unit=new Unit(RosterById[id]){star=2};unit.items.Add(0);unit.items.Add(3);
+            Array.Clear(board,0,board.Length);board[0]=unit;board[1]=new Unit(RosterById["koromon"]);
+            int[] old=unit.items.ToArray();var team=board.Where(u=>u!=null).Select(u=>u.def.id);
+            var preview=DigimonEquipmentPreview.Create(id,unit.star,team,unit.items,1);
+            Require(preview.change.allowed&&unit.items.SequenceEqual(old),"preview never mutates gear "+id);
+            inventory.Clear();inventory.Add(1);selectedItem=0;Equip(unit);var actual=InspectStats(unit);
+            Require(unit.items.SequenceEqual(preview.change.items),"craft preview equals applied equipment "+id);
+            Require(Mathf.Abs(actual.attack-preview.after.attack)<.001f&&actual.abilityPower==preview.after.abilityPower&&actual.health==preview.after.health,"preview equals actual gear plus synergy stats "+id);
+            var skill=DigimonSkillCatalog.Find(id);
+            Require(Mathf.Abs(skill.Damage(unit.star,actual.attack,actual.abilityPower)-preview.damageAfter)<.001f,"skill preview matches equipped damage "+id);
+            Require(!DigimonEquipmentPreview.Create(id,2,team,unit.items,8).change.allowed,"full slots reject before consumption");
+            var remove=DigimonEquipmentPreview.Create(id,2,team,unit.items,14);
+            Require(remove.change.allowed&&remove.change.removed&&remove.change.items.Length==0,"remover preview clears both slots");
+        }
+        Require(!DigimonBuildCatalog.PreviewEquipment(new int[0],14).allowed,"empty remover preview rejects");
+        Array.Clear(board,0,board.Length);inventory.Clear();selectedItem=-1;placementNoticeUntil=0;
+    }
     void ValidateScalingRules()
     {
         artPack=0;battling=false;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);fighters.Clear();skillCasts.Clear();

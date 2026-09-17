@@ -101,6 +101,7 @@ public sealed partial class NativeGame
     }
     void DrawArenaHudRight()
     {
+        if(DrawEquipmentPreview())return;
         const float x=1686;HudPanel(new Rect(x,106,218,720));
         if(inspectedUnit!=null)
         {

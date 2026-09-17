@@ -71,8 +71,19 @@ public sealed partial class NativeGame
             arena.BeginFrame(!scouting?sourceCell:-1,hover,sourceBench,!scouting&&!blocked&&(selectedBench>=0||selectedBoard>=0||draggingUnit));
             if(!battling&&!scouting&&!blocked&&HeldUnit()!=null)
             {
-                int rangeCell=draggingUnit?arena.HitCell(Event.current.mousePosition):sourceCell;
-                if(rangeCell>=28)arena.HighlightAttackRange(rangeCell,Mathf.Lerp(1.05f,2.9f,(Meta(HeldUnit().def.id).range-1)/3f));
+                int destination=arena.HitCell(Event.current.mousePosition);
+                int rangeCell=artPack==0?(ValidBoardDestination(destination)?destination:sourceCell):(draggingUnit?destination:sourceCell);
+                if(rangeCell>=28)
+                {
+                    int range=Meta(HeldUnit().def.id).range;
+                    if(artPack==0)arena.HighlightHexAttackRange(rangeCell%7,rangeCell/7,range);
+                    else arena.HighlightAttackRange(rangeCell,Mathf.Lerp(1.05f,2.9f,(range-1)/3f));
+                }
+            }
+            if(battling&&artPack==0&&!blocked)
+            {
+                var focus=fighters.FirstOrDefault(f=>!f.dead&&f.unit==inspectedUnit);
+                if(focus!=null)arena.HighlightHexAttackRange(focus.pos.x,focus.pos.y,Meta(focus.unit.def.id).range);
             }
             if(!battling&&!scouting&&!blocked&&HeldUnit()!=null&&!draggingUnit)
             {
@@ -118,6 +129,11 @@ public sealed partial class NativeGame
         GUI.Label(new Rect(SoloArenaViewport.x+20,SoloArenaViewport.y+12,300,22),scouting?heading:"FILE ISLAND / ARENA",small);
         GUI.Label(new Rect(SoloArenaViewport.xMax-260,SoloArenaViewport.y+12,245,22),battling?Mathf.CeilToInt(battleTimeRemaining)+"s":"7 x 4  /  HEX FORMATION",small);
         GUI.Label(new Rect(550,132,500,22),battling?"아군 "+fighters.Count(f=>!f.enemy&&!f.dead)+" / "+fighters.Count(f=>!f.enemy)+"   ·   상대 "+fighters.Count(f=>f.enemy&&!f.dead)+" / "+fighters.Count(f=>f.enemy):"",center);
+        if(artPack==0&&!scouting&&!blocked)
+        {
+            Unit rangeUnit=battling?fighters.Where(f=>!f.dead&&f.unit==inspectedUnit).Select(f=>f.unit).FirstOrDefault():HeldUnit();
+            if(rangeUnit!=null)GUI.Label(new Rect(SoloArenaViewport.x+24,SoloArenaViewport.y+40,600,25),UnitName(rangeUnit.def)+" · 기본 공격 "+Meta(rangeUnit.def.id).range+"칸  /  하늘색: 공격 범위",new GUIStyle(small){fontSize=13});
+        }
         if(!battling)
         {
             int hit=PickFormationTarget(Event.current.mousePosition);

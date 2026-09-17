@@ -52,8 +52,7 @@ def advance_cast(cast, fighters, now):
             source['castUntil'] = now
             return
         if target is None or target['hp'] <= 0:
-            enemies = [f for f in fighters if f['hp'] > 0 and f['side'] != source['side']]
-            target = min(enemies, key=lambda f: ((f['x']-source['x'])**2+(f['y']-source['y'])**2, f['key']), default=None)
+            target = select_target(source, fighters, keep_current=False)
             if target is None:
                 cast['cancelled'] = True
                 source['castUntil'] = now
@@ -90,6 +89,17 @@ def advance_cast(cast, fighters, now):
         cast['hits'] += 1
 
 
+def select_target(fighter, fighters, keep_current=True):
+    """Hold a reachable target, otherwise attack a reachable enemy before chasing."""
+    enemies = [e for e in fighters if e['side'] != fighter['side'] and e['hp'] > 0]
+    current = next((e for e in enemies if keep_current and e['key'] == fighter.get('target')), None)
+    if current is not None and stats.in_attack_range(fighter, current):
+        return current
+    ordered = sorted(enemies, key=lambda e: (stats.hex_distance(fighter['x'], fighter['y'], e['x'], e['y']), e['key']))
+    reachable = next((e for e in ordered if stats.in_attack_range(fighter, e)), None)
+    return reachable if reachable is not None else current if current is not None else next(iter(ordered), None)
+
+
 def simulate(fighters, definitions):
     """50 ms simulation, 200 ms snapshots, explicit events for reconnect-safe playback."""
     frames, casts = [], []
@@ -118,12 +128,9 @@ def simulate(fighters, definitions):
                 f['mana'] = min(f['maxMana'], f['mana']+step_time*(2 if role=='마법사' else 1.5 if role=='지원' else 0))
                 if f['stun'] > 0 or f['castUntil'] > now:
                     continue
-                enemies = [e for e in fighters if e['side'] != f['side'] and e['hp'] > 0]
-                if not enemies:
-                    continue
-                target = next((e for e in enemies if e['key'] == f['target']), None)
+                target = select_target(f, fighters)
                 if target is None:
-                    target = min(enemies, key=lambda e: ((e['x']-f['x'])**2+(e['y']-f['y'])**2, e['key']))
+                    continue
                 f['target'] = target['key']
                 dx, dy = target['x']-f['x'], target['y']-f['y']
                 distance = math.hypot(dx, dy)

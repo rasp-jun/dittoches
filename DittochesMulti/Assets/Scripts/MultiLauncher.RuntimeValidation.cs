@@ -10,6 +10,7 @@ using UnityEngine.Networking;
 public sealed partial class MultiLauncher
 {
     int onlineChecks;State smokePeer;
+    Vector2? onlineValidationPointer;
     void OnlineRequire(bool condition,string message)
     {if(!condition){Application.Quit(2);throw new InvalidOperationException("ONLINE SMOKE FAILED: "+message);}onlineChecks++;}
     public void BeginOnlineSmoke(){StartCoroutine(OnlineSmoke());}
@@ -77,8 +78,13 @@ public sealed partial class MultiLauncher
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,5));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
         OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(new[]{5}),"UI equips crafted item");
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,3));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
-        SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,2));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
+        SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,2));
+        var projected=DigimonEquipmentPreview.Create(At(OnlineMe.board,3).id,At(OnlineMe.board,3).star,OnlineMe.board.Select(u=>u.id),At(OnlineMe.board,3).items,2);
+        onlineValidationPointer=arena.Project(TacticalArena.CellWorld(3,4));
+        yield return new WaitForEndOfFrame();OnlineCapture("08-craft-preview");onlineValidationPointer=null;
+        ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
         OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(new[]{5,12}),"auto combination on full unit");
+        OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(projected.change.items)&&OnlineStats(At(OnlineMe.board,3),"board").abilityPower==projected.after.abilityPower,"preview agrees with authoritative server gear and AP");
         yield return new WaitForEndOfFrame();OnlineCapture("03-equipped");
         onlineItemGuide=12;yield return new WaitForEndOfFrame();OnlineCapture("04-item-detail");onlineItemGuide=-1;
         var equippedStats=OnlineStats(At(OnlineMe.board,3),"board");

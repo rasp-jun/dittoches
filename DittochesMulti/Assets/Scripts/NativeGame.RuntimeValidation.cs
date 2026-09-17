@@ -11,6 +11,7 @@ public sealed partial class NativeGame
     int validationRepaints;
     bool validationIconGallery;
     bool validatedIconInput;
+    Vector2? validationPointer;
     void ValidateIconInputInGUI()
     {
         if(validatedIconInput||Event.current.type!=EventType.Repaint)return;
@@ -57,6 +58,7 @@ public sealed partial class NativeGame
         yield return null;
         ValidateBuildRules();
         ValidateScalingRules();
+        ValidateTacticalRules();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
         string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
@@ -79,6 +81,13 @@ public sealed partial class NativeGame
         yield return new WaitForEndOfFrame();CaptureRuntime("08-synergies");traitFocus=null;
         recipeFocus=1;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+60;
         yield return new WaitForEndOfFrame();CaptureRuntime("09-recipes");showRecipeGuide=false;
+        selectedBoard=3;validationPointer=arena.Project(TacticalArena.CellWorld(3,4));
+        yield return new WaitForEndOfFrame();CaptureRuntime("13-melee-range");
+        selectedBoard=18;validationPointer=arena.Project(TacticalArena.CellWorld(4,6));
+        yield return new WaitForEndOfFrame();CaptureRuntime("14-ranged-range");selectedBoard=-1;
+        selectedItem=3;validationPointer=arena.Project(TacticalArena.CellWorld(3,4));
+        yield return new WaitForEndOfFrame();CaptureRuntime("15-equipment-preview");
+        selectedItem=-1;validationPointer=null;
         int item=Array.FindIndex(shop,u=>u!=null);int cost=shop[item].cost,before=gold;
         Require(Buy(item),"shop purchase");Require(gold==before-cost&&shop[item]==null,"purchase charged once");
         selectedBench=0;selectedBoard=-1;
@@ -89,6 +98,7 @@ public sealed partial class NativeGame
         validationIconGallery=true;yield return new WaitForEndOfFrame();CaptureRuntime("12-skill-icons");validationIconGallery=false;inspectedUnit=null;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
+        inspectedUnit=board[18];
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");
         yield return new WaitForSeconds(2f);yield return new WaitForEndOfFrame();CaptureRuntime("05-skills");
         float deadline=Time.unscaledTime+34;
