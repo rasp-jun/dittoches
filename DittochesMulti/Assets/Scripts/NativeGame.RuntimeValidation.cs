@@ -28,13 +28,15 @@ public sealed partial class NativeGame
     {
         Application.runInBackground=true;
         yield return null;
+        ValidateBuildRules();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
-        string[] team={"agumon","gabumon","tentomon","palmon","piyomon","patamon"};
+        string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
         int[] slots={2,3,4,16,17,18};
         for(int i=0;i<team.Length;i++)board[slots[i]]=new Unit(RosterById[team[i]]);
         bench[0]=new Unit(RosterById["koromon"]);bench[3]=new Unit(RosterById["agumon"]);
         inventory.AddRange(new[]{0,1,2,3});RebuildPool();RollShop();EnsureArena();
+        board[3].items.Add(8);board[17].items.Add(10);board[2].items.Add(4);
         Require(!DigimonModelLibrary.PreviewEnabled,"unfinished model must be opt-in");
         for(int row=0;row<8;row++)for(int col=0;col<7;col++)
         {
@@ -45,6 +47,10 @@ public sealed partial class NativeGame
         for(int i=0;i<9;i++)Require(arena.HitBench(arena.Project(TacticalArena.BenchWorld(i)))==i,"bench picking "+i);
         Require(!SoloArenaViewport.Contains(SellDropZone.center),"sell target cannot also place on board");
         yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();CaptureRuntime("01-prepare");
+        traitFocus=TeamTraits().First(t=>t.key=="용기");traitGuideUntil=Time.unscaledTime+60;
+        yield return new WaitForEndOfFrame();CaptureRuntime("08-synergies");traitFocus=null;
+        recipeFocus=1;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+60;
+        yield return new WaitForEndOfFrame();CaptureRuntime("09-recipes");showRecipeGuide=false;
         int item=Array.FindIndex(shop,u=>u!=null);int cost=shop[item].cost,before=gold;
         Require(Buy(item),"shop purchase");Require(gold==before-cost&&shop[item]==null,"purchase charged once");
         selectedBench=0;selectedBoard=-1;

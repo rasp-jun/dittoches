@@ -33,7 +33,8 @@ def main():
     subprocess.run([str(args.compiler),'@'+str(response)],check=True)
     streaming=destination/'DittochesMulti_Data/StreamingAssets'
     streaming.mkdir(exist_ok=True)
-    shutil.copy2(root/'Assets/Resources/DigimonSkills.json',streaming/'DigimonSkills.json')
+    for catalog in ('DigimonSkills.json','DigimonBuilds.json'):
+        shutil.copy2(root/'Assets/Resources'/catalog,streaming/catalog)
     art=root/'Assets/Resources/ArtVariants/LicensedFanArt'
     for source in art.glob('*.png'):
         target=streaming/'PreviewArt/ArtVariants/LicensedFanArt'/source.name

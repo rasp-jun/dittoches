@@ -14,7 +14,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; }
     [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp; public bool ready; public Unit[] board, bench; public string[] shop; }
-    [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp, mana, maxMana, attackAt, hitAt, stun; public int target; }
+    [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
     [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
@@ -520,6 +520,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
         GUI.Label(new Rect(30,652,245,135),"양쪽 모두 준비하면 전투가 시작됩니다.\n제한 시간이 끝나도 자동 시작됩니다.",small);
         Card(new Rect(1305,290,270,180),surface,new Color(.2f,.38f,.43f)); GUI.Label(new Rect(1325,310,225,25),"BATTLE LOG",eyebrow); GUI.Label(new Rect(1325,345,225,105),room.message??"전투 기록이 여기에 표시됩니다.",small);
+        if(artPack==0)DrawOnlineTraits(me);
         if (!fresh) GUI.Label(new Rect(310, 80, 970, 50), "연결 복구 중 · 조작을 잠시 중지합니다.", text);
         if (room.phase == "finished")
         {
@@ -555,6 +556,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
             Panel(new Rect(head.x-width/2-2,head.y-2,width+4,17),new Color(.008f,.015f,.025f,.95f));
             Panel(new Rect(head.x-width/2,head.y,width,7),new Color(.12f,.16f,.2f));
             Panel(new Rect(head.x-width/2,head.y,width*Mathf.Clamp01(health),7),f.side==room.side?new Color(.32f,.94f,.57f):new Color(.96f,.3f,.27f));
+            float protection=Mathf.Lerp(f.shield,to.shield,progress-frame)/Mathf.Max(1,f.maxHp);
+            if(protection>0)Panel(new Rect(head.x-width/2,head.y-3,width*Mathf.Clamp01(protection),2),new Color(.75f,.9f,1f));
             if(f.maxMana>0)Panel(new Rect(head.x-width/2,head.y+9,width*Mathf.Clamp01(Mathf.Lerp(f.mana,to.mana,progress-frame)/f.maxMana),3),new Color(.25f,.65f,1));
             float castAge=ActiveCastAge(room,f.key,CombatTime(room,remaining));
             var skill=artPack==0&&castAge>=0?DigimonSkillCatalog.Find(f.id):null;

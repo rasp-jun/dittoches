@@ -79,6 +79,7 @@ public sealed partial class NativeGame
         int triples=FindUnits(d.id,3).Count;
         string owned="보유  ★ "+singles+"  /  ★★ "+doubles+"  /  ★★★ "+triples;
         string[] categories={"속성","계열","역할"},keys={meta.attr,meta.family,d.role};
+        if(artPack==0){var tags=DigimonBuildCatalog.ForUnit(d.id).ToArray();categories=tags.Select(t=>t.category).ToArray();keys=tags.Select(t=>t.name).ToArray();}
         string summary=UnitName(d)+" · "+d.cost+"G\n"+owned;
         bool distinct=!board.Any(u=>u!=null&&u.def.id==d.id);
         for(int i=0;i<keys.Length;i++)
@@ -91,8 +92,8 @@ public sealed partial class NativeGame
     }
     private bool PointerOverGuide(Vector2 point)
     {
-        return (showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point))
-            ||(traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&new Rect(270,145,475,155).Contains(point));
+        return (showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&RecipeGuideRect.Contains(point))
+            ||(traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&TraitGuideRect.Contains(point));
     }
     private Rect FormationPieceRect(Unit unit,Vector3 ground,float width)
     {
@@ -162,6 +163,7 @@ public sealed partial class NativeGame
         }
         int item=inventory[selectedItem];
         if(target==null)return ItemNames[item]+" · 장착할 아군 유닛을 선택하세요";
+        if(artPack==0&&battling&&board.Contains(target))return "전장 장비 변경은 준비 단계에 가능합니다";
         if(item==14)return target.items.Count>0?UnitName(target.def)+" · 장비 "+target.items.Count+"개 회수":"회수할 장비가 없는 유닛입니다";
         int partner=target.items.FindIndex(i=>i<=3);
         if(item<=3&&partner>=0)return UnitName(target.def)+" · "+ItemNames[ItemRecipes[target.items[partner],item]]+" 자동 합성";
@@ -212,7 +214,7 @@ public sealed partial class NativeGame
         if(Time.unscaledTime<placementNoticeUntil)text=placementNotice;
         else if(draggingUnit&&SellDropZone.Contains(Event.current.mousePosition))text=UnitName(HeldUnit().def)+" · 놓으면 "+UnitSaleValue(HeldUnit())+"G에 판매합니다";
         else if(selectedItem>=0)text=EquipmentHint();
-        else if(battling)text="전투 중 · 유닛을 눌러 정보 확인 / 아이템 장착";
+        else if(battling)text=artPack==0?"전투 중 · 유닛을 눌러 정보 확인 / 전장 장비는 준비 단계에 변경":"전투 중 · 유닛을 눌러 정보 확인 / 아이템 장착";
         else if(scoutedRival>=0)text="관전 중 · 오른쪽 나의 테이머를 눌러 복귀";
         else if(HeldUnit()!=null)
         {

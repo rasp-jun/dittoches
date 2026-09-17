@@ -2,6 +2,8 @@
 
 전체 진행 현황과 작업 우선순위는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 정리했습니다.
 
+시너지·장비 개편은 [SYNERGIES_AND_EQUIPMENT.md](SYNERGIES_AND_EQUIPMENT.md)를 참고하세요. `DigimonBuilds.json`의 문장 6종/전투 특성 5종 및 기본 4종/완성 10종 장비를 적용했습니다. 캡슐은 장비에서 제외했고 증강 구현은 다음 단계입니다. 검사 기록은 `Builds/PortablePreview/BuildsSmoke.log` (440개), 서버 테스트는 32개입니다.
+
 현재 프로젝트는 이 문서가 있는 `DittochesMulti` 폴더입니다. 상위 `01_CurrentProject`가 Git 저장소이며 작업 브랜치는 `develop`, 업로드 대상은 `dittoches` 원격(`rasp-jun/dittoches`)입니다.
 
 ## 실행
@@ -10,7 +12,7 @@
 - `Skills_Preview.bat`: 34종 기술 타이밍과 이펙트 확인. 현재 캐릭터 표시는 기존 이미지입니다.
 - `Models_Preview.bat`: 아구몬 한 종의 미완성 직접 제작 3D 시험본. 일반 게임에는 적용되지 않습니다.
 
-미리보기는 `Builds/Windows`의 기존 Mono 플레이어를 `Builds/PortablePreview`에 복사하고 현재 C#을 컴파일한 것입니다. 일반 Unity 빌드와 셰이더가 다르고 새 Unity 에셋을 임포트하지 않습니다. 최신 팬 아트 PNG와 기술 JSON만 외부 파일로 읽습니다. 저장 데이터는 기존 실행본과 다른 키를 사용합니다.
+미리보기는 `Builds/Windows`의 기존 Mono 플레이어를 `Builds/PortablePreview`에 복사하고 현재 C#을 컴파일한 것입니다. 일반 Unity 빌드와 셰이더가 다르고 새 Unity 에셋을 임포트하지 않습니다. 최신 팬 아트 PNG와 기술·시너지·장비 JSON을 외부 파일로 읽습니다. 저장 데이터는 기존 실행본과 다른 키를 사용합니다.
 
 집에서는 Unity Hub에 이 폴더를 추가하고 `ProjectSettings/ProjectVersion.txt`의 버전으로 열어 정식 빌드를 확인합니다. GitHub에는 이미지·3D 바이너리를 올리지 않으므로 USB의 프로젝트 에셋과 `02_ArtVault`도 보관해야 합니다.
 

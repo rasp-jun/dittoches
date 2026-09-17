@@ -19,8 +19,8 @@ public sealed partial class NativeGame
         int target=PickFormationTarget(point);
         if(!battling)for(int i=lootOrbs.Count-1;i>=0;i--)if(LootRect(lootOrbs[i]).Contains(point)){target=100+i;break;}
         bool down=e.type==EventType.MouseDown&&e.button==0,up=e.type==EventType.MouseUp&&e.button==0;
-        bool guide=showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point);
-        guide|=traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&new Rect(270,145,475,155).Contains(point);
+        bool guide=showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&RecipeGuideRect.Contains(point);
+        guide|=traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&TraitGuideRect.Contains(point);
         arenaPointer.Update(target,down,up,draggingUnit,showCarousel||hp<=0||guide);
         if(arenaPointer.Released>=100)
         {

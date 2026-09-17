@@ -21,10 +21,10 @@ public sealed partial class NativeGame
         var skill=DigimonSkillCatalog.Find(caster.unit.def.id);
         if(skill==null)return false;
         var cast=new SkillCast{caster=caster,target=target,skill=skill,origin=caster.pos,aim=target.pos,
-            power=AttackDamage(caster)*Skill(caster.unit.def.id).power};
+            power=AttackDamage(caster)*Skill(caster.unit.def.id).power*(1+caster.build.skill)};
         skillCasts.Add(cast);caster.skillCast=cast;
         caster.mana=0;caster.casts++;caster.cooldown=skill.Duration;
-        caster.attackTarget=target.pos;caster.skillFlash=skill.Duration;
+        caster.attackTarget=target.pos;caster.skillFlash=skill.Duration;OnBuildCast(caster);
         return true;
     }
     private void UpdateDigimonSkills(float dt,bool applyDamage=true)

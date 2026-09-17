@@ -1,0 +1,683 @@
+{
+  "version": 2,
+  "notes": "문장/파트너 설정과 공식 장비에서 영감을 받은 게임용 분류. 수치·합성식은 오리지널 밸런스이며 캡슐은 향후 증강 전용으로 예약.",
+  "traits": [
+    {
+      "id": "courage",
+      "name": "용기",
+      "category": "문장",
+      "members": [
+        "koromon",
+        "agumon",
+        "greymon",
+        "metalgreymon",
+        "wargreymon"
+      ],
+      "description": "정면 돌파에 강한 태일의 파트너 계열. 해당 디지몬에게 적용.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격력 +12% · 체력 70% 이상인 적에게 피해 +8%",
+          "bonus": {
+            "attack": 0.12,
+            "highHealthDamage": 0.08
+          }
+        },
+        {
+          "count": 3,
+          "text": "공격력 +22% · 체력 70% 이상인 적에게 피해 +14%",
+          "bonus": {
+            "attack": 0.22,
+            "highHealthDamage": 0.14
+          }
+        },
+        {
+          "count": 5,
+          "text": "공격력 +38% · 체력 70% 이상인 적에게 피해 +22%",
+          "bonus": {
+            "attack": 0.38,
+            "highHealthDamage": 0.22
+          }
+        }
+      ]
+    },
+    {
+      "id": "friendship",
+      "name": "우정",
+      "category": "문장",
+      "members": [
+        "tsunomon",
+        "gabumon",
+        "garurumon",
+        "weregarurumon",
+        "metalgarurumon"
+      ],
+      "description": "빠른 공격과 전투 시작 보호막. 해당 디지몬에게 적용.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격 속도 +15% · 시작 보호막 최대 체력의 8%",
+          "bonus": {
+            "speed": 0.15,
+            "startShield": 0.08
+          }
+        },
+        {
+          "count": 3,
+          "text": "공격 속도 +25% · 시작 보호막 최대 체력의 14%",
+          "bonus": {
+            "speed": 0.25,
+            "startShield": 0.14
+          }
+        },
+        {
+          "count": 5,
+          "text": "공격 속도 +45% · 시작 보호막 최대 체력의 22%",
+          "bonus": {
+            "speed": 0.45,
+            "startShield": 0.22
+          }
+        }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "name": "지식",
+      "category": "문장",
+      "members": [
+        "mochimon",
+        "tentomon",
+        "kabuterimon",
+        "atlur",
+        "herakle"
+      ],
+      "description": "마나를 축적해 기술을 반복하는 한솔의 파트너 계열. 해당 디지몬에게 적용.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "초당 마나 +3 · 스킬 피해 +10%",
+          "bonus": {
+            "manaRegen": 3,
+            "skill": 0.1
+          }
+        },
+        {
+          "count": 3,
+          "text": "초당 마나 +5 · 스킬 피해 +20%",
+          "bonus": {
+            "manaRegen": 5,
+            "skill": 0.2
+          }
+        },
+        {
+          "count": 5,
+          "text": "초당 마나 +8 · 스킬 피해 +35%",
+          "bonus": {
+            "manaRegen": 8,
+            "skill": 0.35
+          }
+        }
+      ]
+    },
+    {
+      "id": "sincerity",
+      "name": "순수",
+      "category": "문장",
+      "members": [
+        "tanemon",
+        "palmon",
+        "togemon",
+        "lilimon",
+        "rosemon"
+      ],
+      "description": "체력을 재생하는 미나의 파트너 계열. 해당 디지몬에게 적용.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "초당 최대 체력 1% 재생 · 회복량 +10%",
+          "bonus": {
+            "regen": 0.01,
+            "healPower": 0.1
+          }
+        },
+        {
+          "count": 3,
+          "text": "초당 최대 체력 1.8% 재생 · 회복량 +20%",
+          "bonus": {
+            "regen": 0.018,
+            "healPower": 0.2
+          }
+        },
+        {
+          "count": 5,
+          "text": "초당 최대 체력 3% 재생 · 회복량 +35%",
+          "bonus": {
+            "regen": 0.03,
+            "healPower": 0.35
+          }
+        }
+      ]
+    },
+    {
+      "id": "love",
+      "name": "사랑",
+      "category": "문장",
+      "members": [
+        "pyocomon",
+        "piyomon",
+        "birdramon",
+        "garudamon",
+        "hououmon"
+      ],
+      "description": "스킬 시전 시 체력 비율이 가장 낮은 아군 1명을 회복. 시전자 자신도 대상.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "스킬 피해 +15% · 시전 시 대상 최대 체력의 5% 회복",
+          "bonus": {
+            "skill": 0.15,
+            "castHeal": 0.05
+          }
+        },
+        {
+          "count": 3,
+          "text": "스킬 피해 +28% · 시전 시 대상 최대 체력의 8% 회복",
+          "bonus": {
+            "skill": 0.28,
+            "castHeal": 0.08
+          }
+        },
+        {
+          "count": 5,
+          "text": "스킬 피해 +45% · 시전 시 대상 최대 체력의 12% 회복",
+          "bonus": {
+            "skill": 0.45,
+            "castHeal": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "hope",
+      "name": "희망",
+      "category": "문장",
+      "members": [
+        "tokomon",
+        "patamon",
+        "angemon",
+        "holyangemon",
+        "seraphimon"
+      ],
+      "description": "첫 스킬을 앞당기고 위기에서 버티는 리키의 파트너 계열. 해당 디지몬에게 적용.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "시작 마나 +15 · 체력 35% 이하 생존 시 보호막 15% (전투당 1회)",
+          "bonus": {
+            "startMana": 15,
+            "lowShield": 0.15
+          }
+        },
+        {
+          "count": 3,
+          "text": "시작 마나 +25 · 체력 35% 이하 생존 시 보호막 25% (전투당 1회)",
+          "bonus": {
+            "startMana": 25,
+            "lowShield": 0.25
+          }
+        },
+        {
+          "count": 5,
+          "text": "시작 마나 +40 · 체력 35% 이하 생존 시 보호막 40% (전투당 1회)",
+          "bonus": {
+            "startMana": 40,
+            "lowShield": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "id": "fighter",
+      "name": "투사",
+      "category": "전투",
+      "members": [
+        "koromon",
+        "agumon",
+        "garurumon",
+        "angemon",
+        "weregarurumon",
+        "wargreymon"
+      ],
+      "description": "기본 공격으로 깎은 실제 체력에 비례해 자신을 회복. 보호막 피해·스킬 피해에는 흡혈 없음.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격력 +10% · 기본 공격 흡혈 8%",
+          "bonus": {
+            "attack": 0.1,
+            "lifesteal": 0.08
+          }
+        },
+        {
+          "count": 4,
+          "text": "공격력 +18% · 기본 공격 흡혈 14%",
+          "bonus": {
+            "attack": 0.18,
+            "lifesteal": 0.14
+          }
+        },
+        {
+          "count": 6,
+          "text": "공격력 +30% · 기본 공격 흡혈 22%",
+          "bonus": {
+            "attack": 0.3,
+            "lifesteal": 0.22
+          }
+        }
+      ]
+    },
+    {
+      "id": "guardian",
+      "name": "수호자",
+      "category": "전투",
+      "members": [
+        "mochimon",
+        "tentomon",
+        "togemon",
+        "greymon",
+        "atlur",
+        "herakle"
+      ],
+      "description": "해당 디지몬의 최대 체력과 모든 피해에 대한 저항 증가.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "최대 체력 +15% · 받는 피해 -5%",
+          "bonus": {
+            "hp": 0.15,
+            "reduction": 0.05
+          }
+        },
+        {
+          "count": 4,
+          "text": "최대 체력 +30% · 받는 피해 -10%",
+          "bonus": {
+            "hp": 0.3,
+            "reduction": 0.1
+          }
+        },
+        {
+          "count": 6,
+          "text": "최대 체력 +50% · 받는 피해 -16%",
+          "bonus": {
+            "hp": 0.5,
+            "reduction": 0.16
+          }
+        }
+      ]
+    },
+    {
+      "id": "artillery",
+      "name": "포격수",
+      "category": "전투",
+      "members": [
+        "tsunomon",
+        "gabumon",
+        "birdramon",
+        "metalgreymon",
+        "garudamon",
+        "metalgarurumon"
+      ],
+      "description": "해당 디지몬이 기본 공격 3회마다 강화탄 발사. 강화탄은 공격 횟수를 추가하지 않음.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격 속도 +15% · 3번째 기본 공격 피해 +20%",
+          "bonus": {
+            "speed": 0.15,
+            "thirdHit": 0.2
+          }
+        },
+        {
+          "count": 4,
+          "text": "공격 속도 +30% · 3번째 기본 공격 피해 +40%",
+          "bonus": {
+            "speed": 0.3,
+            "thirdHit": 0.4
+          }
+        },
+        {
+          "count": 6,
+          "text": "공격 속도 +50% · 3번째 기본 공격 피해 +70%",
+          "bonus": {
+            "speed": 0.5,
+            "thirdHit": 0.7
+          }
+        }
+      ]
+    },
+    {
+      "id": "caster",
+      "name": "술사",
+      "category": "전투",
+      "members": [
+        "pyocomon",
+        "piyomon",
+        "kabuterimon",
+        "holyangemon",
+        "hououmon",
+        "seraphimon"
+      ],
+      "description": "해당 디지몬의 기술 위력과 기본 공격 시 마나 수급 증가.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "스킬 피해 +20% · 기본 공격 마나 +2",
+          "bonus": {
+            "skill": 0.2,
+            "manaOnAttack": 2
+          }
+        },
+        {
+          "count": 4,
+          "text": "스킬 피해 +40% · 기본 공격 마나 +4",
+          "bonus": {
+            "skill": 0.4,
+            "manaOnAttack": 4
+          }
+        },
+        {
+          "count": 6,
+          "text": "스킬 피해 +70% · 기본 공격 마나 +7",
+          "bonus": {
+            "skill": 0.7,
+            "manaOnAttack": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "harmonizer",
+      "name": "조율자",
+      "category": "전투",
+      "members": [
+        "tanemon",
+        "tokomon",
+        "palmon",
+        "patamon",
+        "lilimon",
+        "rosemon"
+      ],
+      "description": "모든 아군에게 시작 보호막을 한 번 부여. 조율자는 시전 시 체력 비율이 가장 낮은 아군 1명 회복.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "아군 시작 보호막 5% · 시전 시 대상 최대 체력 4% 회복",
+          "bonus": {
+            "teamShield": 0.05,
+            "castHeal": 0.04
+          }
+        },
+        {
+          "count": 4,
+          "text": "아군 시작 보호막 9% · 시전 시 대상 최대 체력 7% 회복",
+          "bonus": {
+            "teamShield": 0.09,
+            "castHeal": 0.07
+          }
+        },
+        {
+          "count": 6,
+          "text": "아군 시작 보호막 14% · 시전 시 대상 최대 체력 10% 회복",
+          "bonus": {
+            "teamShield": 0.14,
+            "castHeal": 0.1
+          }
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": 0,
+      "name": "레오몬의 검",
+      "icon": "검",
+      "kind": "component",
+      "owner": "레오몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=leomon",
+      "description": "공격력 +12%",
+      "bonus": {
+        "attack": 0.12
+      },
+      "recipe": []
+    },
+    {
+      "id": 1,
+      "name": "크롬디지조이드 갑주",
+      "icon": "갑",
+      "kind": "component",
+      "owner": "워그레이몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "체력 +120",
+      "bonus": {
+        "health": 120
+      },
+      "recipe": []
+    },
+    {
+      "id": 2,
+      "name": "베렌헤나",
+      "icon": "총",
+      "kind": "component",
+      "owner": "베르제브몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=beelzebumon",
+      "description": "공격 속도 +12%",
+      "bonus": {
+        "speed": 0.12
+      },
+      "recipe": []
+    },
+    {
+      "id": 3,
+      "name": "홀리 링",
+      "icon": "링",
+      "kind": "component",
+      "owner": "가트몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=tailmon",
+      "description": "시작 마나 +15 · 스킬 피해 +12%",
+      "bonus": {
+        "startMana": 15,
+        "skill": 0.12
+      },
+      "recipe": []
+    },
+    {
+      "id": 4,
+      "name": "드라몬 킬러",
+      "icon": "용",
+      "kind": "completed",
+      "owner": "워그레이몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "공격력 +35% · 체력 70% 이상인 적에게 피해 +15%",
+      "bonus": {
+        "attack": 0.35,
+        "highHealthDamage": 0.15
+      },
+      "recipe": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": 5,
+      "name": "그레이 소드",
+      "icon": "검",
+      "kind": "completed",
+      "owner": "오메가몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
+      "description": "공격력 +25% · 체력 +120 · 기본 공격 흡혈 12%",
+      "bonus": {
+        "attack": 0.25,
+        "health": 120,
+        "lifesteal": 0.12
+      },
+      "recipe": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "name": "가루루 캐논",
+      "icon": "빙",
+      "kind": "completed",
+      "owner": "오메가몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
+      "description": "공격력 +15% · 공격 속도 +20% · 기본 공격 3회마다 0.4초 기절",
+      "bonus": {
+        "attack": 0.15,
+        "speed": 0.2,
+        "thirdStun": 0.4
+      },
+      "recipe": [
+        0,
+        2
+      ]
+    },
+    {
+      "id": 7,
+      "name": "성창 그람",
+      "icon": "창",
+      "kind": "completed",
+      "owner": "듀크몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
+      "description": "공격력 +20% · 스킬 피해 +25% · 기본 공격 흡혈 8%",
+      "bonus": {
+        "attack": 0.2,
+        "skill": 0.25,
+        "lifesteal": 0.08
+      },
+      "recipe": [
+        0,
+        3
+      ]
+    },
+    {
+      "id": 8,
+      "name": "브레이브 실드",
+      "icon": "방",
+      "kind": "completed",
+      "owner": "워그레이몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회)",
+      "bonus": {
+        "health": 300,
+        "reduction": 0.12,
+        "lowShield": 0.25
+      },
+      "recipe": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": 9,
+      "name": "이지스",
+      "icon": "성",
+      "kind": "completed",
+      "owner": "듀크몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
+      "description": "체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20%",
+      "bonus": {
+        "health": 220,
+        "speed": 0.15,
+        "startShield": 0.2
+      },
+      "recipe": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": 10,
+      "name": "티파레트",
+      "icon": "꽃",
+      "kind": "completed",
+      "owner": "로제몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=rosemon",
+      "description": "체력 +220 · 초당 최대 체력 1.5% 재생 · 회복량 +20%",
+      "bonus": {
+        "health": 220,
+        "regen": 0.015,
+        "healPower": 0.2
+      },
+      "recipe": [
+        1,
+        3
+      ]
+    },
+    {
+      "id": 11,
+      "name": "라이즈그레이몬의 리볼버",
+      "icon": "탄",
+      "kind": "completed",
+      "owner": "라이즈그레이몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=rizegreymon",
+      "description": "공격 속도 +40% · 기본 공격 마나 +4",
+      "bonus": {
+        "speed": 0.4,
+        "manaOnAttack": 4
+      },
+      "recipe": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": 12,
+      "name": "엑스칼리버",
+      "icon": "빛",
+      "kind": "completed",
+      "owner": "홀리엔젤몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
+      "description": "스킬 피해 +45% · 시작 마나 +20",
+      "bonus": {
+        "skill": 0.45,
+        "startMana": 20
+      },
+      "recipe": [
+        2,
+        3
+      ]
+    },
+    {
+      "id": 13,
+      "name": "빔 실드",
+      "icon": "막",
+      "kind": "completed",
+      "owner": "홀리엔젤몬",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
+      "description": "체력 +180 · 스킬 피해 +35% · 시전 시 자신에게 최대 체력 12% 보호막",
+      "bonus": {
+        "health": 180,
+        "skill": 0.35,
+        "castShield": 0.12
+      },
+      "recipe": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": 14,
+      "name": "자석 제거기",
+      "icon": "↩",
+      "kind": "utility",
+      "owner": "",
+      "source": "",
+      "description": "장비를 모두 보관함으로 회수하는 소모품 · 합성 불가",
+      "bonus": {},
+      "recipe": []
+    }
+  ]
+}

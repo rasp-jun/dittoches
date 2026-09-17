@@ -33,6 +33,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private sealed class SkillMeta { public float startMana,maxMana,power;public SkillMeta(float start,float max,float ratio){startMana=start;maxMana=max;power=ratio;} }
     private sealed class Fighter
     {
+        public DigimonBuildCatalog.Bonus build=new DigimonBuildCatalog.Bonus(); public int attacks; public bool lowShieldUsed; public float regenClock;
         public Unit unit; public Fighter target; public SkillCast skillCast; public float diedAt; public bool enemy, dead; public Vector2 pos, renderPos, renderVelocity, attackTarget; public float hp, maxHp, shield, mana, maxMana=100, cooldown, stun, hitFlash, healFlash, shieldFlash, attackFlash, skillFlash, attackScale=1f, damageDone, healingDone, shieldingDone; public int casts;
     }
     private sealed class LootOrb { public Vector2 pos; public int rarity, rewardType, amount; }
@@ -67,9 +68,9 @@ public sealed partial class NativeGame : MonoBehaviour
     private static readonly string[] RivalNames={"태일","매튜","소라","미나","리키","한솔","나리"};
     private static readonly float[] DifficultyScale={.88f,1f,1.12f};
     private static readonly int[,] ShopOdds={{100,0,0,0,0},{100,0,0,0,0},{75,25,0,0,0},{55,30,15,0,0},{40,35,23,2,0},{25,40,28,7,0},{18,30,35,16,1},{15,20,32,28,5},{10,15,25,35,15}};
-    private static readonly string[] ItemNames={"공격 데이터","크롬디지조이드 조각","순수 에너지","생명 파편","용기의 문장","우정의 문장","사랑의 문장","성실의 문장","지식의 문장","희망의 문장","순수의 문장","빛의 문장","기적의 캡슐","운명의 캡슐","자석 제거기"};
-    private static readonly string[] ItemIcons={"✦","⬡","✧","❋","☀","∞","♥","✚","◈","✴","❀","✵","⬢","◆","↩"};
-    private static readonly string[] ItemDescriptions={"공격력 +12% · 다른 재료와 장착 시 자동 합성","체력 +120 · 다른 재료와 장착 시 자동 합성","공격 속도 +12% · 다른 재료와 장착 시 자동 합성","체력 +150 · 다른 재료와 장착 시 자동 합성","공격력 +40%","공격력 +22% · 공격 속도 +25% · 체력 +80","공격력 +18% · 공격 속도 +18%","공격력 +20% · 체력 +120","체력 +250 · 방어 강화","체력 +180 · 공격 속도 +15%","체력 +500 · 재생 강화","공격 속도 +35% · 스킬 강화","체력 +200 · 공격 속도 +20%","체력 +650 · 시작 보호막","유닛의 모든 장비를 보관함으로 회수하는 1회용 소모품"};
+    private static readonly string[] LegacyItemNames={"공격 데이터","크롬디지조이드 조각","순수 에너지","생명 파편","용기의 문장","우정의 문장","사랑의 문장","성실의 문장","지식의 문장","희망의 문장","순수의 문장","빛의 문장","기적의 캡슐","운명의 캡슐","자석 제거기"};
+    private static readonly string[] LegacyItemIcons={"✦","⬡","✧","❋","☀","∞","♥","✚","◈","✴","❀","✵","⬢","◆","↩"};
+    private static readonly string[] LegacyItemDescriptions={"공격력 +12% · 다른 재료와 장착 시 자동 합성","체력 +120 · 다른 재료와 장착 시 자동 합성","공격 속도 +12% · 다른 재료와 장착 시 자동 합성","체력 +150 · 다른 재료와 장착 시 자동 합성","공격력 +40%","공격력 +22% · 공격 속도 +25% · 체력 +80","공격력 +18% · 공격 속도 +18%","공격력 +20% · 체력 +120","체력 +250 · 방어 강화","체력 +180 · 공격 속도 +15%","체력 +500 · 재생 강화","공격 속도 +35% · 스킬 강화","체력 +200 · 공격 속도 +20%","체력 +650 · 시작 보호막","유닛의 모든 장비를 보관함으로 회수하는 1회용 소모품"};
     private static readonly int[,] ItemRecipes={{4,5,6,7},{5,8,9,10},{6,9,11,12},{7,10,12,13}};
     private readonly Unit[] board=new Unit[28], bench=new Unit[9];
     private readonly UnitDef[] shop=new UnitDef[5];
@@ -354,7 +355,7 @@ public sealed partial class NativeGame : MonoBehaviour
             if(index>=inventory.Count)continue;
             int item=inventory[index];Event e=Event.current;
             if(GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&ir.Contains(e.mousePosition))
-            {traitFocus=null;recipeFocus=item;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+2.8f;e.Use();}
+            {traitFocus=null;recipeFocus=item;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+(artPack==0?60f:2.8f);e.Use();}
             else if(GUI.Button(ir,new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button))SelectInventoryItem(index);
         }
         if(Btn(new Rect(38,686,42,28),"‹",inventoryPage>0))inventoryPage--;
@@ -367,13 +368,14 @@ public sealed partial class NativeGame : MonoBehaviour
     private int RoleCount(string role){return board.Where(u=>u!=null&&u.def.role==role).Select(u=>u.def.id).Distinct().Count();}
     private List<TraitEntry> TeamTraits()
     {
+        if(artPack==0)return BuildTraits();
         Unit[] unique=board.Where(u=>u!=null).GroupBy(u=>u.def.id).Select(g=>g.First()).ToArray();List<TraitEntry> result=new List<TraitEntry>();
         foreach(var group in unique.GroupBy(u=>Meta(u.def.id).attr))result.Add(new TraitEntry("속성",group.Key,group.Count()));foreach(var group in unique.GroupBy(u=>Meta(u.def.id).family))result.Add(new TraitEntry("계열",group.Key,group.Count()));
         string[] roles={"전사","탱커","사수","마법사","지원"};foreach(string role in roles){int count=unique.Count(u=>u.def.role==role);if(count>0||result.Count<2)result.Add(new TraitEntry("역할",role,count));}
         return result.OrderByDescending(t=>TraitTier(t.category,t.count)).ThenByDescending(t=>t.count).ThenBy(t=>t.name).ToList();
     }
-    private int TraitTier(string category,int count){int second=category=="계열"?3:4,third=category=="계열"?4:6;return count>=third?3:count>=second?2:count>=2?1:0;}
-    private int TraitTarget(string category,int count){int[] values=category=="계열"?new[]{2,3,4}:new[]{2,4,6};foreach(int value in values)if(count<value)return value;return values[2];}
+    private int TraitTier(string category,int count){int second=category=="문장"?3:category=="계열"?3:4,third=category=="문장"?5:category=="계열"?4:6;return count>=third?3:count>=second?2:count>=2?1:0;}
+    private int TraitTarget(string category,int count){int[] values=category=="문장"?new[]{2,3,5}:category=="계열"?new[]{2,3,4}:new[]{2,4,6};foreach(int value in values)if(count<value)return value;return values[2];}
     private Color TraitColor(int tier){return tier>=3?new Color(1f,.72f,.18f):tier==2?new Color(.62f,.72f,.90f):tier==1?new Color(.72f,.43f,.22f):new Color(.18f,.25f,.32f);}
     private void Trait(float y,TraitEntry entry)
     {
@@ -388,17 +390,19 @@ public sealed partial class NativeGame : MonoBehaviour
         bool right=GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&r.Contains(e.mousePosition);
         if(right||GUI.Button(r,new GUIContent("",TraitEffectText(entry.category,entry.key,tier)),GUIStyle.none))
         {
-            showRecipeGuide=false;traitFocus=entry;traitGuideUntil=Time.unscaledTime+3.5f;
+            showRecipeGuide=false;traitFocus=entry;traitGuideUntil=Time.unscaledTime+(artPack==0?60f:3.5f);
             if(right)e.Use();
         }
     }
     private void DrawTraitGuide()
     {
+        if(artPack==0){DrawBuildTraitGuide();return;}
         int tier=TraitTier(traitFocus.category,traitFocus.count);Rect r=new Rect(270,145,475,155);GUI.Box(r,GUIContent.none,card);DrawRect(new Rect(r.x,r.y,6,r.height),TraitColor(tier));GUI.Label(new Rect(r.x+22,r.y+12,430,30),traitFocus.name+"  ·  "+(tier==0?"비활성":""+tier+"단계 활성"),header);GUI.Label(new Rect(r.x+22,r.y+49,430,28),$"현재 {traitFocus.count}명  ·  구간 {TraitThresholdText(traitFocus.category)}",small);GUI.Label(new Rect(r.x+22,r.y+78,430,54),TraitEffectText(traitFocus.category,traitFocus.key,tier),small);GUI.Label(new Rect(r.x+335,r.y+131,115,18),"3.5초 후 닫힘",small);
     }
-    private string TraitThresholdText(string category){return category=="계열"?"2 / 3 / 4":"2 / 4 / 6";}
+    private string TraitThresholdText(string category){return category=="문장"?"2 / 3 / 5":category=="계열"?"2 / 3 / 4":"2 / 4 / 6";}
     private string TraitEffectText(string category,string key,int tier)
     {
+        if(artPack==0)return BuildTraitText(key,tier);
         if(tier==0)return "2명을 배치하면 첫 단계 효과가 활성화됩니다.";string[] values=tier==1?new[]{"8%","10%","12%"}:tier==2?new[]{"16%","20%","25%"}:new[]{"28%","35%","45%"};
         if(category=="속성")return key=="백신"?"백신 디지몬 최대 체력 +"+values[1]:key=="데이터"?"데이터 디지몬 공격 속도 +"+values[0]:"바이러스 디지몬 공격력 +"+values[0];
         if(category=="계열")return key=="용형"?"용형 디지몬 공격력 +"+values[0]:key=="야수형"?"야수형 디지몬 공격 속도 +"+values[0]:key=="곤충형"?"곤충형 디지몬 최대 체력 +"+values[1]:key=="천사형"?"천사형 디지몬 시작 마나 +"+(tier*10):"식물형 디지몬 회복 효과 +"+values[2];
@@ -503,6 +507,7 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private void DrawRecipeGuide()
     {
+        if(artPack==0){DrawBuildRecipeGuide();return;}
         float h=recipeFocus<=3?270:150,x=270,y=470;GUI.Box(new Rect(x,y,470,h),GUIContent.none,card);DrawRect(new Rect(x,y,5,h),accent);GUI.Label(new Rect(x+22,y+12,425,28),"빠른 조합표",header);
         if(recipeFocus>=0&&recipeFocus<ItemNames.Length)GUI.Label(new Rect(x+22,y+43,425,28),ItemIcons[recipeFocus]+"  "+ItemNames[recipeFocus]+" · "+ItemDescriptions[recipeFocus],small);
         if(recipeFocus<=3)
@@ -556,6 +561,7 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         if(selectedItem<0||selectedItem>=inventory.Count)return;
         int item=inventory[selectedItem];
+        if(artPack==0&&battling&&board.Contains(unit)){NotifyPlacement("전장 장비 변경은 준비 단계에 가능합니다");return;}
         if(item==14)
         {
             if(unit.items.Count==0){NotifyPlacement("회수할 장비가 없는 유닛입니다");return;}
@@ -675,6 +681,7 @@ public sealed partial class NativeGame : MonoBehaviour
             for(int i=0;i<enemyCount;i++){Unit copy=new Unit(enemy);copy.star=Mathf.Clamp(1+round/9,1,3);fighters.Add(CreateFighter(copy,true,new Vector2(i%7,(i/7)+1)));}
         }
         else SetupRivalTeam(stage,step);
+        InitializeBuildBonuses();
     }
     private void SetupRivalTeam(int stage,int step)
     {
@@ -686,10 +693,10 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private Fighter CreateFighter(Unit unit,bool enemy,Vector2 pos)
     {
-        float scale=1f;if(enemy){int stage=round<=3?1:2+(round-4)/7,step=round<=3?round:1+(round-4)%7;scale=RoundType()=="크립"?(stage==1?.38f+.12f*step:1f+.18f*(stage-2)):DifficultyScale[difficulty]*(1+round*.035f);}UnitMeta meta=Meta(unit.def.id);float itemHp=unit.items.Sum(ItemHealth),healthBonus=0;if(!enemy){if(unit.def.role=="탱커")healthBonus+=TierBonus(TraitLevel("역할","탱커"),.10f,.20f,.35f);if(unit.def.role=="지원")healthBonus+=TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);if(meta.attr=="백신")healthBonus+=TierBonus(TraitLevel("속성","백신"),.10f,.20f,.35f);if(meta.family=="곤충형")healthBonus+=TierBonus(TraitLevel("계열","곤충형"),.10f,.20f,.35f);}float health=(meta.hp+itemHp)*Mathf.Pow(1.8f,unit.star-1)*scale*(1+healthBonus);
-        SkillMeta skill=Skill(unit.def.id);float startMana=skill.startMana;if(!enemy&&meta.family=="천사형")startMana+=TraitLevel("계열","천사형")*10;return new Fighter{unit=unit,enemy=enemy,pos=pos,renderPos=pos,hp=health,maxHp=health,mana=Mathf.Min(skill.maxMana,startMana),maxMana=skill.maxMana,attackScale=scale,cooldown=UnityEngine.Random.Range(.1f,.55f)};
+        float scale=1f;if(enemy){int stage=round<=3?1:2+(round-4)/7,step=round<=3?round:1+(round-4)%7;scale=RoundType()=="크립"?(stage==1?.38f+.12f*step:1f+.18f*(stage-2)):DifficultyScale[difficulty]*(1+round*.035f);}UnitMeta meta=Meta(unit.def.id);float itemHp=unit.items.Sum(ItemHealth),healthBonus=0;if(artPack!=0&&!enemy){if(unit.def.role=="탱커")healthBonus+=TierBonus(TraitLevel("역할","탱커"),.10f,.20f,.35f);if(unit.def.role=="지원")healthBonus+=TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);if(meta.attr=="백신")healthBonus+=TierBonus(TraitLevel("속성","백신"),.10f,.20f,.35f);if(meta.family=="곤충형")healthBonus+=TierBonus(TraitLevel("계열","곤충형"),.10f,.20f,.35f);}float health=(meta.hp+itemHp)*Mathf.Pow(1.8f,unit.star-1)*scale*(1+healthBonus);
+        SkillMeta skill=Skill(unit.def.id);float startMana=skill.startMana;if(artPack!=0&&!enemy&&meta.family=="천사형")startMana+=TraitLevel("계열","천사형")*10;return new Fighter{unit=unit,enemy=enemy,pos=pos,renderPos=pos,hp=health,maxHp=health,mana=Mathf.Min(skill.maxMana,startMana),maxMana=skill.maxMana,attackScale=scale,cooldown=UnityEngine.Random.Range(.1f,.55f)};
     }
-    private int TraitCount(string category,string key){return board.Where(u=>u!=null).GroupBy(u=>u.def.id).Select(g=>g.First()).Count(u=>category=="역할"?u.def.role==key:category=="속성"?Meta(u.def.id).attr==key:Meta(u.def.id).family==key);}
+    private int TraitCount(string category,string key){if(artPack==0){var trait=DigimonBuildCatalog.Find(key);return trait==null?0:DigimonBuildCatalog.Count(trait,board.Where(u=>u!=null).Select(u=>u.def.id));}return board.Where(u=>u!=null).GroupBy(u=>u.def.id).Select(g=>g.First()).Count(u=>category=="역할"?u.def.role==key:category=="속성"?Meta(u.def.id).attr==key:Meta(u.def.id).family==key);}
     private int TraitLevel(string category,string key){return TraitTier(category,TraitCount(category,key));}
     private float TierBonus(int tier,float first,float second,float third){return tier>=3?third:tier==2?second:tier==1?first:0;}
     private bool RoleActive(string role){return TraitLevel("역할",role)>0;}
@@ -702,17 +709,17 @@ public sealed partial class NativeGame : MonoBehaviour
     private void UpdateCombat(float dt)
     {
         UpdateDigimonSkills(dt);
-        foreach(Fighter f in fighters){if(f.dead)continue;if(f.unit.def.role=="마법사")f.mana=Mathf.Min(f.maxMana,f.mana+2f*dt);else if(f.unit.def.role=="지원")f.mana=Mathf.Min(f.maxMana,f.mana+1.5f*dt);f.cooldown-=dt;f.stun=Mathf.Max(0,f.stun-dt);if(f.stun>0||f.skillCast!=null)continue;Fighter target=SelectTarget(f);if(target==null)continue;
+        foreach(Fighter f in fighters){if(f.dead)continue;TickBuild(f,dt);if(f.unit.def.role=="마법사")f.mana=Mathf.Min(f.maxMana,f.mana+2f*dt);else if(f.unit.def.role=="지원")f.mana=Mathf.Min(f.maxMana,f.mana+1.5f*dt);f.cooldown-=dt;f.stun=Mathf.Max(0,f.stun-dt);if(f.stun>0||f.skillCast!=null)continue;Fighter target=SelectTarget(f);if(target==null)continue;
             UnitMeta meta=Meta(f.unit.def.id);float distance=Vector2.Distance(f.pos,target.pos),range=Mathf.Lerp(1.05f,2.9f,(meta.range-1)/3f);
             if(distance>range){float moveSpeed=(meta.range>1?.70f:1.0f)*dt;f.pos=Vector2.MoveTowards(f.pos,target.pos,moveSpeed);continue;}
-            if(f.cooldown>0)continue;if(f.mana>=f.maxMana){CastSkill(f,target);continue;}float damage=AttackDamage(f);f.attackTarget=target.renderPos;DealDamage(f,target,damage);float manaPerAttack=f.unit.def.role=="탱커"?5:f.unit.def.role=="마법사"?7:f.unit.def.role=="지원"?8:10;f.mana=Mathf.Min(f.maxMana,f.mana+manaPerAttack);f.attackFlash=.35f;float speedBonus=1+f.unit.items.Sum(ItemSpeed);if(!f.enemy){if(f.unit.def.role=="사수")speedBonus+=TierBonus(TraitLevel("역할","사수"),.08f,.16f,.28f);if(meta.attr=="데이터")speedBonus+=TierBonus(TraitLevel("속성","데이터"),.08f,.16f,.28f);if(meta.family=="야수형")speedBonus+=TierBonus(TraitLevel("계열","야수형"),.08f,.16f,.28f);}f.cooldown=1f/(meta.speed*speedBonus);if(!f.enemy&&f.unit.def.role=="전사"){float steal=TierBonus(TraitLevel("역할","전사"),.08f,.16f,.28f);if(steal>0)Heal(f,f,damage*steal);}
+            if(f.cooldown>0)continue;if(f.mana>=f.maxMana){CastSkill(f,target);continue;}f.attacks++;float damage=AttackDamage(f)*(artPack==0&&f.attacks%3==0?1+f.build.thirdHit:1);f.attackTarget=target.renderPos;DealDamage(f,target,damage);float manaPerAttack=f.unit.def.role=="탱커"?5:f.unit.def.role=="마법사"?7:f.unit.def.role=="지원"?8:10;f.mana=Mathf.Min(f.maxMana,f.mana+manaPerAttack+(artPack==0?f.build.manaOnAttack:0));f.attackFlash=.35f;float speedBonus=1+(artPack==0?f.build.speed:f.unit.items.Sum(ItemSpeed));if(artPack!=0&&!f.enemy){if(f.unit.def.role=="사수")speedBonus+=TierBonus(TraitLevel("역할","사수"),.08f,.16f,.28f);if(meta.attr=="데이터")speedBonus+=TierBonus(TraitLevel("속성","데이터"),.08f,.16f,.28f);if(meta.family=="야수형")speedBonus+=TierBonus(TraitLevel("계열","야수형"),.08f,.16f,.28f);}f.cooldown=1f/(meta.speed*speedBonus);if(artPack!=0&&!f.enemy&&f.unit.def.role=="전사"){float steal=TierBonus(TraitLevel("역할","전사"),.08f,.16f,.28f);if(steal>0)Heal(f,f,damage*steal);}
         }
         SeparateCombatants(dt);
     }
-    private float AttackDamage(Fighter f){UnitMeta meta=Meta(f.unit.def.id);float bonus=0;if(!f.enemy){if(f.unit.def.role=="전사"||f.unit.def.role=="마법사")bonus+=TierBonus(TraitLevel("역할",f.unit.def.role),.08f,.16f,.28f);if(meta.attr=="바이러스")bonus+=TierBonus(TraitLevel("속성","바이러스"),.08f,.16f,.28f);if(meta.family=="용형")bonus+=TierBonus(TraitLevel("계열","용형"),.08f,.16f,.28f);}return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.unit.items.Sum(ItemAttack))*(1+bonus)*(f.enemy?f.attackScale:1f);}
-    private void DealDamage(Fighter source,Fighter target,float damage){if(!applyingSkillDamage)RecordAttackTrace(source,target);float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;target.diedAt=Time.unscaledTime;}}
-    private void Heal(Fighter source,Fighter target,float amount){if(!source.enemy){UnitMeta meta=Meta(source.unit.def.id);if(meta.family=="식물형")amount*=1+TierBonus(TraitLevel("계열","식물형"),.12f,.25f,.45f);if(source.unit.def.role=="지원")amount*=1+TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);}float actual=Mathf.Min(target.maxHp-target.hp,amount);target.hp+=Mathf.Max(0,actual);target.healFlash=.28f;source.healingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,1f,.55f));}
-    private void Shield(Fighter source,Fighter target,float amount){float cap=target.maxHp*.5f,actual=Mathf.Min(cap-target.shield,amount);target.shield+=Mathf.Max(0,actual);target.shieldFlash=.35f;source.shieldingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,.75f,1f));}
+    private float AttackDamage(Fighter f){UnitMeta meta=Meta(f.unit.def.id);float bonus=0;if(artPack==0)return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.build.attack)*(f.enemy?f.attackScale:1f);if(!f.enemy){if(f.unit.def.role=="전사"||f.unit.def.role=="마법사")bonus+=TierBonus(TraitLevel("역할",f.unit.def.role),.08f,.16f,.28f);if(meta.attr=="바이러스")bonus+=TierBonus(TraitLevel("속성","바이러스"),.08f,.16f,.28f);if(meta.family=="용형")bonus+=TierBonus(TraitLevel("계열","용형"),.08f,.16f,.28f);}return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.unit.items.Sum(ItemAttack))*(1+bonus)*(f.enemy?f.attackScale:1f);}
+    private void DealDamage(Fighter source,Fighter target,float damage){if(target.dead)return;if(!applyingSkillDamage)RecordAttackTrace(source,target);if(artPack==0){damage*=1-Mathf.Clamp(target.build.reduction,0,.6f);if(target.hp>=target.maxHp*.7f)damage*=1+source.build.highHealthDamage;}float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;target.diedAt=Time.unscaledTime;}if(artPack==0){OnBuildDamaged(target);if(!applyingSkillDamage){if(!source.dead&&actual>0&&source.build.lifesteal>0)Heal(source,source,actual*source.build.lifesteal);if(!target.dead&&source.attacks%3==0)target.stun=Mathf.Max(target.stun,source.build.thirdStun);}}}
+    private void Heal(Fighter source,Fighter target,float amount){if(target.dead)return;if(artPack==0)amount*=1+source.build.healPower;if(artPack!=0&&!source.enemy){UnitMeta meta=Meta(source.unit.def.id);if(meta.family=="식물형")amount*=1+TierBonus(TraitLevel("계열","식물형"),.12f,.25f,.45f);if(source.unit.def.role=="지원")amount*=1+TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);}float actual=Mathf.Min(target.maxHp-target.hp,amount);target.hp+=Mathf.Max(0,actual);target.healFlash=.28f;source.healingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,1f,.55f));}
+    private void Shield(Fighter source,Fighter target,float amount){if(target.dead)return;float cap=target.maxHp*.5f,actual=Mathf.Min(cap-target.shield,amount);target.shield+=Mathf.Max(0,actual);target.shieldFlash=.35f;source.shieldingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,.75f,1f));}
     private void CastSkill(Fighter caster,Fighter target)
     {
         if(StartDigimonSkill(caster,target))return;
@@ -723,9 +730,9 @@ public sealed partial class NativeGame : MonoBehaviour
         if(role=="마법사"){DealDamage(caster,target,power*1.35f);target.stun=Mathf.Max(target.stun,.35f+caster.unit.def.cost*.09f);foreach(Fighter other in fighters.Where(x=>!x.dead&&x.enemy!=caster.enemy&&x!=target&&Vector2.Distance(x.pos,target.pos)<=SkillRadius(caster.unit.def.id)).OrderBy(x=>Vector2.Distance(x.pos,target.pos)).Take(Mathf.Max(0,count-1)).ToArray()){DealDamage(caster,other,power*.58f);other.stun=Mathf.Max(other.stun,.2f+caster.unit.def.cost*.05f);}return;}
         foreach(Fighter ally in fighters.Where(x=>!x.dead&&x.enemy==caster.enemy).OrderBy(x=>x.hp/x.maxHp).Take(count).ToArray()){float healing=power*(ally==caster?1.5f:2.2f);Heal(caster,ally,healing);Shield(caster,ally,healing*.28f);}
     }
-    private float ItemHealth(int i){switch(i){case 1:return 120;case 3:return 150;case 5:return 80;case 7:return 120;case 8:return 250;case 9:return 180;case 10:return 500;case 12:return 200;case 13:return 650;default:return 0;}}
-    private float ItemAttack(int i){switch(i){case 0:return .12f;case 4:return .4f;case 5:return .22f;case 6:return .18f;case 7:return .2f;default:return 0;}}
-    private float ItemSpeed(int i){switch(i){case 2:return .12f;case 5:return .25f;case 6:return .18f;case 9:return .15f;case 11:return .35f;case 12:return .2f;default:return 0;}}
+    private float ItemHealth(int i){if(artPack==0)return DigimonBuildCatalog.Data.items[i].bonus.health;switch(i){case 1:return 120;case 3:return 150;case 5:return 80;case 7:return 120;case 8:return 250;case 9:return 180;case 10:return 500;case 12:return 200;case 13:return 650;default:return 0;}}
+    private float ItemAttack(int i){if(artPack==0)return DigimonBuildCatalog.Data.items[i].bonus.attack;switch(i){case 0:return .12f;case 4:return .4f;case 5:return .22f;case 6:return .18f;case 7:return .2f;default:return 0;}}
+    private float ItemSpeed(int i){if(artPack==0)return DigimonBuildCatalog.Data.items[i].bonus.speed;switch(i){case 2:return .12f;case 5:return .25f;case 6:return .18f;case 9:return .15f;case 11:return .35f;case 12:return .2f;default:return 0;}}
     private void CreateLootOrbs(){int kills=fighters.Count(f=>f.enemy&&f.dead);for(int i=0;i<kills;i++){float roll=UnityEngine.Random.value;if(roll<.42f)continue;int rarity=roll<.72f?0:roll<.92f?1:2;lootOrbs.Add(new LootOrb{rarity=rarity,rewardType=rarity==1?1:(rarity==2&&UnityEngine.Random.value<.55f?2:0),amount=rarity==2?3+Mathf.Max(1,round/7):1+UnityEngine.Random.Range(0,3),pos=new Vector2(UnityEngine.Random.Range(420,1220),UnityEngine.Random.Range(240,650))});}}
     private void CollectOrb(LootOrb orb,bool moveLegend=true,bool persist=true)
     {
@@ -784,7 +791,7 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         if(saved==null||string.IsNullOrEmpty(saved.id)||!RosterById.TryGetValue(saved.id,out UnitDef definition)||saved.star<1||saved.star>3)return null;
         Unit unit=new Unit(definition){star=saved.star};
-        if(saved.items!=null)foreach(int item in saved.items.Take(2))if(item>=0&&item<ItemNames.Length)unit.items.Add(item);
+        if(saved.items!=null)foreach(int item in saved.items.Take(2))if(item>=0&&item<15)unit.items.Add(item);
         return unit;
     }
 
@@ -803,7 +810,7 @@ public sealed partial class NativeGame : MonoBehaviour
         try
         {
             SoloSave saved=JsonUtility.FromJson<SoloSave>(PlayerPrefs.GetString(SaveKey));
-            if(saved==null||saved.version!=1||saved.board==null||saved.board.Length!=board.Length||saved.bench==null||saved.bench.Length!=bench.Length||saved.shop==null||saved.shop.Length!=shop.Length)return false;
+            if(saved==null||(saved.version!=1&&saved.version!=2)||saved.board==null||saved.board.Length!=board.Length||saved.bench==null||saved.bench.Length!=bench.Length||saved.shop==null||saved.shop.Length!=shop.Length)return false;
             difficulty=Mathf.Clamp(saved.difficulty,0,Difficulties.Length-1);
             legend=Mathf.Clamp(saved.legend,0,Legends.Length-1);
             gold=Mathf.Max(0,saved.gold);hp=Mathf.Clamp(saved.hp,0,100);level=Mathf.Clamp(saved.level,1,9);xp=Mathf.Max(0,saved.xp);round=Mathf.Max(1,saved.round);shopLocked=saved.shopLocked;
@@ -825,7 +832,7 @@ public sealed partial class NativeGame : MonoBehaviour
 
     private void Save()
     {
-        SoloSave saved=new SoloSave{version=1,difficulty=difficulty,legend=legend,gold=gold,hp=hp,level=level,xp=xp,round=round,shopLocked=shopLocked,
+        SoloSave saved=new SoloSave{version=artPack==0?2:1,difficulty=difficulty,legend=legend,gold=gold,hp=hp,level=level,xp=xp,round=round,shopLocked=shopLocked,
             board=board.Select(SaveUnit).ToArray(),bench=bench.Select(SaveUnit).ToArray(),shop=shop.Select(unit=>unit==null?"":unit.id).ToArray(),inventory=inventory.ToArray(),
             lootOrbs=lootOrbs.Select(orb=>new LootOrbSave{x=orb.pos.x,y=orb.pos.y,rarity=orb.rarity,rewardType=orb.rewardType,amount=orb.amount}).ToArray()};
         PlayerPrefs.SetString(SaveKey,JsonUtility.ToJson(saved));PlayerPrefs.SetInt("multiSoloDifficulty",difficulty);PlayerPrefs.SetInt("multiSoloLegend",legend);PlayerPrefs.Save();

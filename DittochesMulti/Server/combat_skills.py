@@ -6,6 +6,7 @@ Amounts and control durations are autochess balancing choices, not anime claims.
 import json
 import math
 from pathlib import Path
+import combat_builds as builds
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent / 'Assets/Resources/DigimonSkills.json'
 SKILLS = {s['id']: s for s in json.loads(CATALOG_PATH.read_text(encoding='utf-8'))['skills']}
@@ -80,7 +81,7 @@ def advance_cast(cast, fighters, now):
                 victims.append(f)
         victims.sort(key=lambda f: ((f['x']-cast['tx'])**2+(f['y']-cast['ty'])**2, f['key']))
         for f in victims[:skill['targets']]:
-            f['hp'] = max(0, f['hp']-cast['damage']*skill['multiplier']/skill['shots'])
+            builds.damage(source, f, cast['damage']*skill['multiplier']/skill['shots'])
             f['stun'] = max(f.get('stun', 0), skill['stun'])
             f['hitAt'] = now
             if f['hp'] > 0 and skill['visual'] == 'gate':
@@ -100,6 +101,7 @@ def simulate(fighters, definitions):
     serial = 0
     for f in fighters:
         f.update(mana=35, maxMana=75, stun=0, castUntil=0, attackAt=-10, hitAt=-10, target=-1)
+    builds.initialize(fighters)
     for step in range(481):
         now = step*step_time
         if step:
@@ -111,6 +113,7 @@ def simulate(fighters, definitions):
             for f in fighters:
                 if f['hp'] <= 0:
                     continue
+                builds.tick(f, step_time)
                 f['cooldown'] -= step_time
                 f['mana'] = min(f['maxMana'], f['mana']+step_time*2)
                 if f['stun'] > 0 or f['castUntil'] > now:
@@ -132,17 +135,20 @@ def simulate(fighters, definitions):
                     continue
                 if f['cooldown'] > 0:
                     continue
-                damage = (13+definition['cost']*5)*1.48**(f['star']-1)
+                damage = (13+definition['cost']*5)*1.48**(f['star']-1)*(1+builds.value(f, 'attack'))
                 if f['mana'] >= f['maxMana']:
                     serial += 1
-                    casts.append(begin_cast(f, target, now, serial, damage))
+                    casts.append(begin_cast(f, target, now, serial, damage*(1+builds.value(f, 'skill'))))
+                    builds.on_cast(f, fighters)
                 else:
-                    hits.append((target, damage))
+                    f['attacks'] += 1
+                    damage *= 1+(builds.value(f, 'thirdHit') if f['attacks']%3 == 0 else 0)
+                    hits.append((f, target, damage))
                     f['attackAt'] = now
-                    f['mana'] = min(f['maxMana'], f['mana']+10)
-                    f['cooldown'] = 1.05 if ranged else .78
-            for target, damage in hits:
-                target['hp'] = max(0, target['hp']-damage)
+                    f['mana'] = min(f['maxMana'], f['mana']+10+builds.value(f, 'manaOnAttack'))
+                    f['cooldown'] = (1.05 if ranged else .78)/(1+builds.value(f, 'speed'))
+            for source, target, damage in hits:
+                builds.damage(source, target, damage, basic=True)
                 target['hitAt'] = now
                 if target['hp'] > 0:
                     target['mana'] = min(target['maxMana'], target['mana']+5)
@@ -150,7 +156,7 @@ def simulate(fighters, definitions):
         projectiles = any(c['released'] and not c['cancelled'] and c['hits'] < SKILLS[c['id']]['shots'] for c in casts)
         finished = len(living_sides) < 2 and not projectiles
         if step % 4 == 0 or finished or step == 480:
-            frames.append(dict(time=now, units=[{k: v for k, v in f.items() if k not in ('cooldown', 'castUntil')} for f in fighters]))
+            frames.append(dict(time=now, units=[{k: v for k, v in f.items() if k not in ('cooldown', 'castUntil', 'build', 'regenClock', 'lowShieldUsed', 'items')} for f in fighters]))
         if finished:
             break
     events = [{k: v for k, v in c.items() if k not in ('damage', 'hits')} for c in casts if not c['cancelled']]
