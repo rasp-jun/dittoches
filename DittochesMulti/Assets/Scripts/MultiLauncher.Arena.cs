@@ -12,7 +12,7 @@ public sealed partial class MultiLauncher
         int hit=arena.HitCell(e.mousePosition),seat=arena.HitBench(e.mousePosition);
         if(GUI.enabled&&((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)
             ||(e.type==EventType.MouseDown&&e.button==1&&TacticalArena.MultiViewport.Contains(e.mousePosition))))
-        {selectedSlot=-1;selectedArea="";arenaPointer.Reset();e.Use();}
+        {selectedSlot=-1;selectedArea="";ResetEquipmentSelection();arenaPointer.Reset();e.Use();}
         arenaPointer.Update(seat>=0?56+seat:hit,e.type==EventType.MouseDown&&e.button==0,
             e.type==EventType.MouseUp&&e.button==0,false,!editable||busy||!GUI.enabled);
         if(Event.current.type==EventType.Repaint)
@@ -64,13 +64,13 @@ public sealed partial class MultiLauncher
             arena.Render();
         }
         GUI.DrawTexture(TacticalArena.MultiViewport,arena.Texture,ScaleMode.StretchToFill,false);
-        if(!combat)GUI.Label(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":"유닛 선택 → 이동할 칸 선택  ·  ESC / 우클릭 취소",centered);
+        if(!combat)GUI.Label(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":onlineItem>=0?"장비를 받을 아군 선택 · ESC / 우클릭 취소":"유닛 선택 → 이동할 칸 선택  ·  ESC / 우클릭 취소",centered);
         if(combat)DrawCombat(room,remaining);
         else for(int row=0;row<8;row++)for(int col=0;col<7;col++)
         {
             bool own=row>=4;int slot=own?(row-4)*7+col:(3-row)*7+6-col;
             Unit unit=At(own?me.board:enemy.board,slot);
-            if(unit!=null)GUI.Label(arena.LabelRect(TacticalArena.CellWorld(col,row),3),new string('★',unit.star),centered);
+            if(unit!=null){GUI.Label(arena.LabelRect(TacticalArena.CellWorld(col,row),3),new string('★',unit.star),centered);DrawUnitItemBadges(unit,TacticalArena.CellWorld(col,row));}
             if(own&&editable&&!busy&&GUI.enabled&&arenaPointer.Released==row*7+col&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
             {ClickSlot("board",slot,unit);Event.current.Use();}
         }
@@ -78,6 +78,7 @@ public sealed partial class MultiLauncher
         {
             Rect rect=arena.BenchRect(i);Unit unit=At(me.bench,i);
             GUI.Label(new Rect(rect.x,rect.yMax+2,rect.width,20),unit==null?(i+1).ToString():new string('★',unit.star),centered);
+            if(unit!=null)DrawUnitItemBadges(unit,TacticalArena.BenchWorld(i));
             if(editable&&!busy&&GUI.enabled&&arenaPointer.Released==56+i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickSlot("bench",i,unit);Event.current.Use();}
         }
     }

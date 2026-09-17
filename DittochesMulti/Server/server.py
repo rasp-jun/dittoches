@@ -11,6 +11,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from combat_skills import simulate
+from combat_builds import combine
 
 ROOT = Path(__file__).resolve().parent
 ROSTER = json.loads((ROOT / 'roster.json').read_text(encoding='utf-8'))
@@ -64,7 +65,8 @@ class Game:
 
     def player(self, session):
         return dict(id=session['id'], name=session['name'], rating=session['rating'], hp=100, gold=10, level=3, xp=0,
-                    board=[None]*28, bench=[None]*9, shop=[None]*5, ready=False)
+                    board=[None]*28, bench=[None]*9, shop=[None]*5, ready=False,
+                    inventory=[0,1,2,3,14],inventoryRevision=0)
 
     def cancel(self, session):
         for queue in self.queues.values():
@@ -85,7 +87,7 @@ class Game:
             for session, player in zip((left,right),players):
                 session['queue']=''
                 session['room']=room_id
-                player['board'][3]={'id':'koromon','star':1}
+                player['board'][3]={'id':'koromon','star':1,'items':[]}
                 room['pool']['koromon']-=1
                 self.roll(room,player)
 
@@ -109,10 +111,15 @@ class Game:
                 slots=[(area,i) for area in (player['board'],player['bench']) for i,u in enumerate(area) if u and u['id']==unit_id and u['star']==star]
                 while len(slots)>=3:
                     three,slots=slots[:3],slots[3:]
+                    equipment=[item for area,i in three for item in area[i].get('items',[])]
                     for area,i in three:
                         area[i]=None
                     area,i=three[0]
-                    area[i]={'id':unit_id,'star':star+1}
+                    area[i]={'id':unit_id,'star':star+1,'items':equipment[:2]}
+                    if equipment[2:]:
+                        player['inventory'].extend(equipment[2:])
+                    if equipment:
+                        player['inventoryRevision']+=1
         locked={u['id'] for u in player['board']+player['bench'] if u and u['star']==3}
         for i,u in enumerate(player['shop']):
             if u in locked:
@@ -135,7 +142,7 @@ class Game:
                 cost=DEFS[unit_id]['cost']
                 require(player['gold']>=cost,'골드가 부족합니다.')
                 require(None in player['bench'],'대기석이 가득 찼습니다.')
-                player['bench'][player['bench'].index(None)]={'id':unit_id,'star':1}
+                player['bench'][player['bench'].index(None)]={'id':unit_id,'star':1,'items':[]}
                 player['gold']-=cost
                 player['shop'][i]=None
                 self.merge(room,player)
@@ -147,6 +154,8 @@ class Game:
                 require(player['gold']>=4 and player['level']<9,'경험치를 구매할 수 없습니다.')
                 player['gold']-=4
                 self.add_xp(player,4)
+            elif action in ('equip','combine_items'):
+                self.equipment_action(player,data)
             elif action in ('move','sell'):
                 area=data.get('area')
                 require(area in ('board','bench'),'잘못된 영역입니다.')
@@ -158,6 +167,9 @@ class Game:
                     copies=3**(unit['star']-1)
                     player['gold']+=DEFS[unit['id']]['cost']*copies
                     room['pool'][unit['id']]+=copies
+                    if unit.get('items'):
+                        player['inventory'].extend(unit['items'])
+                        player['inventoryRevision']+=1
                     source[i]=None
                 else:
                     target_area=data.get('targetArea')
@@ -174,6 +186,46 @@ class Game:
             self.fight(room)
 
     @staticmethod
+    def equipment_action(player, data):
+        """Validate the entire request before consuming anything; ignore client item IDs."""
+        revision=data.get('inventoryRevision')
+        require(type(revision) is int and revision==player['inventoryRevision'],
+                '장비 목록이 변경되었습니다. 현재 목록에서 다시 선택하세요.')
+        inventory=player['inventory']
+        i=index(data.get('itemSlot'),len(inventory))
+        item=inventory[i]
+        if data['action']=='combine_items':
+            j=index(data.get('targetItemSlot'),len(inventory))
+            require(i!=j,'서로 다른 두 재료 슬롯을 선택하세요.')
+            completed=combine(item,inventory[j])
+            require(completed is not None,'기본 재료 2개만 합성할 수 있습니다.')
+            for slot in sorted((i,j),reverse=True):
+                inventory.pop(slot)
+            inventory.append(completed)
+        else:
+            area=data.get('area')
+            require(area in ('board','bench'),'잘못된 영역입니다.')
+            slot=index(data.get('slot'),len(player[area]))
+            unit=player[area][slot]
+            require(unit is not None,'장비를 장착할 유닛이 없습니다.')
+            equipped=list(unit.get('items',[]))
+            if item==14:
+                require(equipped,'회수할 장비가 없습니다.')
+                inventory.pop(i)
+                inventory.extend(equipped)
+                unit['items']=[]
+            else:
+                partner=next((j for j,value in enumerate(equipped) if value<4),None) if item<4 else None
+                require(partner is not None or len(equipped)<2,'장비 슬롯이 가득 찼습니다.')
+                if partner is not None:
+                    equipped[partner]=combine(equipped[partner],item)
+                else:
+                    equipped.append(item)
+                unit['items']=equipped
+                inventory.pop(i)
+        player['inventoryRevision']+=1
+
+    @staticmethod
     def add_xp(player, amount):
         player['xp']+=amount
         while player['level']<9 and player['xp']>=XP[player['level']]:
@@ -183,6 +235,8 @@ class Game:
             player['xp']=0
 
     def fight(self, room):
+        if room['phase']!='prepare':
+            return
         fighters=[]
         for side,player in enumerate(room['players']):
             for slot,unit in enumerate(player['board']):
@@ -191,13 +245,15 @@ class Game:
                 definition=DEFS[unit['id']]
                 hp=(75+definition['cost']*32)*1.72**(unit['star']-1)
                 fighters.append(dict(key=len(fighters),side=side,id=unit['id'],star=unit['star'],x=float(slot%7 if side==0 else 6-slot%7),
-                                     y=float(slot//7+4 if side==0 else 3-slot//7),hp=hp,maxHp=hp,cooldown=0))
+                                     y=float(slot//7+4 if side==0 else 3-slot//7),hp=hp,maxHp=hp,cooldown=0,items=list(unit.get('items',[]))))
         frames, skill_events, playback_duration = simulate(fighters, DEFS)
         totals=[sum(f['hp'] for f in fighters if f['side']==side) for side in (0,1)]
         winner=-1 if abs(totals[0]-totals[1])<.001 else int(totals[1]>totals[0])
         room.update(phase='battle',deadline=self.clock()+playback_duration,frames=frames,skillEvents=skill_events,battleDuration=playback_duration,roundWinner=winner)
 
     def settle(self, room):
+        if room['phase']!='battle':
+            return
         winner=room['roundWinner']
         for side,p in enumerate(room['players']):
             if side!=winner:
@@ -212,6 +268,11 @@ class Game:
         else:
             room.update(phase='prepare',round=room['round']+1,deadline=self.clock()+40)
             for p in room['players']:
+                # Equal supplies for both sides; no client-controlled loot rolls.
+                p['inventory'].append((room['round']-2)%4)
+                if room['round']%3==0:
+                    p['inventory'].append(14)
+                p['inventoryRevision']+=1
                 self.roll(room,p)
 
     def finish(self, room, winner):
@@ -257,7 +318,7 @@ class Game:
 
     @staticmethod
     def units(area):
-        return [dict(id=u['id'],star=u['star'],slot=i) for i,u in enumerate(area) if u]
+        return [dict(id=u['id'],star=u['star'],slot=i,items=list(u.get('items',[]))) for i,u in enumerate(area) if u]
 
     def snapshot(self, session):
         response=dict(token=session['token'],name=session['name'],rating=session['rating'],queue=session['queue'],
@@ -269,7 +330,8 @@ class Game:
             for i,p in enumerate(room['players']):
                 players.append(dict(name=p['name'],rating=p['rating'],hp=p['hp'],gold=p['gold'] if i==side else 0,
                                     level=p['level'],xp=p['xp'] if i==side else 0,ready=p['ready'],board=self.units(p['board']),
-                                    bench=self.units(p['bench']) if i==side else [],shop=[u or '' for u in p['shop']] if i==side else []))
+                                    bench=self.units(p['bench']) if i==side else [],shop=[u or '' for u in p['shop']] if i==side else [],
+                                    inventory=list(p['inventory']) if i==side else [],inventoryRevision=p['inventoryRevision'] if i==side else 0))
             result='' if room['phase']!='finished' else ('무승부' if not room['winner'] else ('승리' if room['winner']==session['id'] else '패배'))
             response['room']=dict(id=room['id'],mode=room['mode'],phase=room['phase'],round=room['round'],side=side,
                                   remaining=max(0,room['deadline']-self.clock()),battleDuration=room.get('battleDuration',8),skillEvents=room.get('skillEvents',[]) if room['phase']=='battle' else [],players=players,result=result,message=room['message'],

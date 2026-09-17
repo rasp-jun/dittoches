@@ -167,7 +167,7 @@ public sealed partial class NativeGame
         if(item==14)return target.items.Count>0?UnitName(target.def)+" · 장비 "+target.items.Count+"개 회수":"회수할 장비가 없는 유닛입니다";
         int partner=target.items.FindIndex(i=>i<=3);
         if(item<=3&&partner>=0)return UnitName(target.def)+" · "+ItemNames[ItemRecipes[target.items[partner],item]]+" 자동 합성";
-        return target.items.Count>=2?"장비 슬롯이 가득 찼습니다 · 재료 합성 또는 자석 제거기를 이용하세요":UnitName(target.def)+" · "+ItemNames[item]+" 장착";
+        return target.items.Count>=2?"장비 슬롯이 가득 찼습니다 · 재료 합성 또는 "+ItemNames[14]+"를 이용하세요":UnitName(target.def)+" · "+ItemNames[item]+" 장착";
     }
     private bool ValidBoardDestination(int cell)
     {

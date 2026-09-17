@@ -566,7 +566,7 @@ public sealed partial class NativeGame : MonoBehaviour
         {
             if(unit.items.Count==0){NotifyPlacement("회수할 장비가 없는 유닛입니다");return;}
             inventory.RemoveAt(selectedItem);inventory.AddRange(unit.items);unit.items.Clear();
-            selectedItem=-1;lastReward="자석 제거기 사용 · 장비를 보관함으로 회수했습니다";
+            selectedItem=-1;lastReward=ItemNames[14]+" 사용 · 장비를 보관함으로 회수했습니다";
             NotifyPlacement(lastReward);Save();return;
         }
         if(item<=3)
@@ -579,7 +579,7 @@ public sealed partial class NativeGame : MonoBehaviour
                 lastReward=ItemNames[completed]+" 자동 합성 완료";NotifyPlacement(lastReward);Save();return;
             }
         }
-        if(unit.items.Count>=2){NotifyPlacement("장비 슬롯이 가득 찼습니다 · 자석 제거기로 회수할 수 있습니다");return;}
+        if(unit.items.Count>=2){NotifyPlacement("장비 슬롯이 가득 찼습니다 · "+ItemNames[14]+"로 회수할 수 있습니다");return;}
         unit.items.Add(item);inventory.RemoveAt(selectedItem);selectedItem=-1;
         NotifyPlacement(UnitName(unit.def)+" · "+ItemNames[item]+" 장착");Save();
     }

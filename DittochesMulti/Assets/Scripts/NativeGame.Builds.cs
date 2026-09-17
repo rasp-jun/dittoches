@@ -10,7 +10,7 @@ public sealed partial class NativeGame
     string[] ItemIcons { get { return artPack==0?(buildItemIcons??(buildItemIcons=DigimonBuildCatalog.Data.items.Select(i=>i.icon).ToArray())):LegacyItemIcons; } }
     string[] ItemDescriptions { get { return artPack==0?(buildItemDescriptions??(buildItemDescriptions=DigimonBuildCatalog.Data.items.Select(i=>i.description+(i.id<4?" · 재료 2개로 합성":"")).ToArray())):LegacyItemDescriptions; } }
     Rect TraitGuideRect { get { return new Rect(270,145,artPack==0?610:475,artPack==0?360:155); } }
-    Rect RecipeGuideRect { get { return artPack==0?new Rect(270,410,650,recipeFocus<=3?402:260):new Rect(270,470,470,recipeFocus<=3?270:150); } }
+    Rect RecipeGuideRect { get { return artPack==0?new Rect(270,410,650,recipeFocus<=3?434:270):new Rect(270,470,470,recipeFocus<=3?270:150); } }
     string BuildTags(string id){return string.Join(" · ",DigimonBuildCatalog.ForUnit(id).Select(t=>t.name).ToArray());}
     List<TraitEntry> BuildTraits()
     {
@@ -43,14 +43,15 @@ public sealed partial class NativeGame
     {
         if(recipeFocus<0||recipeFocus>=ItemNames.Length)return;
         Rect r=RecipeGuideRect;var item=DigimonBuildCatalog.Data.items[recipeFocus];HudPanel(r);
-        GUI.Label(new Rect(r.x+20,r.y+12,r.width-85,30),item.name+" · "+(recipeFocus<4?"기본 장비":recipeFocus<14?"완성 장비":"소모품"),header);
+        GUI.Label(new Rect(r.x+20,r.y+12,r.width-85,30),item.name+" · "+(recipeFocus<4?"기본 재료":recipeFocus<14?"완성 장비":"소모품"),header);
         if(HudButton(new Rect(r.xMax-48,r.y+12,32,28),"×")){showRecipeGuide=false;return;}
         GUI.Label(new Rect(r.x+20,r.y+51,r.width-40,60),item.description,hudWrap);
         if(recipeFocus<4)
         {
+            GUI.Label(new Rect(r.x+20,r.y+111,r.width-40,28),item.flavor,hudSmall);
             for(int i=0;i<4;i++)
             {
-                int result=DigimonBuildCatalog.Combine(recipeFocus,i);var made=DigimonBuildCatalog.Data.items[result];float y=r.y+116+i*61;
+                int result=DigimonBuildCatalog.Combine(recipeFocus,i);var made=DigimonBuildCatalog.Data.items[result];float y=r.y+147+i*61;
                 DrawRect(new Rect(r.x+18,y,r.width-36,57),panel);
                 GUI.Label(new Rect(r.x+28,y+3,r.width-56,24),"+ "+ItemNames[i]+"  →  "+made.name,label);
                 GUI.Label(new Rect(r.x+28,y+28,r.width-56,27),made.description,hudSmall);
@@ -61,7 +62,8 @@ public sealed partial class NativeGame
         {
             string recipe=item.recipe.Length==2?string.Join(" + ",item.recipe.Select(i=>ItemNames[i]).ToArray()):"합성 대상이 아닌 회수 도구";
             GUI.Label(new Rect(r.x+20,r.y+126,r.width-40,48),recipe,hudWrap);
-            GUI.Label(new Rect(r.x+20,r.y+183,r.width-40,52),string.IsNullOrEmpty(item.owner)?"1회 사용 후 소모됩니다.":"원작 장비 사용자: "+item.owner+"\n합성식과 전투 수치는 게임용으로 재구성했습니다.",hudWrap);
+            GUI.Label(new Rect(r.x+20,r.y+183,r.width-40,28),item.role+(item.kind=="utility"?" · 1회 사용":""),hudWrap);
+            GUI.Label(new Rect(r.x+20,r.y+217,r.width-40,43),item.flavor,hudSmall);
         }
     }
     void InitializeBuildBonuses()

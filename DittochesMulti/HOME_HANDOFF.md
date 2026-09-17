@@ -2,7 +2,9 @@
 
 전체 진행 현황과 작업 우선순위는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 정리했습니다.
 
-시너지·장비 개편은 [SYNERGIES_AND_EQUIPMENT.md](SYNERGIES_AND_EQUIPMENT.md)를 참고하세요. `DigimonBuilds.json`의 문장 6종/전투 특성 5종 및 기본 4종/완성 10종 장비를 적용했습니다. 캡슐은 장비에서 제외했고 증강 구현은 다음 단계입니다. 검사 기록은 `Builds/PortablePreview/BuildsSmoke.log` (440개), 서버 테스트는 32개입니다.
+최신 장비 명칭은 기본 재료 크롬/레드/블루디지조이드·디지코어와 고유 무장 10종입니다. 베렌헤나는 완성품, 회수 소모품은 데이터 추출기입니다. `DigimonBuilds.json`의 이름·용도·소재 설명을 솔로/온라인에서 공유하며 아이템 ID와 능력치는 유지했습니다.
+
+시너지·장비 개편은 [SYNERGIES_AND_EQUIPMENT.md](SYNERGIES_AND_EQUIPMENT.md)를 참고하세요. 문장 6종/전투 특성 5종 및 기본 4종/완성 10종 장비를 적용했고, 온라인 장비 획득·합성·장착·회수까지 이어서 구현했습니다. 서버도 최신 코드로 재시작하세요. 캡슐 증강은 다음 단계입니다. 서버 테스트는 44개이며 솔로 검사 기록은 `BuildsSmoke.log` (440개), 온라인은 `OnlineEquipmentSmoke.log`에 있습니다.
 
 현재 프로젝트는 이 문서가 있는 `DittochesMulti` 폴더입니다. 상위 `01_CurrentProject`가 Git 저장소이며 작업 브랜치는 `develop`, 업로드 대상은 `dittoches` 원격(`rasp-jun/dittoches`)입니다.
 
@@ -45,8 +47,8 @@ python Tools/build_portable_preview.py
 
 컴파일러 기본 경로는 상위 `tmp/roslyn/tasks/net472/csc.exe`입니다. 없으면 `--compiler`로 Roslyn 경로를 전달합니다. Unity가 설치되어 있으면 Editor의 정식 빌드 검사를 우선합니다.
 
-현재 PC에서 서버 테스트 21개, C# 이동 간격 및 기술 타이밍 검사, 실제 플레이어의 전장/대기석 판정·구매·스킬 사용·전투 종료 검사를 수행했습니다. 화면 기록은 `Builds/PortablePreview/ArenaCaptures`, 실행 로그는 `ArenaSmoke.log`에 있습니다.
+현재 PC에서 서버 테스트 44개, C# 이동/기술 검사 894개, 솔로 실행 검사 440개를 수행했습니다. `Tools/validate_online.py`로 실제 플레이어의 HTTP 접속·장비 조작·재접속·전투·보급도 검사했습니다. 솔로 화면은 `ArenaCaptures`, 온라인 화면은 `OnlineCaptures`에 있습니다.
 
-정식 Unity의 새 셰이더 임포트, Android 실기기, 두 PC의 실시간 네트워크 UI는 별도 확인이 필요합니다. 온라인 장비·초밥집·8인 매칭은 기존 미구현 범위이며 이번 UI 변경으로 추가되지 않았습니다.
+정식 Unity의 새 셰이더 임포트, Android 실기기, 두 PC의 실시간 네트워크 UI는 별도 확인이 필요합니다. 온라인 초밥집·8인 매칭은 아직 미구현입니다. 온라인 장비는 이번 업데이트에서 연결했습니다.
 
-GitHub 연결 앱의 쓰기 호출은 현재 `403 Resource not accessible by integration`으로 거절됩니다. 로컬 커밋은 남겨 두며 집의 인증된 Git에서 `git push dittoches develop`으로 올릴 수 있습니다. 현재 로컬 변경이 GitHub에 업로드되었다고 간주하지 마세요.
+GitHub 연결 앱 쓰기는 `403 Resource not accessible by integration`, 로컬 HTTP 푸시는 `HTTPUnauthorized: No valid credentials provided`로 실패했습니다. 로컬 커밋은 남겨 두며 집의 인증된 Git에서 `git push dittoches develop`으로 올릴 수 있습니다. 현재 로컬 변경이 GitHub에 업로드되었다고 간주하지 마세요.

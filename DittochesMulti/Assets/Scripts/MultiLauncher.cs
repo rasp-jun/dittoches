@@ -12,14 +12,14 @@ public sealed partial class MultiLauncher : MonoBehaviour
 {
     [Serializable] public class UnitDef { public string id, name, sprite, role; public int cost; }
     [Serializable] public class Catalog { public UnitDef[] units; }
-    [Serializable] public class Unit { public string id; public int star, slot; }
-    [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp; public bool ready; public Unit[] board, bench; public string[] shop; }
+    [Serializable] public class Unit { public string id; public int star, slot; public int[] items; }
+    [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision; public bool ready; public Unit[] board, bench; public string[] shop; public int[] inventory; }
     [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
     [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
     [Serializable] public class State { public string token, name, queue, error; public int rating, waiting; public Room room; }
-    [Serializable] public class Command { public string name, key, mode, action, area, targetArea; public int slot, targetSlot; }
+    [Serializable] public class Command { public string name, key, mode, action, area, targetArea; public int slot, targetSlot, itemSlot, targetItemSlot, inventoryRevision; }
 
     string server = "http://127.0.0.1:7777", nickname = "테이머", token = "", notice = "서버에 접속한 뒤 일반 / 랭크 매칭을 시작하세요.";
     string profile = "", selectedArea = "";
@@ -30,7 +30,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     State state;
     Catalog catalog;
     NativeGame soloGame;
-    GUIStyle title, heroTitle, text, small, button, goldButton, navButton, box, eyebrow, centered, stat, input;
+    GUIStyle title, heroTitle, text, small, button, compactButton, goldButton, navButton, box, eyebrow, centered, stat, input;
     Texture2D lobbyBackground, lobbyMascot;
     readonly Color navy = new Color(.025f,.043f,.075f), surface = new Color(.045f,.075f,.115f), surface2 = new Color(.065f,.105f,.15f);
     readonly Color gold = new Color(.79f,.63f,.30f), paleGold = new Color(.94f,.84f,.57f), cyan = new Color(.22f,.72f,.79f), muted = new Color(.57f,.65f,.72f);
@@ -93,6 +93,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void Update()
     {
+#if DITTOCHES_PORTABLE_PREVIEW
+        if(PortablePreview.HasArgument("--online-smoke"))return;
+#endif
         if (!solo && token.Length > 0 && !busy && Time.unscaledTime >= nextPoll)
             StartCoroutine(Request("/state", new Command()));
     }
@@ -137,7 +140,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             request.timeout = 5;
             yield return request.SendWebRequest();
             State response = null;
-            try { response = JsonUtility.FromJson<State>(request.downloadHandler.text); }
+            try { response = DecodeState(request.downloadHandler.text); }
             catch (Exception) { /* Network/proxy responses may not be JSON. */ }
             if (request.result != UnityWebRequest.Result.Success || response == null || !string.IsNullOrEmpty(response.error))
             {
@@ -148,6 +151,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             else
             {
                 state = response; token = response.token ?? ""; receivedAt = Time.unscaledTime;
+                ReconcileEquipmentSelection();
                 if (connectionError || path != "/state") notice = path == "/login" ? "서버 접속 완료" : "서버에 연결되었습니다.";
                 connectionError = false;
                 if (state.room == null || state.room.phase != "prepare") { selectedSlot = -1; selectedArea = ""; }
@@ -160,6 +164,23 @@ public sealed partial class MultiLauncher : MonoBehaviour
     void Send(string path, Command command = null)
     {
         if (!busy) StartCoroutine(Request(path, command ?? new Command()));
+    }
+
+    static State DecodeState(string json)
+    {
+        State decoded=JsonUtility.FromJson<State>(json);
+        // JsonUtility can materialize JSON null as an empty serializable Room.
+        if(decoded!=null&&decoded.room!=null&&string.IsNullOrEmpty(decoded.room.id))decoded.room=null;
+        if(decoded!=null&&decoded.room!=null&&decoded.room.players!=null)
+        {
+            foreach(Player player in decoded.room.players)
+            {
+                player.inventory=player.inventory??new int[0];player.board=player.board??new Unit[0];player.bench=player.bench??new Unit[0];player.shop=player.shop??new string[0];
+                foreach(Unit unit in player.board)unit.items=unit.items??new int[0];
+                foreach(Unit unit in player.bench)unit.items=unit.items??new int[0];
+            }
+        }
+        return decoded;
     }
 
     void Styles()
@@ -198,7 +219,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
     bool Btn(Rect rect, string label, bool enabled = true)
     {
         bool previous = GUI.enabled; GUI.enabled = previous && enabled && !busy;
-        bool clicked = GUI.Button(rect, label, button); GUI.enabled = previous; return clicked;
+        GUIStyle style=rect.height<40?(compactButton??(compactButton=new GUIStyle(button){fontSize=13,padding=new RectOffset(6,6,2,2)})):button;
+        bool clicked = GUI.Button(rect, label, style); GUI.enabled = previous; return clicked;
     }
 
     bool GoldBtn(Rect rect, string label)
@@ -239,6 +261,11 @@ public sealed partial class MultiLauncher : MonoBehaviour
     void OnGUI()
     {
         if (solo) return;
+#if DITTOCHES_PORTABLE_PREVIEW
+        // Automated handlers drive the isolated smoke match; incidental desktop
+        // clicks must not move its fixture units while screenshots are captured.
+        if(PortablePreview.HasArgument("--online-smoke")&&(Event.current.isMouse||Event.current.isKey))Event.current.Use();
+#endif
         Styles();
         Matrix4x4 old = GUI.matrix;
         float rawScale=Mathf.Min(Screen.width/1600f,Screen.height/1000f);
@@ -450,6 +477,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     Unit At(Unit[] units, int slot) { return Array.Find(units, u => u.slot == slot); }
     void ClickSlot(string area, int slot, Unit unit)
     {
+        if(EquipOnlineSelection(area,slot,unit))return;
         if (selectedSlot >= 0)
         {
             Player me=state.room.players[state.room.side];
@@ -478,9 +506,11 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void DrawMatch()
     {
+        ReconcileEquipmentSelection();
         Room room = state.room; Player me = room.players[room.side], enemy = room.players[1 - room.side];
+        if(onlineItemGuide>=0&&Event.current.type==EventType.KeyDown&&Event.current.keyCode==KeyCode.Escape){onlineItemGuide=-1;Event.current.Use();}
         if (room.phase == "finished") confirmLeave = false;
-        GUI.enabled = !confirmLeave;
+        GUI.enabled = !confirmLeave&&onlineItemGuide<0;
         bool fresh = Time.unscaledTime - receivedAt < 6;
         bool editable = room.phase == "prepare" && !me.ready && fresh;
         float remaining = Mathf.Max(0, room.remaining - (Time.unscaledTime - receivedAt));
@@ -518,8 +548,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if (Btn(new Rect(30,460,245,58),"선택 유닛 판매",editable&&selectedSlot>=0))
         { Send("/action", new Command { action = "sell", area = selectedArea, slot = selectedSlot }); selectedSlot = -1; selectedArea = ""; }
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
-        GUI.Label(new Rect(30,652,245,135),"양쪽 모두 준비하면 전투가 시작됩니다.\n제한 시간이 끝나도 자동 시작됩니다.",small);
-        Card(new Rect(1305,290,270,180),surface,new Color(.2f,.38f,.43f)); GUI.Label(new Rect(1325,310,225,25),"BATTLE LOG",eyebrow); GUI.Label(new Rect(1325,345,225,105),room.message??"전투 기록이 여기에 표시됩니다.",small);
+        DrawOnlineEquipment(me,editable);
+        DrawOnlineUnitEquipment(me,room);
         if(artPack==0)DrawOnlineTraits(me);
         if (!fresh) GUI.Label(new Rect(310, 80, 970, 50), "연결 복구 중 · 조작을 잠시 중지합니다.", text);
         if (room.phase == "finished")
@@ -529,6 +559,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             GUI.Label(new Rect(560, 420, 510, 65), room.mode == "ranked" ? $"랭크 변동 {room.ratingDelta:+0;-0;0} RP  /  현재 {state.rating} RP" : "일반 모드 · 랭크 점수 변동 없음", text);
         }
         GUI.enabled = true;
+        if(!confirmLeave)DrawOnlineEquipmentGuide();
         if (confirmLeave && room.phase != "finished")
         {
             Panel(new Rect(490, 330, 680, 250), new Color(.08f,.1f,.16f));

@@ -29,7 +29,7 @@ public static class DigimonBuildCatalog
         public int Target(int count){var next=tiers.FirstOrDefault(t=>count<t.count);return (next??tiers[tiers.Length-1]).count;}
     }
     [Serializable] public sealed class Item
-    {public int id;public string name,icon,kind,description,owner,source;public int[] recipe;public Bonus bonus;}
+    {public int id;public string name,icon,kind,description,source,role,flavor;public int[] recipe;public Bonus bonus;}
     [Serializable] public sealed class Document { public int version;public Trait[] traits;public Item[] items; }
     static Document data;
     public static Document Data

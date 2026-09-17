@@ -43,48 +43,62 @@
 | 사랑 | 어니몬 · 피요몬 · 버드라몬 · 가루다몬 · 페닉스몬 |
 | 희망 | 토코몬 · 파닥몬 · 엔젤몬 · 홀리엔젤몬 · 세라피몬 |
 
-## 기본 장비
+## 기본 재료
 
-| 장비 | 원작 사용자 | 효과 |
+롤체처럼 재료는 능력치 축을, 완성품은 고유 무장의 정체성을 드러내도록 이름을 정리했습니다. 디지조이드 3종과 디지코어를 재료로 사용하고, 고유 무기 베렌헤나는 완성품으로 옮겼습니다. 소재의 장착·합성 및 모든 효과는 이 게임의 규칙입니다.
+
+오너 항목은 데이터와 상세창에서 제거했습니다. 이름·용도·효과·합성식과 짧은 소재 설명만 표시합니다.
+
+| 재료 | 용도 | 효과 |
 |---|---|---|
-| [레오몬의 검](https://digimon.net/reference_en/detail.php?directory_name=leomon) | 레오몬 | 공격력 +12% |
-| [크롬디지조이드 갑주](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 워그레이몬 | 체력 +120 |
-| [베렌헤나](https://digimon.net/reference_en/detail.php?directory_name=beelzebumon) | 베르제브몬 | 공격 속도 +12% |
-| [홀리 링](https://digimon.net/reference_en/detail.php?directory_name=tailmon) | 가트몬 | 시작 마나 +15 · 스킬 피해 +12% |
+| [크롬디지조이드](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 공격 재료 | 공격력 +12% |
+| [레드디지조이드](https://digimon.net/reference_en/detail.php?directory_name=chaosdramon) | 방어 재료 | 체력 +120 |
+| [블루디지조이드](https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon) | 공속 재료 | 공격 속도 +12% |
+| [디지코어](https://digimon.net/reference_en/detail.php?directory_name=chaosdramon) | 스킬 재료 | 시작 마나 +15 · 스킬 피해 +12% |
 
 ## 완성 장비와 합성식
 
-모든 기본 장비 2개 조합은 순서와 무관하게 아래 완성 장비 1개가 됩니다. 완성 장비는 다시 합성하지 않습니다. 기본 장비 수치를 별도로 더하지 않고 완성 장비의 기재 수치로 교체합니다.
+모든 기본 재료 2개 조합은 순서와 무관하게 아래 완성 장비 1개가 됩니다. 완성 장비는 다시 합성하지 않습니다. 재료 수치를 별도로 더하지 않고 완성 장비의 기재 수치로 교체합니다.
 
 | 조합 | 완성 장비 | 효과 |
 |---|---|---|
-| 레오몬의 검 + 레오몬의 검 | [드라몬 킬러](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 공격력 +35% · 체력 70% 이상인 적에게 피해 +15% |
-| 레오몬의 검 + 크롬디지조이드 갑주 | [그레이 소드](https://digimon.net/reference_en/detail.php?directory_name=omegamon) | 공격력 +25% · 체력 +120 · 기본 공격 흡혈 12% |
-| 레오몬의 검 + 베렌헤나 | [가루루 캐논](https://digimon.net/reference_en/detail.php?directory_name=omegamon) | 공격력 +15% · 공격 속도 +20% · 기본 공격 3회마다 0.4초 기절 |
-| 레오몬의 검 + 홀리 링 | [성창 그람](https://digimon.net/reference_en/detail.php?directory_name=dukemon) | 공격력 +20% · 스킬 피해 +25% · 기본 공격 흡혈 8% |
-| 크롬디지조이드 갑주 + 크롬디지조이드 갑주 | [브레이브 실드](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회) |
-| 크롬디지조이드 갑주 + 베렌헤나 | [이지스](https://digimon.net/reference_en/detail.php?directory_name=dukemon) | 체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20% |
-| 크롬디지조이드 갑주 + 홀리 링 | [티파레트](https://digimon.net/reference_en/detail.php?directory_name=rosemon) | 체력 +220 · 초당 최대 체력 1.5% 재생 · 회복량 +20% |
-| 베렌헤나 + 베렌헤나 | [라이즈그레이몬의 리볼버](https://digimon.net/reference_en/detail.php?directory_name=rizegreymon) | 공격 속도 +40% · 기본 공격 마나 +4 |
-| 베렌헤나 + 홀리 링 | [엑스칼리버](https://digimon.net/reference_en/detail.php?directory_name=holyangemon) | 스킬 피해 +45% · 시작 마나 +20 |
-| 홀리 링 + 홀리 링 | [빔 실드](https://digimon.net/reference_en/detail.php?directory_name=holyangemon) | 체력 +180 · 스킬 피해 +35% · 시전 시 자신에게 최대 체력 12% 보호막 |
+| 크롬디지조이드 + 크롬디지조이드 | [드라몬 킬러](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 공격력 +35% · 체력 70% 이상인 적에게 피해 +15% |
+| 크롬디지조이드 + 레드디지조이드 | [그레이 소드](https://digimon.net/reference_en/detail.php?directory_name=omegamon) | 공격력 +25% · 체력 +120 · 기본 공격 흡혈 12% |
+| 크롬디지조이드 + 블루디지조이드 | [가루루 캐논](https://digimon.net/reference_en/detail.php?directory_name=omegamon) | 공격력 +15% · 공격 속도 +20% · 기본 공격 3회마다 0.4초 기절 |
+| 크롬디지조이드 + 디지코어 | [성창 그람](https://digimon.net/reference_en/detail.php?directory_name=dukemon) | 공격력 +20% · 스킬 피해 +25% · 기본 공격 흡혈 8% |
+| 레드디지조이드 + 레드디지조이드 | [브레이브 실드](https://digimon.net/reference_en/detail.php?directory_name=wargreymon) | 체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회) |
+| 레드디지조이드 + 블루디지조이드 | [성순 이지스](https://digimon.net/reference_en/detail.php?directory_name=dukemon) | 체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20% |
+| 레드디지조이드 + 디지코어 | [티파레트](https://digimon.net/reference_en/detail.php?directory_name=rosemon) | 체력 +220 · 초당 최대 체력 1.5% 재생 · 회복량 +20% |
+| 블루디지조이드 + 블루디지조이드 | [베렌헤나](https://digimon.net/reference_en/detail.php?directory_name=beelzebumon) | 공격 속도 +40% · 기본 공격 마나 +4 |
+| 블루디지조이드 + 디지코어 | [성검 엑스칼리버](https://digimon.net/reference_en/detail.php?directory_name=holyangemon) | 스킬 피해 +45% · 시작 마나 +20 |
+| 디지코어 + 디지코어 | [V 브레이슬릿](https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon) | 체력 +180 · 스킬 피해 +35% · 시전 시 자신에게 최대 체력 12% 보호막 |
 
 - 캡슐과 문장은 디지몬 버전의 장비 목록·조합식·전리품에서 제외했습니다. 캡슐 증강 시스템은 아직 구현하지 않았습니다.
-- 자석 제거기는 장비 14종에 포함하지 않는 기존 회수 소모품으로 유지합니다.
+- 데이터 추출기는 장비 14종에 포함하지 않는 회수 소모품입니다. 기존 자석 제거기와 같은 ID/기능을 사용하며, 이름과 설정은 이 게임의 창작입니다.
 - 유닛당 2칸. 이미 2칸을 사용 중이어도 한 칸의 재료와 새 재료를 합칠 수 있습니다. 그 밖에는 장착을 거절하고 재료를 소비하지 않습니다.
 - 준비 단계에서 보관함의 재료 두 개를 차례로 누르거나 유닛에게 장착하면 합성됩니다. 보관함 합성은 전투 중에도 가능하지만 전장 유닛의 장비 변경은 준비 단계에만 허용합니다.
 - 동일 완성 장비를 2개 장착하면 수치 및 효과량을 합산합니다. 위기 보호막은 합산량으로 한 번, 3타 기절은 합산된 지속 시간으로 발동하며 회수하면 다음 전투에 반영됩니다.
-- 저장 버전 1도 읽습니다. 기존 아이템 ID 0~14를 그대로 유지해 보관함/장착/합성 경로를 보존하고 새 효과로 대응시킵니다. 기존 캡슐 ID 12/13은 엑스칼리버/빔 실드로 바뀝니다.
+- 저장 버전 1도 읽습니다. 기존 아이템 ID 0~14를 그대로 유지해 보관함/장착/합성 경로를 보존하고 새 효과로 대응시킵니다. 기존 캡슐 ID 12/13은 성검 엑스칼리버/V 브레이슬릿으로 바뀝니다. 이번 명칭 개편에서는 기존 ID·조합식·수치를 변경하지 않았습니다.
 - 오리지널 솔로의 기존 시너지·장비 규칙은 유지합니다. 온라인 규칙은 아트 선택과 무관하게 공통 서버를 사용합니다.
 
 ## 구현 범위와 검증 방법
 
 - 솔로: 시너지, 모든 장비 효과, 합성, 장착, 회수, 저장 재개, 상점·유닛 상세·시너지/조합 가이드 연결.
-- 멀티: 같은 JSON을 읽어 양 진영의 시너지를 서버에서 계산하고 클라이언트에 시너지 목록과 보호막을 표시합니다. 솔로 장비를 얻고 장착하는 온라인 UI/API는 기존처럼 미구현입니다. 공용 계산 모듈에는 장비 효과도 포함해 테스트합니다.
+- 멀티: 같은 JSON으로 시너지와 장비 효과를 서버에서 계산합니다. 장비 보급·합성·장착·제거기 회수·판매 반환·별 합성 초과분 반환 및 UI/API를 연결했습니다. 상대의 전장 장비는 공개하지만 보관함과 대기석은 숨깁니다.
 - `python -m unittest discover -s Server -v`: 서버 전투/스킬 및 시너지·장비 경계 조건 검사.
 - `python Tools/validate_code.py`: 일반 C# 컴파일 및 기존 이동/스킬 타이밍 검사.
 - `python Tools/build_portable_preview.py` 후 `--arena-smoke`: 실제 플레이어에서 모든 시너지 구간, 중복/대기석 제외, 16개 순서쌍 합성, 슬롯 포화, 회수, 흡혈/보호막/회복, 저장 호환, 실제 전투 및 화면 캡처 검사.
 - 최종 밸런스는 반복 플레이로 조정해야 합니다. 정식 Unity 셰이더, 두 PC 온라인 화면 및 장시간 플레이는 별도 검증 대상입니다.
+
+## 온라인 장비 규칙
+
+- 처음에는 `[크롬디지조이드, 레드디지조이드, 블루디지조이드, 디지코어, 데이터 추출기]`를 양쪽에 똑같이 지급합니다.
+- 2라운드부터 기본 재료를 크롬→레드→블루→디지코어 순서로 한 개씩 지급합니다. 3/6/9라운드에는 추출기 하나도 받습니다. 경기 종료 후 보급은 없습니다.
+- 준비 단계에서만 보관함 합성/장착/회수가 가능하며 준비 완료 상태에서도 잠깁니다. 솔로의 전투 중 보관함 합성과는 구분됩니다.
+- 같은 유닛 3개를 별 합성하면 전장→대기석, 슬롯 순으로 장비 2개를 유지합니다. 초과 장비는 보관함으로 돌려주며 재료끼리 임의로 합치지 않습니다.
+- 장비 선택 후 아군을 클릭하면 장착하거나 추출기를 사용합니다. 유닛을 먼저 선택하면 오른쪽 장착 장비를 확인할 수 있고, 장비 이름을 클릭하면 상세창을 엽니다.
+- 장비 목록이 변경되면 기존 선택을 취소합니다. 서버도 목록 버전이 다른 요청과 같은 요청의 재전송을 거절해 엉뚱한 장비가 소비되지 않도록 합니다.
+- `python Tools/validate_online.py`는 임시 DB와 임시 로컬 HTTP 서버, 분리된 미리보기 저장 키를 사용해 실제 플레이어를 검사합니다. 기존 사용자 계정이나 실행 중인 서버를 사용하지 않습니다. 보관함 합성→장착→자동 합성→회수→재접속→전투 스탯→다음 보급을 검증하고 화면 6장을 캡처합니다.
 
 ## 참고
 

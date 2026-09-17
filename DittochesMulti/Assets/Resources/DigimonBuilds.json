@@ -440,11 +440,12 @@
   "items": [
     {
       "id": 0,
-      "name": "레오몬의 검",
-      "icon": "검",
+      "name": "크롬디지조이드",
+      "icon": "철",
       "kind": "component",
-      "owner": "레오몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=leomon",
+      "role": "공격 재료",
+      "flavor": "디지몬의 무장에 쓰이는 가상 초금속.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
       "description": "공격력 +12%",
       "bonus": {
         "attack": 0.12
@@ -453,11 +454,12 @@
     },
     {
       "id": 1,
-      "name": "크롬디지조이드 갑주",
-      "icon": "갑",
+      "name": "레드디지조이드",
+      "icon": "적",
       "kind": "component",
-      "owner": "워그레이몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "role": "방어 재료",
+      "flavor": "높은 경도로 정제한 붉은 디지조이드.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
       "description": "체력 +120",
       "bonus": {
         "health": 120
@@ -466,11 +468,12 @@
     },
     {
       "id": 2,
-      "name": "베렌헤나",
-      "icon": "총",
+      "name": "블루디지조이드",
+      "icon": "청",
       "kind": "component",
-      "owner": "베르제브몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=beelzebumon",
+      "role": "공속 재료",
+      "flavor": "가벼움과 기동성이 특징인 푸른 희소 금속.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon",
       "description": "공격 속도 +12%",
       "bonus": {
         "speed": 0.12
@@ -479,11 +482,12 @@
     },
     {
       "id": 3,
-      "name": "홀리 링",
-      "icon": "링",
+      "name": "디지코어",
+      "icon": "핵",
       "kind": "component",
-      "owner": "가트몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=tailmon",
+      "role": "스킬 재료",
+      "flavor": "디지몬의 핵을 소재로 한 스킬 강화 재료.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
       "description": "시작 마나 +15 · 스킬 피해 +12%",
       "bonus": {
         "startMana": 15,
@@ -496,7 +500,8 @@
       "name": "드라몬 킬러",
       "icon": "용",
       "kind": "completed",
-      "owner": "워그레이몬",
+      "role": "공격 · 돌파",
+      "flavor": "양팔에 장착하는 대룡 무장.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
       "description": "공격력 +35% · 체력 70% 이상인 적에게 피해 +15%",
       "bonus": {
@@ -513,7 +518,8 @@
       "name": "그레이 소드",
       "icon": "검",
       "kind": "completed",
-      "owner": "오메가몬",
+      "role": "공격 · 흡혈",
+      "flavor": "그레이몬 쪽 팔에서 전개되는 검.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
       "description": "공격력 +25% · 체력 +120 · 기본 공격 흡혈 12%",
       "bonus": {
@@ -531,7 +537,8 @@
       "name": "가루루 캐논",
       "icon": "빙",
       "kind": "completed",
-      "owner": "오메가몬",
+      "role": "연사 · 제어",
+      "flavor": "가루몬 쪽 팔에서 펼쳐지는 포신.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
       "description": "공격력 +15% · 공격 속도 +20% · 기본 공격 3회마다 0.4초 기절",
       "bonus": {
@@ -549,7 +556,8 @@
       "name": "성창 그람",
       "icon": "창",
       "kind": "completed",
-      "owner": "듀크몬",
+      "role": "공격 · 스킬",
+      "flavor": "크롬디지조이드 갑주와 함께 쓰이는 성스러운 창.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
       "description": "공격력 +20% · 스킬 피해 +25% · 기본 공격 흡혈 8%",
       "bonus": {
@@ -567,7 +575,8 @@
       "name": "브레이브 실드",
       "icon": "방",
       "kind": "completed",
-      "owner": "워그레이몬",
+      "role": "수호 · 위기 대응",
+      "flavor": "등 뒤의 장갑을 하나로 모아 펼치는 방패.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
       "description": "체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회)",
       "bonus": {
@@ -582,10 +591,11 @@
     },
     {
       "id": 9,
-      "name": "이지스",
+      "name": "성순 이지스",
       "icon": "성",
       "kind": "completed",
-      "owner": "듀크몬",
+      "role": "수호 · 선봉",
+      "flavor": "정화의 빛을 발하는 성스러운 방패.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
       "description": "체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20%",
       "bonus": {
@@ -603,7 +613,8 @@
       "name": "티파레트",
       "icon": "꽃",
       "kind": "completed",
-      "owner": "로제몬",
+      "role": "재생 · 회복",
+      "flavor": "가슴을 장식하는 작은 보석.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=rosemon",
       "description": "체력 +220 · 초당 최대 체력 1.5% 재생 · 회복량 +20%",
       "bonus": {
@@ -618,11 +629,12 @@
     },
     {
       "id": 11,
-      "name": "라이즈그레이몬의 리볼버",
-      "icon": "탄",
+      "name": "베렌헤나",
+      "icon": "총",
       "kind": "completed",
-      "owner": "라이즈그레이몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=rizegreymon",
+      "role": "연사 · 마나 수급",
+      "flavor": "더블 임팩트를 펼치는 한 쌍의 총.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=beelzebumon",
       "description": "공격 속도 +40% · 기본 공격 마나 +4",
       "bonus": {
         "speed": 0.4,
@@ -635,10 +647,11 @@
     },
     {
       "id": 12,
-      "name": "엑스칼리버",
+      "name": "성검 엑스칼리버",
       "icon": "빛",
       "kind": "completed",
-      "owner": "홀리엔젤몬",
+      "role": "스킬 · 첫 시전",
+      "flavor": "오른팔에 장착하는 성검.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
       "description": "스킬 피해 +45% · 시작 마나 +20",
       "bonus": {
@@ -652,11 +665,12 @@
     },
     {
       "id": 13,
-      "name": "빔 실드",
-      "icon": "막",
+      "name": "V 브레이슬릿",
+      "icon": "V",
       "kind": "completed",
-      "owner": "홀리엔젤몬",
-      "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
+      "role": "스킬 · 보호막",
+      "flavor": "검과 방패를 전개하는 팔찌.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon",
       "description": "체력 +180 · 스킬 피해 +35% · 시전 시 자신에게 최대 체력 12% 보호막",
       "bonus": {
         "health": 180,
@@ -670,10 +684,11 @@
     },
     {
       "id": 14,
-      "name": "자석 제거기",
+      "name": "데이터 추출기",
       "icon": "↩",
       "kind": "utility",
-      "owner": "",
+      "role": "장비 회수",
+      "flavor": "장착 데이터를 추출해 보관함으로 되돌립니다.",
       "source": "",
       "description": "장비를 모두 보관함으로 회수하는 소모품 · 합성 불가",
       "bonus": {},

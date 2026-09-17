@@ -17,6 +17,7 @@ public static class PortablePreview
         {var shader=Shader.Find(name);Debug.Log("PREVIEW SHADER "+name+": "+(shader!=null?shader.isSupported.ToString():"missing"));}
         if(HasArgument("--model-gallery")){new GameObject("3D Model Preview").AddComponent<PortableModelGallery>();return true;}
         if(HasArgument("--arena-smoke")){new GameObject("Arena Runtime Validation").AddComponent<NativeGame>().BeginArenaSmoke();return true;}
+        if(HasArgument("--online-smoke")){new GameObject("Online Runtime Validation").AddComponent<MultiLauncher>().BeginOnlineSmoke();return true;}
         if(!HasArgument("--skill-gallery"))return false;
         new GameObject("Canonical Skill Preview").AddComponent<PortableSkillGallery>();return true;
     }
@@ -50,7 +51,7 @@ public static class PortablePreview
 
 public static class PortablePreviewPrefs
 {
-    static string Prefix { get { return PortablePreview.HasArgument("--arena-smoke")?"portable-validation.":"portable-preview."; } }
+    static string Prefix { get { return PortablePreview.HasArgument("--arena-smoke")||PortablePreview.HasArgument("--online-smoke")?"portable-validation.":"portable-preview."; } }
     public static bool HasKey(string key){return PlayerPrefs.HasKey(Prefix+key);}
     public static int GetInt(string key,int value=0){return PlayerPrefs.GetInt(Prefix+key,value);}
     public static string GetString(string key,string value=""){return PlayerPrefs.GetString(Prefix+key,value);}
