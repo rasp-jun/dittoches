@@ -1,5 +1,7 @@
 # 집에서 이어서 작업하기
 
+전체 진행 현황과 작업 우선순위는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 정리했습니다.
+
 현재 프로젝트는 이 문서가 있는 `DittochesMulti` 폴더입니다. 상위 `01_CurrentProject`가 Git 저장소이며 작업 브랜치는 `develop`, 업로드 대상은 `dittoches` 원격(`rasp-jun/dittoches`)입니다.
 
 ## 실행
