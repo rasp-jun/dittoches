@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>Shared, procedural perspective arena. All interaction uses the same camera as rendering.</summary>
-public sealed class TacticalArena : IDisposable
+public sealed partial class TacticalArena : IDisposable
 {
     public static readonly Rect SoloViewport = new Rect(282, 118, 1068, 710);
+    public static readonly Rect WideViewport = new Rect(248, 96, 1420, 740);
     public static readonly Rect MultiViewport = new Rect(300, 125, 980, 660);
     const int Layer = 30;
     static int nextArenaId;
@@ -23,19 +24,24 @@ public sealed class TacticalArena : IDisposable
     Rect viewport;
     int generation;
     bool disposed;
+    readonly bool refined;
     sealed class Actor
     {
         public GameObject root;
-        public MeshRenderer portrait, contactShadow, teamBase, halo, destination;
+        public MeshRenderer portrait, contactShadow, teamBase, halo, destination, selection;
         public MeshRenderer[] sparkles;
+        public DigimonRig rig;
+        public Vector3 facing;
+        public bool hasFacing;
         public int generation;
     }
     public RenderTexture Texture { get { return target; } }
     public int ActorCount { get { return actors.Count; } }
 
-    public TacticalArena(Rect viewport)
+    public TacticalArena(Rect viewport,bool refined=true)
     {
         this.viewport = viewport;
+        this.refined=refined;
         root = new GameObject("Tactical Arena (runtime)") { hideFlags = HideFlags.HideAndDontSave };
         // Isolate from scene lights/cameras without changing global render settings.
         root.transform.position = new Vector3(200f * nextArenaId++, -1000, 0);
@@ -61,15 +67,21 @@ public sealed class TacticalArena : IDisposable
         target = new RenderTexture(1440, Mathf.RoundToInt(1440 * viewport.height / viewport.width), 24, RenderTextureFormat.ARGB32);
         target.name = "Tactical arena view"; target.antiAliasing = 2; target.Create();
         camera.targetTexture = target; camera.aspect = viewport.width / viewport.height;
-        BuildEnvironment();
+        if(refined)BuildIsland();else BuildEnvironment();
     }
 
     Material Material(Color color, bool unlit = false, Texture texture = null)
     {
         Shader shader = Resources.Load<Shader>("ArenaSurface");
+#if DITTOCHES_PORTABLE_PREVIEW
+        if(shader==null)shader=PortablePreview.ArenaShader(texture!=null);
+#endif
         if (shader == null) throw new InvalidOperationException("Missing Resources/ArenaSurface.shader");
         var material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
-        material.color = color; material.SetFloat("_Unlit", unlit ? 1 : 0);
+#if DITTOCHES_PORTABLE_PREVIEW
+        PortablePreview.ConfigureMaterial(material,texture!=null);
+#endif
+        material.color = color; if(material.HasProperty("_Unlit"))material.SetFloat("_Unlit", unlit ? 1 : 0);
         material.mainTexture = texture != null ? texture : Texture2D.whiteTexture;
         resources.Add(material); return material;
     }
@@ -199,17 +211,23 @@ public sealed class TacticalArena : IDisposable
     }
     public void BeginFrame(int selectedCell,int hoveredCell,int selectedBench,bool placing)
     {
-        generation++;
+        generation++;BeginEffects();
         for(int i=0;i<tiles.Length;i++)
         {
             bool own=i>=28;
-            Color color=own?new Color(.33f,.46f,.39f):new Color(.42f,.34f,.30f);
-            if(placing&&own)color=new Color(.28f,.64f,.58f);
+            Color color=refined?new Color(.19f,.30f,.26f):own?new Color(.33f,.46f,.39f):new Color(.42f,.34f,.30f);
+            if(placing&&own)color=new Color(.31f,.55f,.48f);
             if(i==selectedCell)color=new Color(1,.76f,.24f);
             if(i==hoveredCell&&own)color=new Color(.45f,1,.86f);
             Tint(tiles[i],color);
         }
         for(int i=0;i<seats.Length;i++)Tint(seats[i],i==selectedBench?new Color(1,.8f,.3f):new Color(.57f,.43f,.22f));
+    }
+    public void HighlightDestination(int cell,int seat,bool valid)
+    {
+        Color color=valid?new Color(.35f,1f,.75f):new Color(1f,.25f,.18f);
+        if(cell>=0&&cell<tiles.Length)Tint(tiles[cell],color);
+        if(seat>=0&&seat<seats.Length)Tint(seats[seat],color);
     }
     public void SetActor(object key,Vector3 point,Texture texture,Color team,float scale=1,float flash=0)
     {
@@ -220,7 +238,7 @@ public sealed class TacticalArena : IDisposable
             node.transform.SetParent(root.transform,false);
             actor=new Actor{root=node};
             actor.contactShadow=Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
-            var ring=Shape("Team base",disc,glow,new Vector3(0,.025f,0),new Vector3(.30f,.012f,.24f),node.transform);
+            var ring=Shape("Team base",refined?ringMesh:disc,glow,new Vector3(0,.025f,0),new Vector3(.34f,.012f,.28f),node.transform);
             actor.teamBase=ring;
             Tint(ring,team);
             actor.portrait=Shape("Character",quad,stone,new Vector3(0,.67f,0),Vector3.one,node.transform);
@@ -229,7 +247,10 @@ public sealed class TacticalArena : IDisposable
             actors.Add(key,actor);
         }
         actor.generation=generation;
-        actor.root.transform.localPosition=point;
+        actor.portrait.enabled=true;
+        if(actor.rig!=null)actor.rig.root.SetActive(false);
+        Tint(actor.teamBase,refined?Color.Lerp(new Color(.12f,.22f,.20f),team,.66f):team);
+        actor.root.transform.localPosition=point+Vector3.up*.10f;
         actor.root.transform.localScale=Vector3.one*scale;
         Material material;
         if(texture!=null)
@@ -239,6 +260,56 @@ public sealed class TacticalArena : IDisposable
         }
         else actor.portrait.sharedMaterial=glow;
         Tint(actor.portrait,texture==null?team:Color.Lerp(Color.white,new Color(1,.4f,.3f),Mathf.Clamp01(flash)));
+    }
+    public void PoseCombatActor(object key,float speed,float direction,float time,float death)
+    {
+        Actor actor;if(!actors.TryGetValue(key,out actor))return;
+        speed=Mathf.Clamp01(speed);
+        float bob=Mathf.Abs(Mathf.Sin(time*10f))*.045f*speed;
+        actor.portrait.transform.localPosition=camera.transform.up*.65f+Vector3.up*bob;
+        actor.portrait.transform.rotation=camera.transform.rotation*Quaternion.Euler(0,0,death>0?-55f*death:Mathf.Sin(time*10f)*3f*speed*Mathf.Sign(direction));
+        actor.contactShadow.transform.localScale=new Vector3(.43f,.01f,.30f)*(1-bob*2);
+    }
+    public void HighlightAttackRange(int cell,float range)
+    {
+        if(cell<0||cell>=tiles.Length)return;
+        int col=cell%7,row=cell/7;
+        for(int i=0;i<tiles.Length;i++)
+        {
+            if(i==cell)continue;
+            float x=i%7-col,y=i/7-row;
+            if(x*x+y*y<=range*range)Tint(tiles[i],i>=28?new Color(.25f,.55f,.64f):new Color(.48f,.4f,.66f));
+        }
+    }
+    public void HighlightHexAttackRange(float col,float row,int range)
+    {
+        for(int i=0;i<tiles.Length;i++)
+            if(DigimonCombatMath.InAttackRange(col,row,i%7,i/7,range))
+                Tint(tiles[i],new Color(.12f,.75f,1f));
+        int x=Mathf.RoundToInt(col),y=Mathf.RoundToInt(row);
+        if(x>=0&&x<7&&y>=0&&y<8)Tint(tiles[y*7+x],new Color(.72f,.57f,.26f));
+    }
+    public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0,bool invalid=false)
+    {
+        Actor actor;if(!actors.TryGetValue(key,out actor))return;
+        bool visible=selected||promotion>0||healing>0||shielding>0;
+        if(visible&&actor.selection==null)
+            actor.selection=Shape("Unit selection",ringMesh,glow,new Vector3(0,.035f,0),Vector3.one*.52f,actor.root.transform);
+        Color color=invalid?new Color(1f,.3f,.25f):promotion>0?new Color(1f,.82f,.3f):healing>0?new Color(.35f,1f,.6f):shielding>0?new Color(.4f,.8f,1f):new Color(1f,.78f,.3f);
+        if(actor.selection!=null)
+        {
+            actor.selection.enabled=visible;
+            actor.selection.transform.localScale=Vector3.one*(.5f+Mathf.Sin(Time.unscaledTime*5f)*.025f+promotion*.16f);
+            Tint(actor.selection,color);
+        }
+        properties.Clear();
+        Color tint=Color.Lerp(Color.white,new Color(1f,.4f,.3f),Mathf.Clamp01(hit));
+        if(healing>hit)tint=Color.Lerp(Color.white,new Color(.5f,1f,.68f),Mathf.Clamp01(healing)*.5f);
+        properties.SetColor("_Color",tint);
+        properties.SetColor("_OutlineColor",color);
+        properties.SetFloat("_OutlineWidth",visible?2f:0f);
+        actor.portrait.SetPropertyBlock(properties);
+        if(actor.rig!=null)actor.rig.renderer.SetPropertyBlock(properties);
     }
     public void SetTactician(object key, Vector3 point, Vector3 destination, Texture texture,
         Color color, float movement, float horizontalSpeed, float time, float celebration)
@@ -291,9 +362,19 @@ public sealed class TacticalArena : IDisposable
         expired.Clear();
         foreach(var pair in actors)if(pair.Value.generation!=generation)expired.Add(pair.Key);
         foreach(object key in expired){Release(actors[key].root);actors.Remove(key);}
-        camera.Render();
+        EndEffects();camera.Render();
     }
-    Mesh Own(Mesh mesh){mesh.RecalculateNormals();mesh.RecalculateBounds();resources.Add(mesh);return mesh;}
+    Mesh Own(Mesh mesh)
+    {
+        mesh.RecalculateNormals();mesh.RecalculateBounds();
+#if DITTOCHES_PORTABLE_PREVIEW
+        // Imported scene shaders are unavailable in the legacy player; give opaque geometry readable depth.
+        var normals=mesh.normals;var colors=new Color[normals.Length];Vector3 sun=new Vector3(-.4f,1,-.3f).normalized;
+        for(int i=0;i<colors.Length;i++)colors[i]=Color.white*(.56f+.44f*Mathf.Max(0,Vector3.Dot(normals[i],sun)));
+        mesh.colors=colors;
+#endif
+        resources.Add(mesh);return mesh;
+    }
     Mesh Prism(int sides,float angle)
     {
         var vertices=new List<Vector3>();var triangles=new List<int>();
@@ -346,6 +427,7 @@ public sealed class TacticalArena : IDisposable
 public sealed class ArenaPointer
 {
     int pressed=-1;
+    public bool HasPress { get { return pressed>=0; } }
     public int Released { get; private set; } = -1;
     public void Reset(){pressed=-1;Released=-1;}
     public void Update(int target,bool down,bool up,bool dragging,bool blocked)

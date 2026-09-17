@@ -42,3 +42,8 @@ DittochesMulti/Assets/Resources/**/*.jpeg
 DittochesMulti/Assets/Resources/**/*.psd
 DittochesMulti/Assets/Resources/**/*.fbx
 DittochesMulti/Assets/Resources/**/*.blend
+DittochesMulti/Assets/**/*.glb
+DittochesMulti/Assets/**/*.gltf
+DittochesMulti/Assets/**/*.fbx
+DittochesMulti/Assets/**/*.blend
+DittochesMulti/Assets/**/*.bin

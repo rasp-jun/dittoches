@@ -8,6 +8,8 @@ public static class ArenaValidation
     [MenuItem("Dittoches Multi/Validate Perspective Arena")]
     public static void Validate()
     {
+        CombatMotionValidation.Validate();
+        SkillTimingValidation.Validate();
         ValidatePointer();
         ValidateView(TacticalArena.SoloViewport,"solo");
         ValidateView(TacticalArena.MultiViewport,"multi");
@@ -27,7 +29,9 @@ public static class ArenaValidation
         pointer.Update(28,true,false,false,false);pointer.Update(28,false,false,true,false);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"drag is not click");
         pointer.Update(28,true,false,false,false);pointer.Update(28,false,false,false,true);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"overlay cancels press");
         pointer.Update(56,true,false,false,false);pointer.Reset();pointer.Update(56,false,true,false,false);Check(pointer.Released==-1,"screen change cancels press");
-        Debug.Log("ARENA POINTER: 10 regression checks passed.");
+        pointer.Update(100,true,false,false,false);Check(pointer.HasPress,"automatic loot pickup waits for pointer release");
+        pointer.Update(100,false,true,false,false);Check(!pointer.HasPress&&pointer.Released==100,"release unlocks automatic loot pickup");
+        Debug.Log("ARENA POINTER: 12 regression checks passed.");
     }
     static void ValidateView(Rect view,string name)
     {
