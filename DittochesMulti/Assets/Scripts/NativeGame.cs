@@ -91,6 +91,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private float recipeGuideUntil;
     private string activeTooltip="";
     private float tooltipUntil, guiScale=1f;
+    private Vector2 guiOffset;
     private int scoutedRival=-1;
     private readonly Unit[] scoutBoard=new Unit[28];
     private TraitEntry traitFocus;
@@ -127,7 +128,7 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         if(observedLobby!=lobby){observedLobby=lobby;screenTransitionUntil=Time.unscaledTime+.34f;}
         if(lobby||battling||Input.touchCount==0)return;Touch touch=Input.GetTouch(0);if(touch.phase!=TouchPhase.Began&&touch.phase!=TouchPhase.Moved)return;
-        Vector2 point=new Vector2(touch.position.x/guiScale,(Screen.height-touch.position.y)/guiScale);TryMoveLegend(point);
+        Vector2 point=new Vector2((touch.position.x-guiOffset.x)/guiScale,(Screen.height-touch.position.y-guiOffset.y)/guiScale);TryMoveLegend(point);
     }
 
     private void InitPool() { int[] sizes={0,39,26,21,13,10}; pool.Clear(); foreach(UnitDef d in Roster) pool[d.id]=sizes[d.cost]; pool["koromon"]--; }
@@ -165,7 +166,8 @@ public sealed partial class NativeGame : MonoBehaviour
     private void OnGUI()
     {
         Styles(); float scale=Mathf.Min(Screen.width/1920f,Screen.height/1080f);guiScale=Mathf.Max(.01f,scale); Matrix4x4 old=GUI.matrix;
-        GUI.matrix=Matrix4x4.TRS(Vector3.zero,Quaternion.identity,new Vector3(scale,scale,1)); DrawRect(new Rect(0,0,1920,1080),bg);
+        guiOffset=new Vector2((Screen.width-1920*scale)*.5f,(Screen.height-1080*scale)*.5f);
+        GUI.matrix=Matrix4x4.TRS(new Vector3(guiOffset.x,guiOffset.y,0),Quaternion.identity,new Vector3(scale,scale,1)); DrawRect(new Rect(0,0,1920,1080),bg);
         if(lobby) DrawLobby(); else DrawGame();DrawTransientTooltip();if(Time.unscaledTime<screenTransitionUntil){float fade=Mathf.Clamp01((screenTransitionUntil-Time.unscaledTime)/.34f);DrawRect(new Rect(0,0,1920,1080),new Color(.005f,.012f,.025f,fade));}GUI.matrix=old;
     }
     private void DrawTransientTooltip()
@@ -173,7 +175,7 @@ public sealed partial class NativeGame : MonoBehaviour
         string current=GUI.tooltip??"";if(string.IsNullOrEmpty(current)){activeTooltip="";return;}if(current!=activeTooltip){activeTooltip=current;tooltipUntil=Time.unscaledTime+2.2f;}if(Time.unscaledTime>=tooltipUntil)return;float alpha=Mathf.Clamp01((tooltipUntil-Time.unscaledTime)*3f);Vector2 p=Event.current.mousePosition;Color old=GUI.color;GUI.color=new Color(1,1,1,alpha);GUI.Box(new Rect(Mathf.Min(p.x+18,1510),Mathf.Min(p.y+18,980),370,68),current,card);GUI.color=old;
     }
     private void DrawRect(Rect r,Color c){Color old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
-    private bool Btn(Rect r,string text,bool enabled=true){GUI.enabled=enabled;bool hit=GUI.Button(r,text,button);GUI.enabled=true;return hit;}
+    private bool Btn(Rect r,string text,bool enabled=true){bool previous=GUI.enabled;GUI.enabled=previous&&enabled;bool hit=GUI.Button(r,text,button);GUI.enabled=previous;return hit;}
     private void Portrait(Rect r,string sprite,string glyph=""){Texture2D t=Tex(sprite);if(t)GUI.DrawTexture(r,t,ScaleMode.ScaleToFit,true);else GUI.Label(r,glyph,title);}
 
     private void DrawLobby()
@@ -344,7 +346,7 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         Unit u=inspectedUnit;UnitMeta m=Meta(u.def.id);SkillMeta skill=Skill(u.def.id);if(Btn(new Rect(1825,120,55,38),"×")){inspectedUnit=null;return;}Portrait(new Rect(1390,145,150,145),UnitSprite(u.def));GUI.Label(new Rect(1560,150,250,34),UnitName(u.def),header);GUI.Label(new Rect(1560,190,280,26),new string('★',u.star)+$"  ·  {u.def.cost}코스트",label);GUI.Label(new Rect(1560,225,280,25),$"{m.attr} · {m.family} · {u.def.role}",label);GUI.Label(new Rect(1560,255,300,25),$"마나 {skill.startMana:0}/{skill.maxMana:0} · 스킬 계수 {skill.power:0.00}",small);
         float mult=Mathf.Pow(1.8f,u.star-1);GUI.Label(new Rect(1390,305,470,28),"유닛 능력치",header);DetailStat(1390,342,"체력",Mathf.RoundToInt(m.hp*mult).ToString());DetailStat(1510,342,"공격력",Mathf.RoundToInt(m.atk*Mathf.Pow(1.5f,u.star-1)).ToString());DetailStat(1630,342,"공속",m.speed.ToString("0.00"));DetailStat(1750,342,"사거리",m.range.ToString());
-        GUI.Label(new Rect(1390,405,470,28),"기여 시너지",header);int attrCount=SynergyCount(m.attr),familyCount=SynergyCount(m.family),roleCount=board.Count(x=>x!=null&&x.def.role==u.def.role);SynergyLine(1390,442,m.attr,attrCount,2,"같은 속성 2명부터 속성 효과 활성화");SynergyLine(1390,493,m.family,familyCount,2,"같은 계열 2/4명에서 전투 보너스 강화");SynergyLine(1390,544,u.def.role,roleCount,2,RoleDescription(u.def.role));
+        GUI.Label(new Rect(1390,405,470,28),"기여 시너지",header);int attrCount=SynergyCount(m.attr),familyCount=SynergyCount(m.family),roleCount=RoleCount(u.def.role);SynergyLine(1390,442,m.attr,attrCount,2,"같은 속성 2명부터 속성 효과 활성화");SynergyLine(1390,493,m.family,familyCount,2,"같은 계열 2/3/4명에서 전투 보너스 강화");SynergyLine(1390,544,u.def.role,roleCount,2,RoleDescription(u.def.role));
         GUI.Label(new Rect(1390,595,120,24),"개별 스킬",small);GUI.Label(new Rect(1510,588,350,38),SkillDescription(u.def),label);GUI.Label(new Rect(1390,640,120,24),"장착 장비",small);for(int i=0;i<u.items.Count;i++){int item=u.items[i];GUI.Button(new Rect(1510+i*165,633,155,38),new GUIContent(ItemIcons[item]+" "+ItemNames[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button);}
     }
     private void DetailStat(float x,float y,string key,string value){GUI.Box(new Rect(x,y,108,52),GUIContent.none,card);GUI.Label(new Rect(x+5,y+4,98,18),key,small);GUI.Label(new Rect(x+5,y+22,98,25),value,center);}
@@ -371,11 +373,39 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private void DrawShop()
     {
-        DrawRect(new Rect(0,838,1920,242),new Color(.012f,.030f,.052f,.99f));DrawRect(new Rect(0,838,1920,3),accent);GUI.Label(new Rect(40,855,230,30),"SHOP · 디지몬 모집",header);
-        int interest=Mathf.Min(5,gold/10);GUI.Label(new Rect(270,842,800,22),ShopOddsText(),small);GUI.Label(new Rect(40,1028,205,24),$"이자 +{interest}G  ·  다음 기본 수입 {5+interest}G",small);
-        if(Btn(new Rect(40,895,145,42),"새로고침 2G  [D]",gold>=2)){gold-=2;RollShop();}if(Btn(new Rect(40,943,145,42),"경험치 +4  [F]",gold>=4&&level<9)){gold-=4;AddXp(4);Save();}if(Btn(new Rect(40,991,145,34),shopLocked?"◆ 잠금 유지":"◇ 상점 잠금")){shopLocked=!shopLocked;Save();}
-        for(int i=0;i<5;i++){Rect r=new Rect(270+i*245,865,225,165);bool hovered=r.Contains(Event.current.mousePosition);if(Event.current.type==EventType.Repaint)shopHover[i]=Mathf.MoveTowards(shopHover[i],hovered?1f:0f,Time.unscaledDeltaTime*7f);GUI.Box(r,GUIContent.none,shopHover[i]>.03f?selectedStyle:card);UnitDef d=shop[i];if(d!=null){Color rarity=CostColor(d.cost);DrawRect(new Rect(r.x,r.y,r.width,4+shopHover[i]*2),rarity);float lift=shopHover[i]*6f,scale=shopHover[i]*5f;Color old=GUI.color;if(gold<d.cost)GUI.color=new Color(.62f,.65f,.68f,.82f);Portrait(new Rect(r.x+8-scale*.5f,r.y+8-lift,105+scale,100+scale),UnitSprite(d));GUI.color=old;GUI.Label(new Rect(r.x+112,r.y+12,105,28),UnitName(d),label);GUI.Label(new Rect(r.x+112,r.y+44,105,22),d.role,small);GUI.Label(new Rect(r.x+112,r.y+72,105,25),d.cost+" G",header);GUI.Label(new Rect(r.x+12,r.y+112,95,25),"POOL "+pool[d.id],small);if(Btn(new Rect(r.x+112,r.y+108,100,42),"구매",gold>=d.cost)&&Buy(i))Save();}else GUI.Label(r,"판매 완료",center);}
-        string action=RoundType()=="초밥집"?RoundLabel()+" 선택창 열기":RoundLabel()+" 전투 시작";if(Btn(new Rect(1530,875,330,135),battling?"전투 진행 중":action+"  [SPACE]",!battling&&(RoundType()=="초밥집"||board.Any(u=>u!=null))))StartRoundAction();
+        DrawRect(new Rect(0,838,1920,242),new Color(.012f,.030f,.052f,.99f));
+        DrawRect(new Rect(0,838,1920,3),accent);
+        GUI.Label(new Rect(32,852,220,30),"디지몬 모집",header);
+        GUI.Label(new Rect(270,842,1200,22),ShopOddsText(),small);
+        if(Btn(new Rect(32,895,210,42),"새로고침  2G  [D]",gold>=2)){gold-=2;RollShop();}
+        if(Btn(new Rect(32,943,210,42),"경험치 +4  ·  4G  [F]",gold>=4&&level<9)){gold-=4;AddXp(4);Save();}
+        if(Btn(new Rect(32,991,210,34),shopLocked?"잠금 유지 중":"상점 잠금")){shopLocked=!shopLocked;Save();}
+        GUI.Label(new Rect(32,1034,230,24),$"이자 +{Mathf.Min(5,gold/10)}G · 최대 +5G",small);
+        for(int i=0;i<5;i++)
+        {
+            Rect r=new Rect(270+i*245,871,225,183);
+            bool hovered=GUI.enabled&&r.Contains(Event.current.mousePosition);
+            if(Event.current.type==EventType.Repaint)shopHover[i]=Mathf.MoveTowards(shopHover[i],hovered?1f:0f,Time.unscaledDeltaTime*7f);
+            GUI.Box(r,GUIContent.none,hovered?selectedStyle:card);
+            UnitDef d=shop[i];
+            if(d==null){GUI.Label(r,"모집 완료",center);continue;}
+            bool merges=FindUnits(d.id,1).Count>=2;
+            bool room=bench.Any(u=>u==null)||merges;
+            Color rarity=CostColor(d.cost);
+            DrawRect(new Rect(r.x,r.y,r.width,4),rarity);
+            Portrait(new Rect(r.x+8,r.y+12-shopHover[i]*4,92,98),UnitSprite(d));
+            GUI.Label(new Rect(r.x+106,r.y+14,112,25),d.cost+" G",header);
+            GUI.Label(new Rect(r.x+106,r.y+45,112,24),d.role,small);
+            GUI.Label(new Rect(r.x+106,r.y+72,112,24),merges?"합성 가능":"보유 "+FindUnits(d.id,1).Count,small);
+            GUI.Label(new Rect(r.x+12,r.y+108,201,28),UnitName(d),label);
+            string status=gold<d.cost?"골드 부족":!room?"대기석 가득":merges?"구매 · 자동 합성":"구매";
+            if(Btn(new Rect(r.x+12,r.y+140,201,33),status,gold>=d.cost&&room)&&Buy(i))Save();
+        }
+        bool carousel=RoundType()=="초밥집";
+        GUI.Label(new Rect(1530,856,330,28),battling?"전투 진행 중":"준비 단계",center);
+        string action=carousel?"선택창 열기":"전투 시작";
+        if(Btn(new Rect(1530,895,330,92),battling?"전투 중":action+"  [SPACE]",!battling&&(carousel||board.Any(u=>u!=null))))StartRoundAction();
+        GUI.Label(new Rect(1530,999,330,46),$"배치 {board.Count(u=>u!=null)} / {level}  ·  대기석 {bench.Count(u=>u!=null)} / {bench.Length}",center);
     }
     private string ShopOddsText(){return $"LV.{level} 배치 {board.Count(u=>u!=null)}/{level}  ·  상점 확률  1G {ShopOdds[level-1,0]}%  2G {ShopOdds[level-1,1]}%  3G {ShopOdds[level-1,2]}%  4G {ShopOdds[level-1,3]}%  5G {ShopOdds[level-1,4]}%";}
     private Color CostColor(int cost){if(cost==1)return new Color(.55f,.62f,.68f);if(cost==2)return new Color(.20f,.72f,.42f);if(cost==3)return new Color(.22f,.55f,1f);if(cost==4)return new Color(.72f,.30f,1f);return new Color(1f,.70f,.18f);}

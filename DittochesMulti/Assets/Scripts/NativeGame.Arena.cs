@@ -90,8 +90,9 @@ public sealed partial class NativeGame
                 Vector3 point=TacticalArena.CellWorld(i%7,i/7+4);
                 if(visible[i]!=null)
                 {
-                    GUI.Label(arena.LabelRect(point,3),new string('★',visible[i].star)+" "+UnitName(visible[i].def),center);
-                    if(visible[i].items.Count>0)GUI.Label(arena.LabelRect(point,21),string.Join(" ",visible[i].items.Select(item=>ItemIcons[item]).ToArray()),center);
+                    bool focused=selectedBoard==i||inspectedUnit==visible[i]||arena.HitCell(Event.current.mousePosition)==i+28;
+                    GUI.Label(arena.LabelRect(point,3),new string('★',visible[i].star)+(focused?" "+UnitName(visible[i].def):""),center);
+                    if(focused&&visible[i].items.Count>0)GUI.Label(arena.LabelRect(point,21),string.Join(" ",visible[i].items.Select(item=>ItemIcons[item]).ToArray()),center);
                 }
                 if(!blocked&&arenaPointer.Released==i+28&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
                 {
