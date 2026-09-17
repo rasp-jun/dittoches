@@ -31,7 +31,7 @@ public sealed partial class NativeGame
         else if(down&&target>=100&&!showCarousel&&hp>0&&!guide)e.Use();
     }
     private void EnsureArena() { if(arena==null)arena=new TacticalArena(TacticalArena.SoloViewport); }
-    private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear(); }
+    private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear(); }
     private void OnDestroy() { if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
     {
@@ -44,10 +44,9 @@ public sealed partial class NativeGame
     private Vector3 FighterWorld(Fighter fighter)
     {
         Vector3 p=TacticalArena.CellWorld(fighter.renderPos.x,fighter.renderPos.y);
-        Fighter target=SelectTarget(fighter);
-        if(target!=null&&fighter.attackFlash>0)
+        if(fighter.attackFlash>0)
         {
-            Vector3 direction=(TacticalArena.CellWorld(target.renderPos.x,target.renderPos.y)-p).normalized;
+            Vector3 direction=(TacticalArena.CellWorld(fighter.attackTarget.x,fighter.attackTarget.y)-p).normalized;
             p+=direction*Mathf.Sin((1-Mathf.Clamp01(fighter.attackFlash/.35f))*Mathf.PI)*.22f;
         }
         return p;
@@ -70,13 +69,17 @@ public sealed partial class NativeGame
             if(battling)
             {
                 foreach(Fighter f in fighters)if(!f.dead)
+                {
                     arena.SetActor(f,FighterWorld(f),Tex(f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?"Apocalymon_Attack":UnitSprite(f.unit.def)),f.enemy?new Color(1,.35f,.28f):new Color(.25f,1,.62f),1+f.skillFlash*.16f,f.hitFlash*2);
+                    arena.DecorateActor(f,inspectedUnit==f.unit,0,f.hitFlash/.18f,f.healFlash/.28f,f.shieldFlash/.35f);
+                }
             }
             else for(int i=0;i<visible.Length;i++)if(visible[i]!=null)
                 RenderFormationPiece(visible[i],TacticalArena.CellWorld(i%7,i/7+4),scouting?new Color(1,.5f,.28f):new Color(.25f,1,.62f));
             for(int i=0;i<bench.Length;i++)if(bench[i]!=null)
                 RenderFormationPiece(bench[i],TacticalArena.BenchWorld(i),new Color(.95f,.74f,.28f),.85f);
             foreach(Unit stale in formationPositions.Keys.Where(u=>!visible.Contains(u)&&!bench.Contains(u)).ToArray())formationPositions.Remove(stale);
+            foreach(Unit stale in promotions.Keys.Where(u=>promotions[u]<=Time.unscaledTime||(!board.Contains(u)&&!bench.Contains(u))).ToArray())promotions.Remove(stale);
             float celebration=Mathf.Clamp01((legendCelebrateUntil-Time.unscaledTime)/.8f);
             if(win&&!battling&&Time.unscaledTime<resultNoticeUntil)celebration=Mathf.Max(celebration,.65f);
             arena.SetTactician(this,LegacyWorld(legendPos),LegacyWorld(legendTarget),Tex(LegendSprites[legend]),LegendColor(),
@@ -112,6 +115,7 @@ public sealed partial class NativeGame
         else
         {
             foreach(Fighter f in fighters)if(!f.dead)DrawFighter(f);
+            DrawAttackTraces();
             DrawCombatPopups();
         }
         for(int i=lootOrbs.Count-1;i>=0;i--)
@@ -163,14 +167,9 @@ public sealed partial class NativeGame
         if(f.shield>0)MiniBar(new Rect(head.x-width/2,head.y-5,width,2),f.shield/Mathf.Max(1,f.maxHp*.5f),new Color(.6f,.88f,1));
         if(f.stun>0)GUI.Label(new Rect(head.x-42,head.y-25,84,20),"기절",center);
         else if(f.skillFlash>0)GUI.Label(new Rect(head.x-95,head.y-25,190,20),SkillName(f.unit.def),center);
-        if(f.attackFlash>0&&Meta(f.unit.def.id).range>1)
-        {
-            Fighter target=SelectTarget(f);
-            if(target!=null){Vector2 a=arena.Project(point+Vector3.up*.7f),b=arena.Project(FighterWorld(target)+Vector3.up*.7f);Vector2 p=Vector2.Lerp(a,b,1-Mathf.Clamp01(f.attackFlash/.35f));DrawRect(new Rect(p.x-4,p.y-4,8,8),RoleColor(f.unit.def.role));}
-        }
         Vector2 feet=arena.Project(point);
-        if(!showCarousel&&!f.enemy&&GUI.Button(new Rect(feet.x-width/2,head.y,width,Mathf.Max(20,feet.y-head.y)),GUIContent.none,GUIStyle.none))
-        {if(selectedItem>=0)Equip(f.unit);else inspectedUnit=f.unit;}
+        if(!showCarousel&&GUI.Button(new Rect(feet.x-width/2,head.y,width,Mathf.Max(20,feet.y-head.y)),GUIContent.none,GUIStyle.none))
+        {if(selectedItem>=0){if(f.enemy)NotifyPlacement("상대 유닛에는 장비를 장착할 수 없습니다");else Equip(f.unit);}else inspectedUnit=f.unit;}
     }
     private void DrawPerspectiveBench()
     {

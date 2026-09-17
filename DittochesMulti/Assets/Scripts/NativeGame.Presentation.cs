@@ -12,6 +12,44 @@ public sealed partial class NativeGame
     private string lastReportRound="";
     private string placementNotice="";
     private float placementNoticeUntil;
+    private readonly Dictionary<Unit,float> promotions=new Dictionary<Unit,float>();
+    private readonly List<BattleTrace> battleTraces=new List<BattleTrace>();
+    private sealed class BattleTrace
+    {
+        public Vector3 from,to;
+        public Color color;
+        public float started;
+    }
+    private void NotifyPromotion(Unit unit)
+    {
+        promotions[unit]=Time.unscaledTime+1.25f;
+        NotifyPlacement(UnitName(unit.def)+" · "+new string('★',unit.star)+" 합성 완료");
+    }
+    private void RecordAttackTrace(Fighter source,Fighter target)
+    {
+        if(Meta(source.unit.def.id).range<=1)return;
+        if(battleTraces.Count>=80)battleTraces.RemoveAt(0);
+        battleTraces.Add(new BattleTrace{from=TacticalArena.CellWorld(source.renderPos.x,source.renderPos.y)+Vector3.up*.7f,
+            to=TacticalArena.CellWorld(target.renderPos.x,target.renderPos.y)+Vector3.up*.7f,
+            color=RoleColor(source.unit.def.role),started=Time.unscaledTime});
+    }
+    private void DrawAttackTraces()
+    {
+        if(Event.current.type!=EventType.Repaint)return;
+        for(int i=battleTraces.Count-1;i>=0;i--)
+        {
+            BattleTrace trace=battleTraces[i];float progress=(Time.unscaledTime-trace.started)/.24f;
+            if(progress>=1){battleTraces.RemoveAt(i);continue;}
+            Vector2 from=arena.Project(trace.from),to=arena.Project(trace.to);
+            for(int tail=3;tail>=0;tail--)
+            {
+                Vector2 point=Vector2.Lerp(from,to,Mathf.Clamp01(progress-tail*.065f));
+                Color color=trace.color;color.a=1-tail*.22f;
+                float size=tail==0?7:4;
+                DrawRect(new Rect(point.x-size*.5f,point.y-size*.5f,size,size),color);
+            }
+        }
+    }
 
     private int traitPage,inventoryPage;
     private string ShopUnitSummary(UnitDef d,int singles,int doubles)
@@ -70,7 +108,11 @@ public sealed partial class NativeGame
         }
         displayed=Vector3.Lerp(displayed,target,1-Mathf.Exp(-Time.unscaledDeltaTime*(held?24f:15f)));
         formationPositions[unit]=displayed;
+        float until;float promotion=promotions.TryGetValue(unit,out until)?Mathf.Clamp01((until-Time.unscaledTime)/1.25f):0;
+        scale*=1+Mathf.Sin((1-promotion)*Mathf.PI)*.12f*promotion;
         arena.SetActor(unit,displayed,Tex(UnitSprite(unit.def)),color,scale);
+        bool selected=held||(!battling&&(selectedBoard>=0&&board[selectedBoard]==unit||selectedBench>=0&&bench[selectedBench]==unit));
+        arena.DecorateActor(unit,selected,promotion);
     }
     private void DrawFormationStatus()
     {

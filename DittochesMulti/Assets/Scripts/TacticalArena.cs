@@ -26,7 +26,7 @@ public sealed class TacticalArena : IDisposable
     sealed class Actor
     {
         public GameObject root;
-        public MeshRenderer portrait, contactShadow, teamBase, halo, destination;
+        public MeshRenderer portrait, contactShadow, teamBase, halo, destination, selection;
         public MeshRenderer[] sparkles;
         public int generation;
     }
@@ -246,6 +246,27 @@ public sealed class TacticalArena : IDisposable
         }
         else actor.portrait.sharedMaterial=glow;
         Tint(actor.portrait,texture==null?team:Color.Lerp(Color.white,new Color(1,.4f,.3f),Mathf.Clamp01(flash)));
+    }
+    public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0)
+    {
+        Actor actor;if(!actors.TryGetValue(key,out actor))return;
+        bool visible=selected||promotion>0||healing>0||shielding>0;
+        if(visible&&actor.selection==null)
+            actor.selection=Shape("Unit selection",ringMesh,glow,new Vector3(0,.035f,0),Vector3.one*.52f,actor.root.transform);
+        Color color=promotion>0?new Color(1f,.82f,.3f):healing>0?new Color(.35f,1f,.6f):shielding>0?new Color(.4f,.8f,1f):new Color(1f,.78f,.3f);
+        if(actor.selection!=null)
+        {
+            actor.selection.enabled=visible;
+            actor.selection.transform.localScale=Vector3.one*(.5f+Mathf.Sin(Time.unscaledTime*5f)*.025f+promotion*.16f);
+            Tint(actor.selection,color);
+        }
+        properties.Clear();
+        Color tint=Color.Lerp(Color.white,new Color(1f,.4f,.3f),Mathf.Clamp01(hit));
+        if(healing>hit)tint=Color.Lerp(Color.white,new Color(.5f,1f,.68f),Mathf.Clamp01(healing)*.5f);
+        properties.SetColor("_Color",tint);
+        properties.SetColor("_OutlineColor",color);
+        properties.SetFloat("_OutlineWidth",visible?2f:0f);
+        actor.portrait.SetPropertyBlock(properties);
     }
     public void SetTactician(object key, Vector3 point, Vector3 destination, Texture texture,
         Color color, float movement, float horizontalSpeed, float time, float celebration)
