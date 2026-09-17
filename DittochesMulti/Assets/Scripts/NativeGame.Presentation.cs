@@ -222,10 +222,12 @@ public sealed partial class NativeGame
                 :"내 전장의 칸 또는 대기석을 선택하세요";
             text+="  ·  ESC / 우클릭 취소";
         }
-        else text="유닛을 끌어서 배치 · 클릭 후 다른 칸을 눌러도 이동합니다";
-        float y=artPack==0?803:158,x=SoloArenaViewport.center.x-486;
-        DrawRect(new Rect(x,y,972,32),new Color(.01f,.025f,.045f,.92f));
-        GUI.Label(new Rect(x+10,y+3,952,26),text,center);
+        else text=artPack==0?"드래그하여 배치   ·   우클릭 / ESC로 선택 취소":"유닛을 끌어서 배치 · 클릭 후 다른 칸을 눌러도 이동합니다";
+        bool focused=HeldUnit()!=null||selectedItem>=0||scoutedRival>=0||Time.unscaledTime<placementNoticeUntil;
+        float width=artPack==0&&!focused?650:972;
+        float y=artPack==0?803:158,x=SoloArenaViewport.center.x-width*.5f;
+        DrawRect(new Rect(x,y,width,32),new Color(.01f,.025f,.045f,artPack==0&&!focused?.45f:.92f));
+        GUI.Label(new Rect(x+10,y+3,width-20,26),text,center);
     }
     private void DrawRoundStatus()
     {

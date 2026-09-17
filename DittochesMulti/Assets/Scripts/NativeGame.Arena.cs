@@ -161,14 +161,16 @@ public sealed partial class NativeGame
         if(artPack!=0&&!string.IsNullOrEmpty(lastCombatSummary))GUI.Label(new Rect(305,808,1020,20),lastCombatSummary,small);
         if(!battling&&Time.unscaledTime<resultNoticeUntil)
         {
-            GUI.Box(new Rect(560,198,510,74),GUIContent.none,card);
-            GUI.Label(new Rect(580,201,470,36),win?"전투 승리":"전투 패배",title);
-            GUI.Label(new Rect(580,239,470,28),lastReward,center);
+            float x=artPack==0?SoloArenaViewport.center.x-255:560,y=artPack==0?144:198;
+            GUI.Box(new Rect(x,y,510,74),GUIContent.none,card);
+            if(artPack==0)DrawRect(new Rect(x,y,510,2),win?new Color(.39f,.87f,.73f):new Color(.9f,.37f,.29f));
+            GUI.Label(new Rect(x+20,y+3,470,36),win?"전투 승리":"전투 패배",title);
+            GUI.Label(new Rect(x+20,y+41,470,28),lastReward,center);
         }
         if(battling)
         {
             MiniBar(new Rect(SoloArenaViewport.center.x-325,artPack==0?838:803,650,4),battleProgress,accent);
-            if(Time.unscaledTime-battleStartedAt<1.1f)GUI.Label(new Rect(565,300,510,60),"전투 시작",title);
+            if(Time.unscaledTime-battleStartedAt<1.1f)GUI.Label(new Rect(artPack==0?SoloArenaViewport.center.x-255:565,artPack==0?156:300,510,artPack==0?44:60),"전투 시작",title);
         }
     }
     private void DrawPerspectiveFighter(Fighter f)
