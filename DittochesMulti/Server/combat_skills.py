@@ -3,14 +3,10 @@
 Damage, target selection and interruption are resolved here, never by a client.
 Amounts and control durations are autochess balancing choices, not anime claims.
 """
-import json
 import math
-from pathlib import Path
 import combat_builds as builds
-
-CATALOG_PATH = Path(__file__).resolve().parent.parent / 'Assets/Resources/DigimonSkills.json'
-SKILLS = {s['id']: s for s in json.loads(CATALOG_PATH.read_text(encoding='utf-8'))['skills']}
-
+import combat_stats as stats
+from combat_stats import SKILLS
 
 def contains(shape, sx, sy, tx, ty, x, y, radius, reach):
     dx, dy = x-sx, y-sy
@@ -31,14 +27,14 @@ def duration(skill):
     return skill['windup']+skill['travel']+(skill['shots']-1)*skill['interval']+skill['recovery']
 
 
-def begin_cast(fighter, target, now, serial, damage):
+def begin_cast(fighter, target, now, serial, damage=None):
     skill = SKILLS[fighter['id']]
     fighter['mana'] = 0
     fighter['cooldown'] = duration(skill)
     fighter['castUntil'] = now+duration(skill)
     return dict(serial=serial, caster=fighter['key'], target=target['key'], id=fighter['id'],
                 started=now, sx=fighter['x'], sy=fighter['y'], tx=target['x'], ty=target['y'],
-                released=False, cancelled=False, hits=0, damage=damage)
+                released=False, cancelled=False, hits=0, damage=stats.skill_damage(fighter) if damage is None else damage)
 
 
 def advance_cast(cast, fighters, now):
@@ -81,7 +77,7 @@ def advance_cast(cast, fighters, now):
                 victims.append(f)
         victims.sort(key=lambda f: ((f['x']-cast['tx'])**2+(f['y']-cast['ty'])**2, f['key']))
         for f in victims[:skill['targets']]:
-            builds.damage(source, f, cast['damage']*skill['multiplier']/skill['shots'])
+            builds.damage(source, f, cast['damage']/skill['shots'],damage_type=skill['damageType'])
             f['stun'] = max(f.get('stun', 0), skill['stun'])
             f['hitAt'] = now
             if f['hp'] > 0 and skill['visual'] == 'gate':
@@ -100,8 +96,11 @@ def simulate(fighters, definitions):
     step_time = .05
     serial = 0
     for f in fighters:
-        f.update(mana=35, maxMana=75, stun=0, castUntil=0, attackAt=-10, hitAt=-10, target=-1)
+        skill=SKILLS[f['id']]
+        f.update(mana=skill['startMana'], maxMana=skill['maxMana'], stun=0, castUntil=0, attackAt=-10, hitAt=-10, target=-1)
     builds.initialize(fighters)
+    for f in fighters:
+        f.update(attackDamage=stats.attack(f),abilityPower=stats.ability_power(f),armor=builds.value(f,'armor'),magicResist=builds.value(f,'magicResist'),attackRange=SKILLS[f['id']]['attackRange'])
     for step in range(481):
         now = step*step_time
         if step:
@@ -115,7 +114,8 @@ def simulate(fighters, definitions):
                     continue
                 builds.tick(f, step_time)
                 f['cooldown'] -= step_time
-                f['mana'] = min(f['maxMana'], f['mana']+step_time*2)
+                role=definitions[f['id']]['role']
+                f['mana'] = min(f['maxMana'], f['mana']+step_time*(2 if role=='마법사' else 1.5 if role=='지원' else 0))
                 if f['stun'] > 0 or f['castUntil'] > now:
                     continue
                 enemies = [e for e in fighters if e['side'] != f['side'] and e['hp'] > 0]
@@ -128,25 +128,26 @@ def simulate(fighters, definitions):
                 dx, dy = target['x']-f['x'], target['y']-f['y']
                 distance = math.hypot(dx, dy)
                 definition = definitions[f['id']]
-                ranged = definition['role'] in ('사수', '마법사', '지원')
-                if distance > (2.55 if ranged else 1.05):
+                skill=SKILLS[f['id']]
+                if not stats.in_attack_range(f,target):
                     f['x'] += dx/distance*step_time*1.5
                     f['y'] += dy/distance*step_time*1.5
                     continue
                 if f['cooldown'] > 0:
                     continue
-                damage = (13+definition['cost']*5)*1.48**(f['star']-1)*(1+builds.value(f, 'attack'))
+                damage = stats.attack(f)
                 if f['mana'] >= f['maxMana']:
                     serial += 1
-                    casts.append(begin_cast(f, target, now, serial, damage*(1+builds.value(f, 'skill'))))
+                    casts.append(begin_cast(f, target, now, serial))
                     builds.on_cast(f, fighters)
                 else:
                     f['attacks'] += 1
                     damage *= 1+(builds.value(f, 'thirdHit') if f['attacks']%3 == 0 else 0)
                     hits.append((f, target, damage))
                     f['attackAt'] = now
-                    f['mana'] = min(f['maxMana'], f['mana']+10+builds.value(f, 'manaOnAttack'))
-                    f['cooldown'] = (1.05 if ranged else .78)/(1+builds.value(f, 'speed'))
+                    mana_gain=5 if role=='탱커' else 7 if role=='마법사' else 8 if role=='지원' else 10
+                    f['mana'] = min(f['maxMana'], f['mana']+mana_gain+builds.value(f, 'manaOnAttack'))
+                    f['cooldown'] = 1/(skill['attackSpeed']*(1+builds.value(f, 'speed')))
             for source, target, damage in hits:
                 builds.damage(source, target, damage, basic=True)
                 target['hitAt'] = now

@@ -5,6 +5,37 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    void ValidateScalingRules()
+    {
+        artPack=0;battling=false;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);fighters.Clear();skillCasts.Clear();
+        foreach(var d in Roster)
+        {
+            var s=DigimonSkillCatalog.Find(d.id);
+            Require(s.adRatio.Length==3&&s.apRatio.Length==3,"three explicit coefficient tiers "+d.id);
+            Require(Meta(d.id).range==s.attackRange,"native range from catalog "+d.id);
+            Require(DigimonSkillUI.Icon(s).width==96,"skill icon generated "+d.id);
+            var unit=new Unit(d);board[0]=unit;var before=InspectStats(unit);
+            unit.items.Add(3);var after=InspectStats(unit);
+            Require(after.abilityPower==before.abilityPower+12&&after.attack==before.attack,"AP component does not add AD "+d.id);
+            if(s.apRatio[0]>0)Require(s.Damage(1,after.attack,after.abilityPower)>s.Damage(1,before.attack,before.abilityPower),"AP changes this skill "+d.id);
+            else Require(s.Damage(1,after.attack,after.abilityPower)==s.Damage(1,before.attack,before.abilityPower),"AD skill ignores AP "+d.id);
+        }
+        foreach(string id in new[]{"agumon","weregarurumon","wargreymon"})
+        {
+            Array.Clear(board,0,board.Length);var unit=new Unit(RosterById[id]);unit.items.Add(id=="weregarurumon"?0:3);board[0]=unit;
+            var source=CreateFighter(unit,false,new Vector2(3,4));var target=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+            fighters.Clear();fighters.Add(source);fighters.Add(target);InitializeBuildBonuses();
+            target.build=new DigimonBuildCatalog.Bonus{armor=100,magicResist=50};target.maxHp=target.hp=10000;target.shield=0;
+            var stats=InspectStats(unit);var s=DigimonSkillCatalog.Find(id);float predicted=s.Damage(1,stats.attack,stats.abilityPower);
+            Require(StartDigimonSkill(source,target),"native skill starts "+id);
+            Require(Mathf.Abs(source.skillCast.power-predicted)<.001f,"tooltip and cast use same calculation "+id);
+            source.build.abilityPower=9999;source.build.attack=99;UpdateDigimonSkills(s.Duration+.01f);
+            float actual=10000-target.hp,expected=predicted/(s.damageType=="physical"?2:1.5f);
+            Require(Mathf.Abs(actual-expected)<.01f,"actual frozen typed damage "+id);
+        }
+        Require(DigimonCombatMath.InAttackRange(3,2,2,1,1)&&!DigimonCombatMath.InAttackRange(3,2,1,1,1),"hex range distinguishes adjacent and distant cells");
+        fighters.Clear();skillCasts.Clear();combatPopups.Clear();Array.Clear(board,0,board.Length);
+    }
     void ValidateBuildRules()
     {
         artPack=0;round=12;

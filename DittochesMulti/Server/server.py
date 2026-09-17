@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from combat_skills import simulate
 from combat_builds import combine
+from combat_stats import SKILLS
 
 ROOT = Path(__file__).resolve().parent
 ROSTER = json.loads((ROOT / 'roster.json').read_text(encoding='utf-8'))
@@ -243,8 +244,8 @@ class Game:
                 if not unit:
                     continue
                 definition=DEFS[unit['id']]
-                hp=(75+definition['cost']*32)*1.72**(unit['star']-1)
-                fighters.append(dict(key=len(fighters),side=side,id=unit['id'],star=unit['star'],x=float(slot%7 if side==0 else 6-slot%7),
+                hp=SKILLS[unit['id']]['baseHealth']*1.8**(unit['star']-1)
+                fighters.append(dict(key=len(fighters),side=side,slot=slot,id=unit['id'],star=unit['star'],x=float(slot%7 if side==0 else 6-slot%7),
                                      y=float(slot//7+4 if side==0 else 3-slot//7),hp=hp,maxHp=hp,cooldown=0,items=list(unit.get('items',[]))))
         frames, skill_events, playback_duration = simulate(fighters, DEFS)
         totals=[sum(f['hp'] for f in fighters if f['side']==side) for side in (0,1)]

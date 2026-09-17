@@ -5,6 +5,7 @@ percentage bonuses add; reduction caps at 60%, shields at 50% of max health.
 """
 import json
 from pathlib import Path
+from combat_stats import mitigate
 
 DATA = json.loads((Path(__file__).resolve().parent.parent/'Assets/Resources/DigimonBuilds.json').read_text(encoding='utf-8'))
 TRAITS, ITEMS = DATA['traits'], DATA['items']
@@ -66,7 +67,7 @@ def heal(source, target, amount):
 def initialize(fighters):
     for f in fighters:
         f['build'] = resolve(f['id'], [u['id'] for u in fighters if u['side'] == f['side']], f.get('items', []))
-        f['maxHp'] = (f['maxHp']+value(f, 'health')*1.72**(f['star']-1))*(1+value(f, 'hp'))
+        f['maxHp'] = (f['maxHp']+value(f, 'health')*1.8**(f['star']-1))*(1+value(f, 'hp'))
         f['hp'] = f['maxHp']
         f.update(attacks=0, lowShieldUsed=False, regenClock=0, shield=0, damageDone=0, healingDone=0, shieldingDone=0)
         f['mana'] = min(f['maxMana'], f['mana']+value(f, 'startMana'))
@@ -95,9 +96,10 @@ def on_cast(source, fighters):
         shield(source, source, source['maxHp']*value(source, 'castShield'))
 
 
-def damage(source, target, amount, basic=False):
+def damage(source, target, amount, basic=False, damage_type='physical'):
     if target['hp'] <= 0:
         return 0
+    amount = mitigate(amount,value(target,'armor'),value(target,'magicResist'),damage_type)
     amount *= 1-min(.6, max(0, value(target, 'reduction')))
     if target['hp'] >= target['maxHp']*.7:
         amount *= 1+value(source, 'highHealthDamage')

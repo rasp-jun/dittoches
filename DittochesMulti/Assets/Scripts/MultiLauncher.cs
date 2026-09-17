@@ -14,7 +14,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; public int[] items; }
     [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision; public bool ready; public Unit[] board, bench; public string[] shop; public int[] inventory; }
-    [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
+    [Serializable] public class Fighter { public int key, side, star,slot; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
     [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
@@ -154,7 +154,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
                 ReconcileEquipmentSelection();
                 if (connectionError || path != "/state") notice = path == "/login" ? "서버 접속 완료" : "서버에 연결되었습니다.";
                 connectionError = false;
-                if (state.room == null || state.room.phase != "prepare") { selectedSlot = -1; selectedArea = ""; }
+                if (state.room == null || state.room.phase == "finished") { selectedSlot = -1; selectedArea = ""; }
                 if (path == "/leave") confirmLeave = false;
             }
         }
@@ -274,10 +274,13 @@ public sealed partial class MultiLauncher : MonoBehaviour
         GUI.matrix=Matrix4x4.TRS(new Vector3(offsetX,offsetY,0),Quaternion.identity,new Vector3(scale,scale,1));
         Color oldColor=GUI.color; Panel(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),Color.black); GUI.color=oldColor;
         DrawBackdrop();
+        GUI.enabled=string.IsNullOrEmpty(onlineSkillId);
         if (state != null && state.room != null) DrawMatch(); else DrawLobby();
+        GUI.enabled=true;
         Panel(new Rect(0,944,1600,56),new Color(.015f,.028f,.05f,.96f));
         Panel(new Rect(30,965,8,8),busy ? gold : connectionError ? new Color(.9f,.3f,.25f) : cyan);
         GUI.Label(new Rect(50,951,1500,38), busy ? "서버 통신 중  ·  " + notice : notice, small);
+        DrawOnlineSkillDetails();
         GUI.matrix = old;
     }
 
@@ -423,7 +426,11 @@ public sealed partial class MultiLauncher : MonoBehaviour
             GUI.Label(new Rect(r.x+140,r.y+55,120,28),def.role,eyebrow);
             GUI.Label(new Rect(r.x+140,r.y+90,120,28),def.cost+" GOLD",small);
             var skill=artPack==0?DigimonSkillCatalog.Find(def.id):null;
-            if(skill!=null)GUI.Label(new Rect(r.x+15,r.y+132,245,24),new GUIContent(skill.name,skill.technique+"\n"+skill.description),small);
+            if(skill!=null)
+            {
+                if(DigimonSkillUI.DrawIcon(new Rect(r.x+15,r.y+126,31,31),skill)){onlineSkillId=def.id;onlineSkillArea="";onlineSkillSlot=-1;}
+                GUI.Label(new Rect(r.x+55,r.y+132,200,24),skill.name,new GUIStyle(small){fontSize=13});
+            }
         }
         if(Btn(new Rect(610,850,150,48),"← 이전",codexPage>0)) codexPage--;
         GUI.Label(new Rect(770,852,160,44),$"{codexPage+1} / {pageCount}",centered);
@@ -510,7 +517,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Room room = state.room; Player me = room.players[room.side], enemy = room.players[1 - room.side];
         if(onlineItemGuide>=0&&Event.current.type==EventType.KeyDown&&Event.current.keyCode==KeyCode.Escape){onlineItemGuide=-1;Event.current.Use();}
         if (room.phase == "finished") confirmLeave = false;
-        GUI.enabled = !confirmLeave&&onlineItemGuide<0;
+        GUI.enabled = !confirmLeave&&onlineItemGuide<0&&string.IsNullOrEmpty(onlineSkillId);
         bool fresh = Time.unscaledTime - receivedAt < 6;
         bool editable = room.phase == "prepare" && !me.ready && fresh;
         float remaining = Mathf.Max(0, room.remaining - (Time.unscaledTime - receivedAt));
@@ -590,6 +597,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
             float protection=Mathf.Lerp(f.shield,to.shield,progress-frame)/Mathf.Max(1,f.maxHp);
             if(protection>0)Panel(new Rect(head.x-width/2,head.y-3,width*Mathf.Clamp01(protection),2),new Color(.75f,.9f,1f));
             if(f.maxMana>0)Panel(new Rect(head.x-width/2,head.y+9,width*Mathf.Clamp01(Mathf.Lerp(f.mana,to.mana,progress-frame)/f.maxMana),3),new Color(.25f,.65f,1));
+            if(f.side==room.side&&GUI.enabled&&Event.current.type==EventType.MouseDown&&Event.current.button==0&&new Rect(head.x-width/2,head.y-5,width,60).Contains(Event.current.mousePosition))
+            {selectedArea="board";selectedSlot=f.slot;Event.current.Use();}
             float castAge=ActiveCastAge(room,f.key,CombatTime(room,remaining));
             var skill=artPack==0&&castAge>=0?DigimonSkillCatalog.Find(f.id):null;
             if(skill!=null)GUI.Label(new Rect(head.x-115,head.y-25,230,22),skill.name,centered);

@@ -6,6 +6,7 @@ public sealed partial class MultiLauncher
     string onlineTrait="";
     void DrawOnlineTraits(Player me)
     {
+        Unit unit=SelectedOnlineUnit(me);if(unit!=null){DrawOnlineSkillStats(unit);return;}
         var ids=me.board.Select(u=>u.id).ToArray();
         var traits=DigimonBuildCatalog.Data.traits.Where(t=>DigimonBuildCatalog.Count(t,ids)>0)
             .OrderByDescending(t=>t.Level(DigimonBuildCatalog.Count(t,ids))).ThenByDescending(t=>DigimonBuildCatalog.Count(t,ids)).ToArray();

@@ -176,13 +176,21 @@ public sealed partial class NativeGame : MonoBehaviour
     private string UnitName(UnitDef d){string value;return artPack==1&&OriginalNames.TryGetValue(d.id,out value)?value:d.name;}
     private string UnitSprite(UnitDef d){string value;if(artPack==1&&OriginalSprites.TryGetValue(d.id,out value))return value;if(artPack==0&&FanUnitSprites.TryGetValue(d.id,out value)&&Tex(value)!=null)return value;return d.sprite;}
     private string SkillName(UnitDef d){var canonical=artPack==0?DigimonSkillCatalog.Find(d.id):null;if(canonical!=null)return canonical.name;string value;return SkillNames.TryGetValue(d.id,out value)?value:"데이터 방출";}
-    private UnitMeta Meta(string id){switch(id){
+    private UnitMeta Meta(string id)
+    {
+        UnitMeta result=LegacyMeta(id);var data=artPack==0?DigimonSkillCatalog.Find(id):null;
+        if(data!=null){result.hp=data.baseHealth;result.atk=data.baseAttack;result.speed=data.attackSpeed;result.range=data.attackRange;}
+        return result;
+    }
+    private UnitMeta LegacyMeta(string id){switch(id){
         case "koromon":return new UnitMeta("백신","용형",550,43,.8f,1);case "tsunomon":return new UnitMeta("데이터","야수형",430,43,.85f,3);case "mochimon":return new UnitMeta("백신","곤충형",690,32,.65f,1);case "tanemon":return new UnitMeta("데이터","식물형",460,29,.7f,3);case "pyocomon":return new UnitMeta("백신","조류형",440,36,.75f,3);case "tokomon":return new UnitMeta("백신","천사형",490,28,.7f,3);
         case "agumon":return new UnitMeta("백신","용형",600,48,.8f,1);case "gabumon":return new UnitMeta("데이터","야수형",460,49,.85f,4);case "tentomon":return new UnitMeta("백신","곤충형",760,36,.65f,1);case "palmon":return new UnitMeta("데이터","식물형",490,32,.7f,3);case "piyomon":return new UnitMeta("백신","조류형",530,43,.75f,3);case "patamon":return new UnitMeta("백신","천사형",570,35,.7f,3);
         case "togemon":return new UnitMeta("데이터","식물형",900,46,.7f,1);case "garurumon":return new UnitMeta("데이터","야수형",760,59,.85f,1);case "greymon":return new UnitMeta("백신","용형",1080,60,.7f,1);case "kabuterimon":return new UnitMeta("바이러스","곤충형",690,52,.8f,3);case "angemon":return new UnitMeta("백신","천사형",890,70,.9f,1);case "birdramon":return new UnitMeta("데이터","조류형",670,68,.9f,4);
         case "metalgreymon":return new UnitMeta("바이러스","용형",966,105,.85f,4);case "weregarurumon":return new UnitMeta("데이터","야수형",1323,106,1,1);case "lilimon":return new UnitMeta("데이터","식물형",920,62,.8f,3);case "holyangemon":return new UnitMeta("백신","천사형",989,79,.8f,3);case "atlur":return new UnitMeta("바이러스","곤충형",1370,78,.8f,1);case "garudamon":return new UnitMeta("백신","조류형",1030,97,.95f,4);
         case "herakle":return new UnitMeta("바이러스","곤충형",1782,100,.8f,1);case "hououmon":return new UnitMeta("백신","조류형",1185,107,.9f,4);case "wargreymon":return new UnitMeta("백신","용형",1550,128,1,1);case "metalgarurumon":return new UnitMeta("데이터","야수형",1240,120,1.05f,4);case "rosemon":return new UnitMeta("데이터","식물형",1250,89,.9f,3);case "seraphimon":return new UnitMeta("백신","천사형",1300,118,.9f,3);default:return new UnitMeta("바이러스","악당",700,55,.75f,1);}}
-    private SkillMeta Skill(string id){switch(id){
+    private SkillMeta Skill(string id)
+    {var data=artPack==0?DigimonSkillCatalog.Find(id):null;return data==null?LegacySkill(id):new SkillMeta(data.startMana,data.maxMana,1);}
+    private SkillMeta LegacySkill(string id){switch(id){
         case "koromon":return new SkillMeta(10,70,.85f);case "tsunomon":return new SkillMeta(15,85,.92f);case "mochimon":return new SkillMeta(20,105,.82f);case "tanemon":return new SkillMeta(30,90,.88f);case "pyocomon":return new SkillMeta(25,75,1.02f);case "tokomon":return new SkillMeta(35,100,.90f);
         case "agumon":return new SkillMeta(15,80,1.00f);case "gabumon":return new SkillMeta(20,95,1.06f);case "tentomon":return new SkillMeta(25,110,.94f);case "palmon":return new SkillMeta(40,105,1.00f);case "piyomon":return new SkillMeta(30,85,1.16f);case "patamon":return new SkillMeta(45,115,1.04f);
         case "togemon":return new SkillMeta(30,120,1.05f);case "garurumon":return new SkillMeta(20,75,1.18f);case "greymon":return new SkillMeta(35,125,1.12f);case "kabuterimon":return new SkillMeta(25,90,1.28f);case "angemon":return new SkillMeta(40,100,1.22f);case "birdramon":return new SkillMeta(30,70,1.24f);
@@ -192,6 +200,11 @@ public sealed partial class NativeGame : MonoBehaviour
     {
 #if DITTOCHES_PORTABLE_PREVIEW
         if(Event.current.type==EventType.Repaint)validationRepaints++;
+        if(PortablePreview.HasArgument("--arena-smoke"))
+        {
+            if(Event.current.isMouse||Event.current.isKey)Event.current.Use();
+            ValidateIconInputInGUI();
+        }
 #endif
         Styles(); float scale=Mathf.Min(Screen.width/1920f,Screen.height/1080f);guiScale=Mathf.Max(.01f,scale); Matrix4x4 old=GUI.matrix;
         GUI.matrix=Matrix4x4.identity;DrawRect(new Rect(0,0,Screen.width,Screen.height),bg);
@@ -234,9 +247,9 @@ public sealed partial class NativeGame : MonoBehaviour
     private void DrawGame()
     {
         EnsureArena();
-        bool modal=showCarousel||(hp<=0&&!battling);
+        bool modal=showCarousel||(hp<=0&&!battling)||skillDetailUnit!=null;
         if(modal){dragSource=-1;draggingUnit=false;}
-        HandleArenaPointer();HandleUnitDrag();HandleHotkeys();
+        if(skillDetailUnit==null){HandleArenaPointer();HandleUnitDrag();HandleHotkeys();}
         bool previous=GUI.enabled;
         GUI.enabled=previous&&!modal;
         if(artPack==0){DrawArenaHudTop();DrawArenaHudLeft();DrawBoard();DrawArenaHudRight();DrawBench();DrawArenaHudShop();}
@@ -250,6 +263,7 @@ public sealed partial class NativeGame : MonoBehaviour
             if(traitFocus!=null&&Time.unscaledTime<traitGuideUntil)DrawTraitGuide();else traitFocus=null;
         }
         if(hp<=0&&!battling)DrawGameOver();
+        else if(artPack==0)DrawSkillDetails();
     }
     private Rect BenchRect(int index){EnsureArena();return arena.BenchRect(index);}
     private void HandleUnitDrag()
@@ -711,13 +725,13 @@ public sealed partial class NativeGame : MonoBehaviour
         UpdateDigimonSkills(dt);
         foreach(Fighter f in fighters){if(f.dead)continue;TickBuild(f,dt);if(f.unit.def.role=="마법사")f.mana=Mathf.Min(f.maxMana,f.mana+2f*dt);else if(f.unit.def.role=="지원")f.mana=Mathf.Min(f.maxMana,f.mana+1.5f*dt);f.cooldown-=dt;f.stun=Mathf.Max(0,f.stun-dt);if(f.stun>0||f.skillCast!=null)continue;Fighter target=SelectTarget(f);if(target==null)continue;
             UnitMeta meta=Meta(f.unit.def.id);float distance=Vector2.Distance(f.pos,target.pos),range=Mathf.Lerp(1.05f,2.9f,(meta.range-1)/3f);
-            if(distance>range){float moveSpeed=(meta.range>1?.70f:1.0f)*dt;f.pos=Vector2.MoveTowards(f.pos,target.pos,moveSpeed);continue;}
+            if(artPack==0?!DigimonCombatMath.InAttackRange(f.pos.x,f.pos.y,target.pos.x,target.pos.y,meta.range):distance>range){float moveSpeed=(meta.range>1?.70f:1.0f)*dt;f.pos=Vector2.MoveTowards(f.pos,target.pos,moveSpeed);continue;}
             if(f.cooldown>0)continue;if(f.mana>=f.maxMana){CastSkill(f,target);continue;}f.attacks++;float damage=AttackDamage(f)*(artPack==0&&f.attacks%3==0?1+f.build.thirdHit:1);f.attackTarget=target.renderPos;DealDamage(f,target,damage);float manaPerAttack=f.unit.def.role=="탱커"?5:f.unit.def.role=="마법사"?7:f.unit.def.role=="지원"?8:10;f.mana=Mathf.Min(f.maxMana,f.mana+manaPerAttack+(artPack==0?f.build.manaOnAttack:0));f.attackFlash=.35f;float speedBonus=1+(artPack==0?f.build.speed:f.unit.items.Sum(ItemSpeed));if(artPack!=0&&!f.enemy){if(f.unit.def.role=="사수")speedBonus+=TierBonus(TraitLevel("역할","사수"),.08f,.16f,.28f);if(meta.attr=="데이터")speedBonus+=TierBonus(TraitLevel("속성","데이터"),.08f,.16f,.28f);if(meta.family=="야수형")speedBonus+=TierBonus(TraitLevel("계열","야수형"),.08f,.16f,.28f);}f.cooldown=1f/(meta.speed*speedBonus);if(artPack!=0&&!f.enemy&&f.unit.def.role=="전사"){float steal=TierBonus(TraitLevel("역할","전사"),.08f,.16f,.28f);if(steal>0)Heal(f,f,damage*steal);}
         }
         SeparateCombatants(dt);
     }
-    private float AttackDamage(Fighter f){UnitMeta meta=Meta(f.unit.def.id);float bonus=0;if(artPack==0)return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.build.attack)*(f.enemy?f.attackScale:1f);if(!f.enemy){if(f.unit.def.role=="전사"||f.unit.def.role=="마법사")bonus+=TierBonus(TraitLevel("역할",f.unit.def.role),.08f,.16f,.28f);if(meta.attr=="바이러스")bonus+=TierBonus(TraitLevel("속성","바이러스"),.08f,.16f,.28f);if(meta.family=="용형")bonus+=TierBonus(TraitLevel("계열","용형"),.08f,.16f,.28f);}return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.unit.items.Sum(ItemAttack))*(1+bonus)*(f.enemy?f.attackScale:1f);}
-    private void DealDamage(Fighter source,Fighter target,float damage){if(target.dead)return;if(!applyingSkillDamage)RecordAttackTrace(source,target);if(artPack==0){damage*=1-Mathf.Clamp(target.build.reduction,0,.6f);if(target.hp>=target.maxHp*.7f)damage*=1+source.build.highHealthDamage;}float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;target.diedAt=Time.unscaledTime;}if(artPack==0){OnBuildDamaged(target);if(!applyingSkillDamage){if(!source.dead&&actual>0&&source.build.lifesteal>0)Heal(source,source,actual*source.build.lifesteal);if(!target.dead&&source.attacks%3==0)target.stun=Mathf.Max(target.stun,source.build.thirdStun);}}}
+    private float AttackDamage(Fighter f){UnitMeta meta=Meta(f.unit.def.id);float bonus=0;if(artPack==0)return DigimonCombatMath.Attack(meta.atk,f.unit.star,f.build.attack)*(f.enemy?f.attackScale:1f);if(!f.enemy){if(f.unit.def.role=="전사"||f.unit.def.role=="마법사")bonus+=TierBonus(TraitLevel("역할",f.unit.def.role),.08f,.16f,.28f);if(meta.attr=="바이러스")bonus+=TierBonus(TraitLevel("속성","바이러스"),.08f,.16f,.28f);if(meta.family=="용형")bonus+=TierBonus(TraitLevel("계열","용형"),.08f,.16f,.28f);}return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.unit.items.Sum(ItemAttack))*(1+bonus)*(f.enemy?f.attackScale:1f);}
+    private void DealDamage(Fighter source,Fighter target,float damage,string damageType="physical"){if(target.dead)return;if(!applyingSkillDamage)RecordAttackTrace(source,target);if(artPack==0){damage=DigimonCombatMath.Mitigate(damage,target.build.armor,target.build.magicResist,damageType);damage*=1-Mathf.Clamp(target.build.reduction,0,.6f);if(target.hp>=target.maxHp*.7f)damage*=1+source.build.highHealthDamage;}float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),artPack==0&&damageType=="magic"?new Color(.58f,.58f,1f):new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;target.diedAt=Time.unscaledTime;}if(artPack==0){OnBuildDamaged(target);if(!applyingSkillDamage){if(!source.dead&&actual>0&&source.build.lifesteal>0)Heal(source,source,actual*source.build.lifesteal);if(!target.dead&&source.attacks%3==0)target.stun=Mathf.Max(target.stun,source.build.thirdStun);}}}
     private void Heal(Fighter source,Fighter target,float amount){if(target.dead)return;if(artPack==0)amount*=1+source.build.healPower;if(artPack!=0&&!source.enemy){UnitMeta meta=Meta(source.unit.def.id);if(meta.family=="식물형")amount*=1+TierBonus(TraitLevel("계열","식물형"),.12f,.25f,.45f);if(source.unit.def.role=="지원")amount*=1+TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);}float actual=Mathf.Min(target.maxHp-target.hp,amount);target.hp+=Mathf.Max(0,actual);target.healFlash=.28f;source.healingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,1f,.55f));}
     private void Shield(Fighter source,Fighter target,float amount){if(target.dead)return;float cap=target.maxHp*.5f,actual=Mathf.Min(cap-target.shield,amount);target.shield+=Mathf.Max(0,actual);target.shieldFlash=.35f;source.shieldingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,.75f,1f));}
     private void CastSkill(Fighter caster,Fighter target)

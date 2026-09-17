@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": [
     {
       "id": "koromon",
@@ -18,12 +18,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.5,
       "stun": 0,
       "size": 0.78,
       "hover": 0,
       "source": "https://wikimon.net/Koromon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 550.0,
+      "baseAttack": 43.0,
+      "attackSpeed": 0.8,
+      "attackRange": 1,
+      "startMana": 10.0,
+      "maxMana": 70.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.6,
+        0.9,
+        1.35
+      ],
+      "attackStyle": "몸통 박치기"
     },
     {
       "id": "tsunomon",
@@ -42,12 +59,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.5,
       "stun": 0,
       "size": 0.8,
       "hover": 0,
       "source": "https://wikimon.net/Tsunomon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 430.0,
+      "baseAttack": 43.0,
+      "attackSpeed": 0.85,
+      "attackRange": 2,
+      "startMana": 15.0,
+      "maxMana": 85.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.65,
+        0.975,
+        1.463
+      ],
+      "attackStyle": "거품 탄"
     },
     {
       "id": "mochimon",
@@ -66,12 +100,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.4,
       "stun": 0.3,
       "size": 0.8,
       "hover": 0,
       "source": "https://wikimon.net/Mochimon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 690.0,
+      "baseAttack": 32.0,
+      "attackSpeed": 0.65,
+      "attackRange": 1,
+      "startMana": 20.0,
+      "maxMana": 105.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.55,
+        0.825,
+        1.238
+      ],
+      "attackStyle": "몸통 박치기"
     },
     {
       "id": "tanemon",
@@ -90,12 +141,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.5,
       "stun": 0,
       "size": 0.78,
       "hover": 0,
       "source": "https://wikimon.net/Tanemon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 460.0,
+      "baseAttack": 29.0,
+      "attackSpeed": 0.7,
+      "attackRange": 2,
+      "startMana": 30.0,
+      "maxMana": 90.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.6,
+        0.9,
+        1.35
+      ],
+      "attackStyle": "씨앗 탄"
     },
     {
       "id": "pyocomon",
@@ -114,12 +182,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.5,
       "stun": 0,
       "size": 0.78,
       "hover": 0,
       "source": "https://wikimon.net/Pyocomon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 440.0,
+      "baseAttack": 36.0,
+      "attackSpeed": 0.75,
+      "attackRange": 3,
+      "startMana": 25.0,
+      "maxMana": 75.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.7,
+        1.05,
+        1.575
+      ],
+      "attackStyle": "꽃가루 탄"
     },
     {
       "id": "tokomon",
@@ -138,12 +223,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.5,
       "stun": 0,
       "size": 0.76,
       "hover": 0,
       "source": "https://wikimon.net/Tokomon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 490.0,
+      "baseAttack": 28.0,
+      "attackSpeed": 0.7,
+      "attackRange": 2,
+      "startMana": 35.0,
+      "maxMana": 100.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.6,
+        0.9,
+        1.35
+      ],
+      "attackStyle": "압축 공기"
     },
     {
       "id": "agumon",
@@ -162,12 +264,29 @@
       "radius": 0.8,
       "reach": 0,
       "targets": 2,
-      "multiplier": 2,
       "stun": 0,
       "size": 0.96,
       "hover": 0,
       "source": "https://wikimon.net/Agumon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 600.0,
+      "baseAttack": 48.0,
+      "attackSpeed": 0.8,
+      "attackRange": 1,
+      "startMana": 15.0,
+      "maxMana": 80.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.2,
+        1.8,
+        2.7
+      ],
+      "attackStyle": "발톱"
     },
     {
       "id": "gabumon",
@@ -186,12 +305,29 @@
       "radius": 0.8,
       "reach": 0,
       "targets": 2,
-      "multiplier": 2,
       "stun": 0,
       "size": 0.98,
       "hover": 0,
       "source": "https://wikimon.net/Gabumon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 460.0,
+      "baseAttack": 49.0,
+      "attackSpeed": 0.85,
+      "attackRange": 3,
+      "startMana": 20.0,
+      "maxMana": 95.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.2,
+        1.8,
+        2.7
+      ],
+      "attackStyle": "소형 화염탄"
     },
     {
       "id": "tentomon",
@@ -210,12 +346,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 2,
       "stun": 0.35,
       "size": 0.95,
       "hover": 0.1,
       "source": "https://wikimon.net/Tentomon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 760.0,
+      "baseAttack": 36.0,
+      "attackSpeed": 0.65,
+      "attackRange": 2,
+      "startMana": 25.0,
+      "maxMana": 110.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.9,
+        1.35,
+        2.025
+      ],
+      "attackStyle": "전기 탄"
     },
     {
       "id": "palmon",
@@ -234,12 +387,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 1.8,
       "stun": 0.65,
       "size": 1,
       "hover": 0,
       "source": "https://wikimon.net/Palmon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 490.0,
+      "baseAttack": 32.0,
+      "attackSpeed": 0.7,
+      "attackRange": 2,
+      "startMana": 40.0,
+      "maxMana": 105.0,
+      "damageType": "physical",
+      "adRatio": [
+        1.8,
+        1.8,
+        1.8
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "덩굴 채찍"
     },
     {
       "id": "piyomon",
@@ -258,12 +428,29 @@
       "radius": 1,
       "reach": 0,
       "targets": 2,
-      "multiplier": 2,
       "stun": 0,
       "size": 0.96,
       "hover": 0.1,
       "source": "https://wikimon.net/Piyomon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 530.0,
+      "baseAttack": 43.0,
+      "attackSpeed": 0.75,
+      "attackRange": 3,
+      "startMana": 30.0,
+      "maxMana": 85.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.3,
+        1.95,
+        2.925
+      ],
+      "attackStyle": "깃털 탄"
     },
     {
       "id": "patamon",
@@ -282,12 +469,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 2,
       "stun": 0.3,
       "size": 0.9,
       "hover": 0.08,
       "source": "https://wikimon.net/Patamon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 570.0,
+      "baseAttack": 35.0,
+      "attackSpeed": 0.7,
+      "attackRange": 3,
+      "startMana": 45.0,
+      "maxMana": 115.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        0.9,
+        1.35,
+        2.025
+      ],
+      "attackStyle": "공기 탄"
     },
     {
       "id": "togemon",
@@ -306,12 +510,29 @@
       "radius": 2,
       "reach": 0,
       "targets": 6,
-      "multiplier": 1.7,
       "stun": 0,
       "size": 1.14,
       "hover": 0,
       "source": "https://wikimon.net/Togemon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 900.0,
+      "baseAttack": 46.0,
+      "attackSpeed": 0.7,
+      "attackRange": 1,
+      "startMana": 30.0,
+      "maxMana": 120.0,
+      "damageType": "physical",
+      "adRatio": [
+        2.2,
+        2.2,
+        2.2
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "주먹"
     },
     {
       "id": "garurumon",
@@ -330,12 +551,29 @@
       "radius": 1,
       "reach": 3.6,
       "targets": 4,
-      "multiplier": 2.1,
       "stun": 0,
       "size": 1.16,
       "hover": 0,
       "source": "https://wikimon.net/Garurumon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 760.0,
+      "baseAttack": 59.0,
+      "attackSpeed": 0.85,
+      "attackRange": 1,
+      "startMana": 20.0,
+      "maxMana": 75.0,
+      "damageType": "magic",
+      "adRatio": [
+        1.2,
+        1.2,
+        1.2
+      ],
+      "apRatio": [
+        0.8,
+        1.2,
+        1.8
+      ],
+      "attackStyle": "이빨과 발톱"
     },
     {
       "id": "greymon",
@@ -354,12 +592,29 @@
       "radius": 1.15,
       "reach": 3.6,
       "targets": 4,
-      "multiplier": 2.2,
       "stun": 0,
       "size": 1.18,
       "hover": 0,
       "source": "https://wikimon.net/Greymon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1080.0,
+      "baseAttack": 60.0,
+      "attackSpeed": 0.7,
+      "attackRange": 1,
+      "startMana": 35.0,
+      "maxMana": 125.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.7,
+        2.55,
+        3.825
+      ],
+      "attackStyle": "발톱"
     },
     {
       "id": "kabuterimon",
@@ -378,12 +633,29 @@
       "radius": 1.3,
       "reach": 0,
       "targets": 3,
-      "multiplier": 2.2,
       "stun": 0.4,
       "size": 1.15,
       "hover": 0.16,
       "source": "https://wikimon.net/Kabuterimon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 690.0,
+      "baseAttack": 52.0,
+      "attackSpeed": 0.8,
+      "attackRange": 3,
+      "startMana": 25.0,
+      "maxMana": 90.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.7,
+        2.55,
+        3.825
+      ],
+      "attackStyle": "전기 탄"
     },
     {
       "id": "angemon",
@@ -402,12 +674,29 @@
       "radius": 0.6,
       "reach": 6,
       "targets": 3,
-      "multiplier": 2.2,
       "stun": 0.25,
       "size": 1.1,
       "hover": 0.15,
       "source": "https://wikimon.net/Angemon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 890.0,
+      "baseAttack": 70.0,
+      "attackSpeed": 0.9,
+      "attackRange": 2,
+      "startMana": 40.0,
+      "maxMana": 100.0,
+      "damageType": "magic",
+      "adRatio": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "apRatio": [
+        1.0,
+        1.5,
+        2.25
+      ],
+      "attackStyle": "홀리 로드"
     },
     {
       "id": "birdramon",
@@ -426,12 +715,29 @@
       "radius": 1.4,
       "reach": 0,
       "targets": 4,
-      "multiplier": 2.3,
       "stun": 0,
       "size": 1.17,
       "hover": 0.25,
       "source": "https://wikimon.net/Birdramon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 670.0,
+      "baseAttack": 68.0,
+      "attackSpeed": 0.9,
+      "attackRange": 4,
+      "startMana": 30.0,
+      "maxMana": 70.0,
+      "damageType": "magic",
+      "adRatio": [
+        1,
+        1,
+        1
+      ],
+      "apRatio": [
+        1.35,
+        2.025,
+        3.038
+      ],
+      "attackStyle": "화염 깃털"
     },
     {
       "id": "metalgreymon",
@@ -450,12 +756,29 @@
       "radius": 1.55,
       "reach": 0,
       "targets": 4,
-      "multiplier": 2.5,
       "stun": 0,
       "size": 1.23,
       "hover": 0,
       "source": "https://wikimon.net/Metal_Greymon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 966.0,
+      "baseAttack": 105.0,
+      "attackSpeed": 0.85,
+      "attackRange": 4,
+      "startMana": 35.0,
+      "maxMana": 95.0,
+      "damageType": "physical",
+      "adRatio": [
+        3.4,
+        3.4,
+        3.4
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "기계 포격"
     },
     {
       "id": "weregarurumon",
@@ -474,12 +797,29 @@
       "radius": 0.8,
       "reach": 3.6,
       "targets": 3,
-      "multiplier": 2.5,
       "stun": 0,
       "size": 1.12,
       "hover": 0,
       "source": "https://wikimon.net/Were_Garurumon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1323.0,
+      "baseAttack": 106.0,
+      "attackSpeed": 1.0,
+      "attackRange": 1,
+      "startMana": 25.0,
+      "maxMana": 65.0,
+      "damageType": "physical",
+      "adRatio": [
+        3.3,
+        3.3,
+        3.3
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "격투"
     },
     {
       "id": "lilimon",
@@ -498,12 +838,29 @@
       "radius": 1.1,
       "reach": 0,
       "targets": 3,
-      "multiplier": 2.5,
       "stun": 0,
       "size": 1.03,
       "hover": 0.22,
       "source": "https://wikimon.net/Lilimon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 920.0,
+      "baseAttack": 62.0,
+      "attackSpeed": 0.8,
+      "attackRange": 4,
+      "startMana": 50.0,
+      "maxMana": 110.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        2.1,
+        3.15,
+        4.725
+      ],
+      "attackStyle": "플라워 포격"
     },
     {
       "id": "holyangemon",
@@ -522,12 +879,29 @@
       "radius": 1.65,
       "reach": 0,
       "targets": 5,
-      "multiplier": 2.3,
       "stun": 1.1,
       "size": 1.18,
       "hover": 0.2,
       "source": "https://wikimon.net/Holy_Angemon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 989.0,
+      "baseAttack": 79.0,
+      "attackSpeed": 0.8,
+      "attackRange": 3,
+      "startMana": 45.0,
+      "maxMana": 80.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        2.6,
+        3.9,
+        5.85
+      ],
+      "attackStyle": "성검의 빛"
     },
     {
       "id": "atlur",
@@ -546,12 +920,29 @@
       "radius": 0.7,
       "reach": 6,
       "targets": 3,
-      "multiplier": 2.5,
       "stun": 0.6,
       "size": 1.24,
       "hover": 0.1,
       "source": "https://wikimon.net/Atlur_Kabuterimon_(Red)",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1370.0,
+      "baseAttack": 78.0,
+      "attackSpeed": 0.8,
+      "attackRange": 1,
+      "startMana": 40.0,
+      "maxMana": 130.0,
+      "damageType": "physical",
+      "adRatio": [
+        3.1,
+        3.1,
+        3.1
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "뿔과 앞발"
     },
     {
       "id": "garudamon",
@@ -570,12 +961,29 @@
       "radius": 0.95,
       "reach": 6,
       "targets": 5,
-      "multiplier": 2.5,
       "stun": 0,
       "size": 1.22,
       "hover": 0.28,
       "source": "https://wikimon.net/Garudamon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1030.0,
+      "baseAttack": 97.0,
+      "attackSpeed": 0.95,
+      "attackRange": 3,
+      "startMana": 35.0,
+      "maxMana": 75.0,
+      "damageType": "magic",
+      "adRatio": [
+        1.1,
+        1.1,
+        1.1
+      ],
+      "apRatio": [
+        2.3,
+        3.45,
+        5.175
+      ],
+      "attackStyle": "깃털 투사"
     },
     {
       "id": "herakle",
@@ -594,12 +1002,29 @@
       "radius": 1.1,
       "reach": 6,
       "targets": 5,
-      "multiplier": 2.8,
       "stun": 0.55,
       "size": 1.3,
       "hover": 0.15,
       "source": "https://wikimon.net/Herakle_Kabuterimon",
-      "anime": "Digimon Adventure tri. / Digimon Adventure:"
+      "anime": "Digimon Adventure tri. / Digimon Adventure:",
+      "baseHealth": 1782.0,
+      "baseAttack": 100.0,
+      "attackSpeed": 0.8,
+      "attackRange": 1,
+      "startMana": 50.0,
+      "maxMana": 140.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        4.2,
+        6.3,
+        9.45
+      ],
+      "attackStyle": "집게와 뿔"
     },
     {
       "id": "hououmon",
@@ -618,12 +1043,29 @@
       "radius": 2.1,
       "reach": 0,
       "targets": 6,
-      "multiplier": 2.8,
       "stun": 0,
       "size": 1.25,
       "hover": 0.38,
       "source": "https://wikimon.net/Hououmon",
-      "anime": "Digimon Adventure tri. / Digimon Adventure:"
+      "anime": "Digimon Adventure tri. / Digimon Adventure:",
+      "baseHealth": 1185.0,
+      "baseAttack": 107.0,
+      "attackSpeed": 0.9,
+      "attackRange": 5,
+      "startMana": 60.0,
+      "maxMana": 90.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        5.0,
+        7.5,
+        11.25
+      ],
+      "attackStyle": "성스러운 불꽃"
     },
     {
       "id": "wargreymon",
@@ -642,12 +1084,29 @@
       "radius": 2,
       "reach": 0,
       "targets": 6,
-      "multiplier": 3,
       "stun": 0,
       "size": 1.22,
       "hover": 0.08,
       "source": "https://wikimon.net/War_Greymon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1550.0,
+      "baseAttack": 128.0,
+      "attackSpeed": 1.0,
+      "attackRange": 1,
+      "startMana": 40.0,
+      "maxMana": 70.0,
+      "damageType": "magic",
+      "adRatio": [
+        2,
+        2,
+        2
+      ],
+      "apRatio": [
+        3.5,
+        5.25,
+        7.875
+      ],
+      "attackStyle": "드라몬 킬러"
     },
     {
       "id": "metalgarurumon",
@@ -666,12 +1125,29 @@
       "radius": 1.2,
       "reach": 3.6,
       "targets": 5,
-      "multiplier": 2.6,
       "stun": 0.45,
       "size": 1.23,
       "hover": 0.05,
       "source": "https://wikimon.net/Metal_Garurumon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 1240.0,
+      "baseAttack": 120.0,
+      "attackSpeed": 1.05,
+      "attackRange": 4,
+      "startMana": 45.0,
+      "maxMana": 80.0,
+      "damageType": "magic",
+      "adRatio": [
+        1.6,
+        1.6,
+        1.6
+      ],
+      "apRatio": [
+        2.9,
+        4.35,
+        6.525
+      ],
+      "attackStyle": "냉기 포격"
     },
     {
       "id": "rosemon",
@@ -690,12 +1166,29 @@
       "radius": 0.5,
       "reach": 0,
       "targets": 1,
-      "multiplier": 2.8,
       "stun": 1,
       "size": 1.15,
       "hover": 0,
       "source": "https://wikimon.net/Rosemon",
-      "anime": "Digimon Adventure tri. / Digimon Adventure:"
+      "anime": "Digimon Adventure tri. / Digimon Adventure:",
+      "baseHealth": 1250.0,
+      "baseAttack": 89.0,
+      "attackSpeed": 0.9,
+      "attackRange": 3,
+      "startMana": 65.0,
+      "maxMana": 120.0,
+      "damageType": "magic",
+      "adRatio": [
+        1,
+        1,
+        1
+      ],
+      "apRatio": [
+        2.8,
+        4.2,
+        6.3
+      ],
+      "attackStyle": "가시 채찍"
     },
     {
       "id": "seraphimon",
@@ -714,12 +1207,29 @@
       "radius": 1.2,
       "reach": 0,
       "targets": 4,
-      "multiplier": 3,
       "stun": 0,
       "size": 1.25,
       "hover": 0.3,
       "source": "https://wikimon.net/Seraphimon",
-      "anime": "Digimon Frontier / Digimon Adventure tri."
+      "anime": "Digimon Frontier / Digimon Adventure tri.",
+      "baseHealth": 1300.0,
+      "baseAttack": 118.0,
+      "attackSpeed": 0.9,
+      "attackRange": 4,
+      "startMana": 55.0,
+      "maxMana": 100.0,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        6.0,
+        9.0,
+        13.5
+      ],
+      "attackStyle": "빛의 구체"
     },
     {
       "id": "kuwagamon",
@@ -738,12 +1248,29 @@
       "radius": 0.7,
       "reach": 2.5,
       "targets": 3,
-      "multiplier": 2.2,
       "stun": 0.3,
       "size": 1.15,
       "hover": 0,
       "source": "https://wikimon.net/Kuwagamon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 700,
+      "baseAttack": 55,
+      "attackSpeed": 0.75,
+      "attackRange": 1,
+      "startMana": 0,
+      "maxMana": 100,
+      "damageType": "physical",
+      "adRatio": [
+        2.2,
+        2.2,
+        2.2
+      ],
+      "apRatio": [
+        0,
+        0.0,
+        0.0
+      ],
+      "attackStyle": "큰턱"
     },
     {
       "id": "shellmon",
@@ -762,12 +1289,29 @@
       "radius": 0.7,
       "reach": 5,
       "targets": 3,
-      "multiplier": 2.1,
       "stun": 0,
       "size": 1.12,
       "hover": 0,
       "source": "https://wikimon.net/Shellmon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 700,
+      "baseAttack": 55,
+      "attackSpeed": 0.75,
+      "attackRange": 3,
+      "startMana": 0,
+      "maxMana": 100,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.2,
+        1.8,
+        2.7
+      ],
+      "attackStyle": "물줄기"
     },
     {
       "id": "devimon",
@@ -786,12 +1330,29 @@
       "radius": 0.5,
       "reach": 5,
       "targets": 1,
-      "multiplier": 2.2,
       "stun": 0.4,
       "size": 1.15,
       "hover": 0,
       "source": "https://wikimon.net/Devimon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 700,
+      "baseAttack": 55,
+      "attackSpeed": 0.75,
+      "attackRange": 2,
+      "startMana": 0,
+      "maxMana": 100,
+      "damageType": "magic",
+      "adRatio": [
+        1.2,
+        1.2,
+        1.2
+      ],
+      "apRatio": [
+        0.6,
+        0.9,
+        1.35
+      ],
+      "attackStyle": "늘어나는 팔"
     },
     {
       "id": "etemon",
@@ -810,12 +1371,31 @@
       "radius": 1.4,
       "reach": 5,
       "targets": 3,
-      "multiplier": 2.3,
       "stun": 0,
       "size": 1.12,
       "hover": 0,
       "source": "https://wikimon.net/Etemon",
-      "anime": "Digimon Adventure"
+      "anime": "Digimon Adventure",
+      "baseHealth": 700,
+      "baseAttack": 55,
+      "attackSpeed": 0.75,
+      "attackRange": 3,
+      "startMana": 0,
+      "maxMana": 100,
+      "damageType": "magic",
+      "adRatio": [
+        0,
+        0,
+        0
+      ],
+      "apRatio": [
+        1.4,
+        2.1,
+        3.15
+      ],
+      "attackStyle": "음파 탄"
     }
-  ]
+  ],
+  "scalingNotes": "공격력은 성급당 1.5배, 기본 주문력은 100. 스킬 총 피해 = 공격력 × 공격 계수 + 주문력 × 주문 계수. 계수는 성급 1/2/3 순서이며 연타는 총 피해를 타수로 나눕니다. 분류와 계수는 게임용 설계입니다.",
+  "basicAttackNotes": "기본 공격 방식과 사거리는 디지몬의 외형·무장을 참고한 게임용 설계입니다. 모든 기본 공격은 공격력 100%의 물리 피해이며 스킬 피해 유형과 별개입니다. 사거리는 홀수 행 오프셋 육각 좌표로 계산합니다."
 }

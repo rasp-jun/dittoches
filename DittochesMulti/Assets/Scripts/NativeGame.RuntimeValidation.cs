@@ -9,6 +9,33 @@ public sealed partial class NativeGame
 {
     int validationChecks;
     int validationRepaints;
+    bool validationIconGallery;
+    bool validatedIconInput;
+    void ValidateIconInputInGUI()
+    {
+        if(validatedIconInput||Event.current.type!=EventType.Repaint)return;
+        validatedIconInput=true;Event saved=new Event(Event.current);bool enabled=GUI.enabled;
+        try
+        {
+            GUI.enabled=true;Rect r=new Rect(10,10,60,60);
+            Event.current=new Event{type=EventType.MouseDown,button=1,mousePosition=r.center};
+            Require(DigimonSkillUI.DrawIcon(r,DigimonSkillCatalog.Find("agumon")),"right click requests skill details in GUI");
+            Event.current=new Event{type=EventType.MouseDown,button=0,mousePosition=r.center};
+            Require(!DigimonSkillUI.DrawIcon(r,DigimonSkillCatalog.Find("agumon")),"left click does not request skill details");
+        }
+        finally{Event.current=saved;GUI.enabled=enabled;}
+    }
+    void DrawValidationIcons()
+    {
+        DrawRect(new Rect(150,90,1620,900),new Color(.02f,.04f,.065f));int i=0;
+        foreach(var s in DigimonSkillCatalog.All)
+        {
+            float x=180+i%6*260,y=118+i/6*145;
+            GUI.DrawTexture(new Rect(x,y,72,72),DigimonSkillUI.Icon(s));
+            GUI.Label(new Rect(x+84,y,163,46),s.name,new GUIStyle(label){wordWrap=true});
+            GUI.Label(new Rect(x+84,y+49,165,50),s.ScalingRole+"\n기본 공격 "+s.attackRange+"칸",label);i++;
+        }
+    }
     void Require(bool condition,string message)
     {if(!condition){Application.Quit(2);throw new InvalidOperationException("ARENA SMOKE FAILED: "+message);}validationChecks++;}
     public void BeginArenaSmoke(){StartCoroutine(ArenaSmoke());}
@@ -29,6 +56,7 @@ public sealed partial class NativeGame
         Application.runInBackground=true;
         yield return null;
         ValidateBuildRules();
+        ValidateScalingRules();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
         string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
@@ -55,7 +83,10 @@ public sealed partial class NativeGame
         Require(Buy(item),"shop purchase");Require(gold==before-cost&&shop[item]==null,"purchase charged once");
         selectedBench=0;selectedBoard=-1;
         yield return new WaitForEndOfFrame();CaptureRuntime("02-placement");selectedBench=-1;
-        inspectedUnit=board[3];yield return new WaitForEndOfFrame();CaptureRuntime("03-detail");inspectedUnit=null;
+        inspectedUnit=board[3];yield return new WaitForEndOfFrame();CaptureRuntime("03-detail");
+        OpenSkillDetails(board[3]);yield return new WaitForEndOfFrame();CaptureRuntime("10-skill-magic");skillDetailUnit=null;
+        OpenSkillDetails(new Unit(RosterById["wargreymon"]){star=2});yield return new WaitForEndOfFrame();CaptureRuntime("11-skill-hybrid");skillDetailUnit=null;
+        validationIconGallery=true;yield return new WaitForEndOfFrame();CaptureRuntime("12-skill-icons");validationIconGallery=false;inspectedUnit=null;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");

@@ -63,7 +63,9 @@ class BuildTests(unittest.TestCase):
         fs=[fighter(0,'greymon',items=[8]),fighter(1,'togemon')]
         b.initialize(fs)
         self.assertAlmostEqual(fs[0]['maxHp'],1300*1.15)
-        self.assertAlmostEqual(b.value(fs[0],'reduction'),.17)
+        self.assertAlmostEqual(b.value(fs[0],'reduction'),.12)
+        self.assertEqual(b.value(fs[0],'armor'),40)
+        self.assertEqual(b.value(fs[0],'magicResist'),10)
 
     def test_low_health_shield_once_and_no_resurrection(self):
         source,target=fighter(),fighter(1,side=1)

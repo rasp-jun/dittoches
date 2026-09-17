@@ -110,10 +110,14 @@ public sealed partial class NativeGame
             Portrait(new Rect(x+29,162,160,162),UnitSprite(unit.def));
             GUI.Label(new Rect(x+14,332,190,52),UnitName(unit.def)+"  "+new string('★',unit.star),hudWrap);
             GUI.Label(new Rect(x+14,388,190,50),BuildTags(unit.def.id)+"\n"+meta.attr+" · "+unit.def.cost+" G",hudWrap);
-            GUI.Label(new Rect(x+14,453,190,65),"기본 체력  "+Mathf.RoundToInt(meta.hp*Mathf.Pow(1.8f,unit.star-1))+"\n기본 공격  "+Mathf.RoundToInt(meta.atk*Mathf.Pow(1.5f,unit.star-1))+"  ·  사거리 "+meta.range+"\n시작 마나 "+Skill(unit.def.id).startMana+" / "+Skill(unit.def.id).maxMana,hudWrap);
             var skill=DigimonSkillCatalog.Find(unit.def.id);
-            GUI.Label(new Rect(x+14,534,190,42),SkillName(unit.def),hudWrap);
-            if(skill!=null)GUI.Label(new Rect(x+14,577,190,118),skill.description,hudWrap);
+            var stats=InspectStats(unit);
+            GUI.Label(new Rect(x+14,444,190,25),battling?"전투 능력치":"장비·시너지 적용 능력치",hudSmall);
+            GUI.Label(new Rect(x+14,476,190,94),"최대 체력 "+stats.health.ToString("0")+"\n공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),hudWrap);
+            if(DigimonSkillUI.DrawIcon(new Rect(x+14,586,60,60),skill))OpenSkillDetails(unit);
+            GUI.Label(new Rect(x+84,587,120,43),skill.name,hudWrap);
+            GUI.Label(new Rect(x+84,632,120,23),skill.ScalingRole,hudSmall);
+            GUI.Label(new Rect(x+14,664,190,42),"우클릭 → 계수·스킬 정보\n현재 "+skill.Damage(unit.star,stats.attack,stats.abilityPower).ToString("0.#")+" "+skill.DamageLabel+" 피해",hudWrap);
             for(int i=0;i<unit.items.Count&&i<2;i++)
             {int item=unit.items[i];GUI.Box(new Rect(x+14+i*95,711,88,35),new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),card);}
         }

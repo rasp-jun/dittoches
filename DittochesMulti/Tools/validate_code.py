@@ -26,6 +26,8 @@ def main():
     sources=[root/'Assets/Scripts/CombatSeparation.cs',root/'Assets/Scripts/SkillGeometry.cs',root/'Assets/Editor/CombatMotionValidation.cs',root/'Assets/Editor/SkillTimingValidation.cs',entry]
     subprocess.run([str(args.compiler),'/nologo','/out:'+str(checks)]+[str(p) for p in sources],check=True)
     subprocess.run([str(checks)],check=True)
+    from validate_scaling import validate
+    validate(root,args.compiler)
     print('Runtime compile and gameplay checks passed. UI/shader validation still requires a running player.')
 
 

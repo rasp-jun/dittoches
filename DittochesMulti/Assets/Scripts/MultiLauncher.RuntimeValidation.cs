@@ -81,6 +81,9 @@ public sealed partial class MultiLauncher
         OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(new[]{5,12}),"auto combination on full unit");
         yield return new WaitForEndOfFrame();OnlineCapture("03-equipped");
         onlineItemGuide=12;yield return new WaitForEndOfFrame();OnlineCapture("04-item-detail");onlineItemGuide=-1;
+        var equippedStats=OnlineStats(At(OnlineMe.board,3),"board");
+        OnlineRequire(equippedStats.abilityPower==145,"equipped AP appears in client stats");
+        OpenOnlineSkill(At(OnlineMe.board,3),"board");yield return new WaitForEndOfFrame();OnlineCapture("07-skill-detail");onlineSkillId="";
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,14));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
         OnlineRequire(OnlineMe!=null&&At(OnlineMe.board,3)!=null,"removal preserves unit slot");
         OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{5,12})&&At(OnlineMe.board,3).items.Length==0,"removal returns both items");

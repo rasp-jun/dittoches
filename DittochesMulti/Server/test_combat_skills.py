@@ -36,11 +36,11 @@ class CanonicalSkillTests(unittest.TestCase):
                 self.assertEqual(target['hp'],10000)
                 advance_cast(cast,fighters,duration(s))
                 self.assertEqual(cast['hits'],s['shots'])
-                self.assertAlmostEqual(target['hp'],10000-100*s['multiplier'])
+                self.assertAlmostEqual(target['hp'],9900)
                 self.assertEqual(ally['hp'],10000)
                 self.assertEqual(source['hp'],10000)
                 advance_cast(cast,fighters,duration(s)+1)
-                self.assertAlmostEqual(target['hp'],10000-100*s['multiplier'])
+                self.assertAlmostEqual(target['hp'],9900)
 
     def test_seven_heavens_has_seven_separate_impacts(self):
         s=SKILLS['seraphimon'];a=fighter(0,'seraphimon');b=fighter(1,side=1,y=4.5)
@@ -48,7 +48,7 @@ class CanonicalSkillTests(unittest.TestCase):
         for i in range(7):
             advance_cast(c,[a,b],s['windup']+s['travel']+i*s['interval'])
             self.assertEqual(c['hits'],i+1)
-            self.assertAlmostEqual(b['hp'],10000-30*(i+1))
+            self.assertAlmostEqual(b['hp'],10000-10*(i+1))
 
     def test_death_or_stun_interrupts_only_before_release(self):
         for cause in ('hp','stun'):

@@ -8,13 +8,13 @@ public static class DigimonBuildCatalog
 {
     [Serializable] public sealed class Bonus
     {
-        public float health, hp, attack, speed, skill, manaRegen, startMana, manaOnAttack, regen,
+        public float health, hp, attack, speed, abilityPower, armor, magicResist, manaRegen, startMana, manaOnAttack, regen,
             lifesteal, reduction, startShield, lowShield, castHeal, healPower, thirdHit,
             highHealthDamage, castShield, thirdStun, teamShield;
         public void Add(Bonus b)
         {
             if(b==null)return;
-            health+=b.health;hp+=b.hp;attack+=b.attack;speed+=b.speed;skill+=b.skill;
+            health+=b.health;hp+=b.hp;attack+=b.attack;speed+=b.speed;abilityPower+=b.abilityPower;armor+=b.armor;magicResist+=b.magicResist;
             manaRegen+=b.manaRegen;startMana+=b.startMana;manaOnAttack+=b.manaOnAttack;regen+=b.regen;
             lifesteal+=b.lifesteal;reduction+=b.reduction;startShield+=b.startShield;lowShield+=b.lowShield;
             castHeal+=b.castHeal;healPower+=b.healPower;thirdHit+=b.thirdHit;highHealthDamage+=b.highHealthDamage;

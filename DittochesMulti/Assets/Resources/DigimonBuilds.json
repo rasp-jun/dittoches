@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "notes": "문장/파트너 설정과 공식 장비에서 영감을 받은 게임용 분류. 수치·합성식은 오리지널 밸런스이며 캡슐은 향후 증강 전용으로 예약.",
   "traits": [
     {
@@ -95,26 +95,26 @@
       "tiers": [
         {
           "count": 2,
-          "text": "초당 마나 +3 · 스킬 피해 +10%",
+          "text": "초당 마나 +3 · 주문력 +10",
           "bonus": {
             "manaRegen": 3,
-            "skill": 0.1
+            "abilityPower": 10.0
           }
         },
         {
           "count": 3,
-          "text": "초당 마나 +5 · 스킬 피해 +20%",
+          "text": "초당 마나 +5 · 주문력 +20",
           "bonus": {
             "manaRegen": 5,
-            "skill": 0.2
+            "abilityPower": 20.0
           }
         },
         {
           "count": 5,
-          "text": "초당 마나 +8 · 스킬 피해 +35%",
+          "text": "초당 마나 +8 · 주문력 +35",
           "bonus": {
             "manaRegen": 8,
-            "skill": 0.35
+            "abilityPower": 35.0
           }
         }
       ]
@@ -173,26 +173,26 @@
       "tiers": [
         {
           "count": 2,
-          "text": "스킬 피해 +15% · 시전 시 대상 최대 체력의 5% 회복",
+          "text": "주문력 +15 · 시전 시 대상 최대 체력의 5% 회복",
           "bonus": {
-            "skill": 0.15,
-            "castHeal": 0.05
+            "castHeal": 0.05,
+            "abilityPower": 15.0
           }
         },
         {
           "count": 3,
-          "text": "스킬 피해 +28% · 시전 시 대상 최대 체력의 8% 회복",
+          "text": "주문력 +28 · 시전 시 대상 최대 체력의 8% 회복",
           "bonus": {
-            "skill": 0.28,
-            "castHeal": 0.08
+            "castHeal": 0.08,
+            "abilityPower": 28.0
           }
         },
         {
           "count": 5,
-          "text": "스킬 피해 +45% · 시전 시 대상 최대 체력의 12% 회복",
+          "text": "주문력 +45 · 시전 시 대상 최대 체력의 12% 회복",
           "bonus": {
-            "skill": 0.45,
-            "castHeal": 0.12
+            "castHeal": 0.12,
+            "abilityPower": 45.0
           }
         }
       ]
@@ -292,26 +292,29 @@
       "tiers": [
         {
           "count": 2,
-          "text": "최대 체력 +15% · 받는 피해 -5%",
+          "text": "최대 체력 +15% · 방어력·마법저항력 +10",
           "bonus": {
             "hp": 0.15,
-            "reduction": 0.05
+            "armor": 10,
+            "magicResist": 10
           }
         },
         {
           "count": 4,
-          "text": "최대 체력 +30% · 받는 피해 -10%",
+          "text": "최대 체력 +30% · 방어력·마법저항력 +20",
           "bonus": {
             "hp": 0.3,
-            "reduction": 0.1
+            "armor": 20,
+            "magicResist": 20
           }
         },
         {
           "count": 6,
-          "text": "최대 체력 +50% · 받는 피해 -16%",
+          "text": "최대 체력 +50% · 방어력·마법저항력 +35",
           "bonus": {
             "hp": 0.5,
-            "reduction": 0.16
+            "armor": 35,
+            "magicResist": 35
           }
         }
       ]
@@ -372,26 +375,26 @@
       "tiers": [
         {
           "count": 2,
-          "text": "스킬 피해 +20% · 기본 공격 마나 +2",
+          "text": "주문력 +20 · 기본 공격 마나 +2",
           "bonus": {
-            "skill": 0.2,
-            "manaOnAttack": 2
+            "manaOnAttack": 2,
+            "abilityPower": 20.0
           }
         },
         {
           "count": 4,
-          "text": "스킬 피해 +40% · 기본 공격 마나 +4",
+          "text": "주문력 +40 · 기본 공격 마나 +4",
           "bonus": {
-            "skill": 0.4,
-            "manaOnAttack": 4
+            "manaOnAttack": 4,
+            "abilityPower": 40.0
           }
         },
         {
           "count": 6,
-          "text": "스킬 피해 +70% · 기본 공격 마나 +7",
+          "text": "주문력 +70 · 기본 공격 마나 +7",
           "bonus": {
-            "skill": 0.7,
-            "manaOnAttack": 7
+            "manaOnAttack": 7,
+            "abilityPower": 70.0
           }
         }
       ]
@@ -460,9 +463,10 @@
       "role": "방어 재료",
       "flavor": "높은 경도로 정제한 붉은 디지조이드.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
-      "description": "체력 +120",
+      "description": "체력 +120 · 방어력 +15",
       "bonus": {
-        "health": 120
+        "health": 120,
+        "armor": 15
       },
       "recipe": []
     },
@@ -488,10 +492,10 @@
       "role": "스킬 재료",
       "flavor": "디지몬의 핵을 소재로 한 스킬 강화 재료.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
-      "description": "시작 마나 +15 · 스킬 피해 +12%",
+      "description": "시작 마나 +15 · 주문력 +12",
       "bonus": {
         "startMana": 15,
-        "skill": 0.12
+        "abilityPower": 12.0
       },
       "recipe": []
     },
@@ -559,11 +563,11 @@
       "role": "공격 · 스킬",
       "flavor": "크롬디지조이드 갑주와 함께 쓰이는 성스러운 창.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
-      "description": "공격력 +20% · 스킬 피해 +25% · 기본 공격 흡혈 8%",
+      "description": "공격력 +20% · 주문력 +25 · 기본 공격 흡혈 8%",
       "bonus": {
         "attack": 0.2,
-        "skill": 0.25,
-        "lifesteal": 0.08
+        "lifesteal": 0.08,
+        "abilityPower": 25.0
       },
       "recipe": [
         0,
@@ -578,11 +582,12 @@
       "role": "수호 · 위기 대응",
       "flavor": "등 뒤의 장갑을 하나로 모아 펼치는 방패.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
-      "description": "체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회)",
+      "description": "체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회) · 방어력 +30",
       "bonus": {
         "health": 300,
         "reduction": 0.12,
-        "lowShield": 0.25
+        "lowShield": 0.25,
+        "armor": 30
       },
       "recipe": [
         1,
@@ -597,11 +602,12 @@
       "role": "수호 · 선봉",
       "flavor": "정화의 빛을 발하는 성스러운 방패.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
-      "description": "체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20%",
+      "description": "체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20% · 마법저항력 +30",
       "bonus": {
         "health": 220,
         "speed": 0.15,
-        "startShield": 0.2
+        "startShield": 0.2,
+        "magicResist": 30
       },
       "recipe": [
         1,
@@ -653,10 +659,10 @@
       "role": "스킬 · 첫 시전",
       "flavor": "오른팔에 장착하는 성검.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
-      "description": "스킬 피해 +45% · 시작 마나 +20",
+      "description": "주문력 +45 · 시작 마나 +20",
       "bonus": {
-        "skill": 0.45,
-        "startMana": 20
+        "startMana": 20,
+        "abilityPower": 45.0
       },
       "recipe": [
         2,
@@ -671,11 +677,12 @@
       "role": "스킬 · 보호막",
       "flavor": "검과 방패를 전개하는 팔찌.",
       "source": "https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon",
-      "description": "체력 +180 · 스킬 피해 +35% · 시전 시 자신에게 최대 체력 12% 보호막",
+      "description": "체력 +180 · 주문력 +35 · 시전 시 자신에게 최대 체력 12% 보호막 · 마법저항력 +20",
       "bonus": {
         "health": 180,
-        "skill": 0.35,
-        "castShield": 0.12
+        "castShield": 0.12,
+        "abilityPower": 35.0,
+        "magicResist": 20
       },
       "recipe": [
         3,

@@ -21,7 +21,7 @@ public sealed partial class NativeGame
         var skill=DigimonSkillCatalog.Find(caster.unit.def.id);
         if(skill==null)return false;
         var cast=new SkillCast{caster=caster,target=target,skill=skill,origin=caster.pos,aim=target.pos,
-            power=AttackDamage(caster)*Skill(caster.unit.def.id).power*(1+caster.build.skill)};
+            power=skill.Damage(caster.unit.star,AttackDamage(caster),DigimonCombatMath.AbilityPower(caster.build.abilityPower)*(caster.enemy?caster.attackScale:1f))};
         skillCasts.Add(cast);caster.skillCast=cast;
         caster.mana=0;caster.casts++;caster.cooldown=skill.Duration;
         caster.attackTarget=target.pos;caster.skillFlash=skill.Duration;OnBuildCast(caster);
@@ -65,7 +65,7 @@ public sealed partial class NativeGame
         {
             foreach(Fighter victim in victims.OrderBy(f=>Vector2.Distance(f.pos,cast.aim)).Take(s.targets).ToArray())
             {
-                DealDamage(cast.caster,victim,cast.power*s.multiplier/s.shots);
+                DealDamage(cast.caster,victim,cast.power/s.shots,s.damageType);
                 if(!victim.dead)victim.stun=Mathf.Max(victim.stun,s.stun);
                 if(!victim.dead&&s.visual=="gate")victim.pos=Vector2.MoveTowards(victim.pos,cast.aim,.45f);
             }
