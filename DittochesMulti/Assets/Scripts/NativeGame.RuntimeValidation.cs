@@ -1,0 +1,68 @@
+#if DITTOCHES_PORTABLE_PREVIEW
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+
+public sealed partial class NativeGame
+{
+    int validationChecks;
+    int validationRepaints;
+    void Require(bool condition,string message)
+    {if(!condition){Application.Quit(2);throw new InvalidOperationException("ARENA SMOKE FAILED: "+message);}validationChecks++;}
+    public void BeginArenaSmoke(){StartCoroutine(ArenaSmoke());}
+    void CaptureRuntime(string name)
+    {
+        string folder=Path.Combine(Application.dataPath,"../ArenaCaptures");Directory.CreateDirectory(folder);
+        var texture=ScreenCapture.CaptureScreenshotAsTexture();
+        try{File.WriteAllBytes(Path.Combine(folder,name+".png"),texture.EncodeToPNG());}
+        finally{Destroy(texture);}
+        Debug.Log("ARENA SCREEN "+name+" repaints="+validationRepaints+" actors="+arena.ActorCount);
+        Require(validationRepaints>0,"screen received GUI repaint");
+        RenderTexture old=RenderTexture.active;var field=new Texture2D(arena.Texture.width,arena.Texture.height,TextureFormat.RGB24,false);
+        try{RenderTexture.active=arena.Texture;field.ReadPixels(new Rect(0,0,field.width,field.height),0,0);field.Apply();File.WriteAllBytes(Path.Combine(folder,name+"-field.png"),field.EncodeToPNG());}
+        finally{RenderTexture.active=old;Destroy(field);}
+    }
+    IEnumerator ArenaSmoke()
+    {
+        Application.runInBackground=true;
+        yield return null;
+        artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
+        Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
+        string[] team={"agumon","gabumon","tentomon","palmon","piyomon","patamon"};
+        int[] slots={2,3,4,16,17,18};
+        for(int i=0;i<team.Length;i++)board[slots[i]]=new Unit(RosterById[team[i]]);
+        bench[0]=new Unit(RosterById["koromon"]);bench[3]=new Unit(RosterById["agumon"]);
+        inventory.AddRange(new[]{0,1,2,3});RebuildPool();RollShop();EnsureArena();
+        Require(!DigimonModelLibrary.PreviewEnabled,"unfinished model must be opt-in");
+        for(int row=0;row<8;row++)for(int col=0;col<7;col++)
+        {
+            Vector2 point=arena.Project(TacticalArena.CellWorld(col,row));
+            Require(SoloArenaViewport.Contains(point),"visible hex "+row+":"+col);
+            Require(arena.HitCell(point)==row*7+col,"hex picking "+row+":"+col);
+        }
+        for(int i=0;i<9;i++)Require(arena.HitBench(arena.Project(TacticalArena.BenchWorld(i)))==i,"bench picking "+i);
+        Require(!SoloArenaViewport.Contains(SellDropZone.center),"sell target cannot also place on board");
+        yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();CaptureRuntime("01-prepare");
+        int item=Array.FindIndex(shop,u=>u!=null);int cost=shop[item].cost,before=gold;
+        Require(Buy(item),"shop purchase");Require(gold==before-cost&&shop[item]==null,"purchase charged once");
+        selectedBench=0;selectedBoard=-1;
+        yield return new WaitForEndOfFrame();CaptureRuntime("02-placement");selectedBench=-1;
+        inspectedUnit=board[3];yield return new WaitForEndOfFrame();CaptureRuntime("03-detail");inspectedUnit=null;
+        StartCoroutine(Battle());
+        foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
+        yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");
+        yield return new WaitForSeconds(2f);yield return new WaitForEndOfFrame();CaptureRuntime("05-skills");
+        float deadline=Time.unscaledTime+34;
+        while(battling&&Time.unscaledTime<deadline)yield return null;
+        Require(!battling,"battle reaches results");Require(lastBattleReport.Count==6,"combat report preserves team");
+        Require(lastBattleReport.Sum(f=>f.casts)>0,"canonical skills actually cast in runtime");
+        Require(skillCasts.Count==0||skillCasts.All(c=>c.hits>=c.skill.shots),"no unprocessed released hits");
+        yield return new WaitForEndOfFrame();CaptureRuntime("06-result");
+        artPack=1;EnsureArena();Require(SoloArenaViewport==TacticalArena.SoloViewport,"original layout retained");
+        yield return new WaitForEndOfFrame();CaptureRuntime("07-original");
+        Debug.Log("ARENA SMOKE COMPLETE: "+validationChecks+" checks");Application.Quit();
+    }
+}
+#endif

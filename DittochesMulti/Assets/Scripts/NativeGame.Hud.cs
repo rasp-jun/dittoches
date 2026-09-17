@@ -1,0 +1,168 @@
+using System.Linq;
+using UnityEngine;
+
+public sealed partial class NativeGame
+{
+    Rect SoloArenaViewport { get { return artPack==0?TacticalArena.WideViewport:TacticalArena.SoloViewport; } }
+    GUIStyle hudSmall,hudName,hudWrap;
+    void HudStyles()
+    {
+        if(hudSmall!=null)return;
+        hudSmall=new GUIStyle(label){fontSize=13};hudSmall.normal.textColor=new Color(.67f,.76f,.76f);
+        hudName=new GUIStyle(header){fontSize=17};
+        hudWrap=new GUIStyle(hudSmall){wordWrap=true};
+    }
+    void HudPanel(Rect rect)
+    {DrawRect(rect,new Color(.025f,.045f,.056f,.97f));DrawRect(new Rect(rect.x,rect.y,rect.width,1),new Color(.32f,.38f,.33f));}
+    void DrawArenaHudTop()
+    {
+        HudStyles();HudPanel(new Rect(0,0,1920,84));
+        GUI.Label(new Rect(24,15,230,25),"DITTOCHES",hudName);
+        GUI.Label(new Rect(24,44,230,23),"파일 아일랜드 · "+Difficulties[difficulty],hudSmall);
+        GUI.Label(new Rect(291,19,210,28),"체력  "+hp,hudName);
+        MiniBar(new Rect(291,56,160,4),hp/100f,new Color(.40f,.85f,.59f));
+        GUI.Label(new Rect(493,19,225,28),gold+" G",hudName);
+        GUI.Label(new Rect(493,49,225,22),"이자 +"+Mathf.Min(5,gold/10)+" G",hudSmall);
+        string phase=showCarousel?"보상 선택":battling?"전투":"준비";
+        GUI.Label(new Rect(760,10,400,28),RoundLabel()+"  /  "+RoundType()+"  /  "+phase,center);
+        int count=round<=3?3:7,step=round<=3?round:1+(round-4)%7;
+        for(int i=0;i<count;i++)
+            DrawRect(new Rect(820+i*280f/count,48,280f/count-6,4),i<step?accent:new Color(.14f,.22f,.24f));
+        GUI.Label(new Rect(820,58,280,23),battling?Mathf.CeilToInt(battleTimeRemaining)+"초":"배치 "+board.Count(u=>u!=null)+" / "+level,center);
+        GUI.Label(new Rect(1240,18,215,27),"레벨 "+level,hudName);
+        GUI.Label(new Rect(1240,48,215,22),level==9?"최대 레벨":xp+" / "+NeedXp()+" XP",hudSmall);
+        MiniBar(new Rect(1460,39,160,5),level==9?1:(float)xp/NeedXp(),new Color(.32f,.66f,.9f));
+        if(Btn(new Rect(1702,22,88,38),"로비",!battling))lobby=true;
+        if(Btn(new Rect(1800,22,94,38),"종료"))Application.Quit();
+    }
+    void DrawArenaHudLeft()
+    {
+        HudPanel(new Rect(16,106,215,720));
+        GUI.Label(new Rect(30,121,188,28),"팀 시너지",hudName);
+        var traits=TeamTraits();int pages=Mathf.Max(1,(traits.Count+7)/8);traitPage=Mathf.Clamp(traitPage,0,pages-1);
+        for(int row=0;row<8;row++)
+        {
+            int i=traitPage*8+row;if(i>=traits.Count)break;
+            var trait=traits[i];int tier=TraitTier(trait.category,trait.count);float y=164+row*37;
+            Rect r=new Rect(28,y,189,32);DrawRect(r,tier>0?new Color(.16f,.16f,.105f):new Color(.04f,.065f,.072f));
+            DrawRect(new Rect(r.x,r.y,3,r.height),TraitColor(tier));
+            GUI.Label(new Rect(38,y+5,126,24),trait.key,hudSmall);
+            GUI.Label(new Rect(169,y+5,49,24),trait.count+"/"+TraitTarget(trait.category,trait.count),hudSmall);
+            if(GUI.Button(r,new GUIContent("",TraitEffectText(trait.category,trait.key,tier)),GUIStyle.none))
+            {showRecipeGuide=false;traitFocus=trait;traitGuideUntil=Time.unscaledTime+3.5f;}
+        }
+        if(traits.Count==0)GUI.Label(new Rect(30,170,182,60),"유닛을 배치하면\n시너지가 표시됩니다",hudWrap);
+        if(pages>1)
+        {
+            if(Btn(new Rect(30,469,40,26),"‹",traitPage>0))traitPage--;
+            GUI.Label(new Rect(75,469,90,26),(traitPage+1)+" / "+pages,center);
+            if(Btn(new Rect(174,469,40,26),"›",traitPage+1<pages))traitPage++;
+        }
+        GUI.Label(new Rect(30,511,180,26),"장비  "+inventory.Count,hudName);
+        int itemPages=Mathf.Max(1,(inventory.Count+11)/12);inventoryPage=Mathf.Clamp(inventoryPage,0,itemPages-1);
+        for(int slot=0;slot<12;slot++)
+        {
+            int i=inventoryPage*12+slot;Rect r=new Rect(30+slot%4*47,550+slot/4*46,40,40);
+            GUI.Box(r,GUIContent.none,i==selectedItem?selectedStyle:card);
+            if(i>=inventory.Count)continue;int item=inventory[i];Event e=Event.current;
+            if(GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&r.Contains(e.mousePosition))
+            {traitFocus=null;recipeFocus=item;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+2.8f;e.Use();}
+            else if(GUI.Button(r,new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button))SelectInventoryItem(i);
+        }
+        if(itemPages>1)
+        {
+            if(Btn(new Rect(30,693,40,26),"‹",inventoryPage>0))inventoryPage--;
+            GUI.Label(new Rect(75,693,90,26),(inventoryPage+1)+" / "+itemPages,center);
+            if(Btn(new Rect(174,693,40,26),"›",inventoryPage+1<itemPages))inventoryPage++;
+        }
+        GUI.Label(new Rect(30,737,182,64),selectedItem>=0?EquipmentHint():"장비 클릭 → 아군에게 장착\n우클릭 → 조합 확인",hudWrap);
+    }
+    void DrawArenaHudRight()
+    {
+        const float x=1686;HudPanel(new Rect(x,106,218,720));
+        if(inspectedUnit!=null)
+        {
+            var unit=inspectedUnit;var meta=Meta(unit.def.id);
+            GUI.Label(new Rect(x+14,120,152,30),"유닛 정보",hudName);
+            if(Btn(new Rect(x+170,116,33,30),"×"))inspectedUnit=null;
+            Portrait(new Rect(x+29,162,160,162),UnitSprite(unit.def));
+            GUI.Label(new Rect(x+14,332,190,52),UnitName(unit.def)+"  "+new string('★',unit.star),hudWrap);
+            GUI.Label(new Rect(x+14,388,190,50),meta.attr+" · "+meta.family+"\n"+unit.def.role+" · "+unit.def.cost+" G",hudWrap);
+            GUI.Label(new Rect(x+14,453,190,65),"기본 체력  "+Mathf.RoundToInt(meta.hp*Mathf.Pow(1.8f,unit.star-1))+"\n기본 공격  "+Mathf.RoundToInt(meta.atk*Mathf.Pow(1.5f,unit.star-1))+"  ·  사거리 "+meta.range+"\n시작 마나 "+Skill(unit.def.id).startMana+" / "+Skill(unit.def.id).maxMana,hudWrap);
+            var skill=DigimonSkillCatalog.Find(unit.def.id);
+            GUI.Label(new Rect(x+14,534,190,42),SkillName(unit.def),hudWrap);
+            if(skill!=null)GUI.Label(new Rect(x+14,577,190,118),skill.description,hudWrap);
+            for(int i=0;i<unit.items.Count&&i<2;i++)
+            {int item=unit.items[i];GUI.Box(new Rect(x+14+i*95,711,88,35),new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),card);}
+        }
+        else if(showCombatReport&&(battling||lastBattleReport.Count>0))
+        {
+            GUI.Label(new Rect(x+14,122,190,29),battling?"실시간 전투 기록":"지난 전투 기록",hudName);
+            string[] tabs={"피해","회복","보호"};
+            for(int i=0;i<3;i++)if(Btn(new Rect(x+12+i*65,161,61,29),tabs[i]))reportMetric=i;
+            var rows=(battling?fighters:lastBattleReport).Where(f=>!f.enemy).OrderByDescending(ReportValue).Take(9).ToArray();
+            float max=rows.Length>0?Mathf.Max(1,rows.Max(ReportValue)):1;
+            for(int i=0;i<rows.Length;i++)
+            {
+                var f=rows[i];float y=207+i*51;
+                Portrait(new Rect(x+13,y,32,35),UnitSprite(f.unit.def));
+                GUI.Label(new Rect(x+51,y,149,22),UnitName(f.unit.def),hudSmall);
+                GUI.Label(new Rect(x+51,y+21,149,20),Mathf.RoundToInt(ReportValue(f)).ToString(),hudSmall);
+                MiniBar(new Rect(x+51,y+43,147,3),ReportValue(f)/max,RoleColor(f.unit.def.role));
+                if(GUI.Button(new Rect(x+10,y,196,47),GUIContent.none,GUIStyle.none))inspectedUnit=f.unit;
+            }
+            if(Btn(new Rect(x+13,695,192,34),"테이머 목록"))showCombatReport=false;
+        }
+        else
+        {
+            GUI.Label(new Rect(x+14,122,190,29),"테이머",hudName);
+            for(int i=0;i<8;i++)
+            {
+                float y=169+i*61;string name=i==0?"나의 테이머":RivalNames[i-1];
+                bool viewing=!battling&&(i==0?scoutedRival<0:scoutedRival==i-1),opponent=battling&&name==currentOpponent;
+                Rect r=new Rect(x+10,y,198,53);GUI.Box(r,GUIContent.none,viewing||opponent?selectedStyle:card);
+                GUI.Label(new Rect(x+22,y+7,174,23),name,hudName);
+                GUI.Label(new Rect(x+22,y+31,174,20),i==0?hp+" HP":opponent?"현재 상대":"AI 테이머 · 관전",hudSmall);
+                if(!battling&&GUI.Button(r,GUIContent.none,GUIStyle.none)){if(i==0)scoutedRival=-1;else ShowRivalBoard(i-1);}
+            }
+            if(lastBattleReport.Count>0||battling)if(Btn(new Rect(x+13,695,192,34),"전투 기록"))showCombatReport=true;
+        }
+        bool canSell=!showCarousel&&(selectedBench>=0||(!battling&&selectedBoard>=0));
+        if(Btn(new Rect(x+13,767,192,42),"선택 유닛 판매",canSell))SellSelectedUnit();
+    }
+    void DrawArenaHudShop()
+    {
+        HudPanel(new Rect(0,850,1920,230));
+        GUI.Label(new Rect(28,865,200,27),gold+" G",hudName);
+        if(Btn(new Rect(24,908,200,43),"새로고침  2G  [D]",gold>=2))RerollShop();
+        if(Btn(new Rect(24,960,200,43),"경험치 +4  4G  [F]",gold>=4&&level<9))PurchaseExperience();
+        if(Btn(new Rect(24,1014,200,36),shopLocked?"상점 잠금 해제":"상점 잠금")){shopLocked=!shopLocked;Save();}
+        GUI.Label(new Rect(254,859,1395,23),ShopOddsText(),hudSmall);
+        for(int i=0;i<5;i++)
+        {
+            Rect r=new Rect(249+i*285,893,271,170);var d=shop[i];
+            bool hovered=GUI.enabled&&r.Contains(Event.current.mousePosition);
+            if(Event.current.type==EventType.Repaint)shopHover[i]=Mathf.MoveTowards(shopHover[i],hovered?1:0,Time.unscaledDeltaTime*7);
+            GUI.Box(r,GUIContent.none,hovered?selectedStyle:card);
+            if(d==null){GUI.Label(r,"모집 완료",center);continue;}
+            int singles=FindUnits(d.id,1).Count,doubles=FindUnits(d.id,2).Count;
+            bool merges=singles>=2,room=bench.Any(u=>u==null)||merges,afford=gold>=d.cost;
+            DrawRect(new Rect(r.x,r.y,r.width,3),CostColor(d.cost));
+            Portrait(new Rect(r.x+7,r.y+10-shopHover[i]*3,115,106),UnitSprite(d));
+            GUI.Label(new Rect(r.x+133,r.y+16,128,30),d.cost+" G",hudName);
+            GUI.Label(new Rect(r.x+133,r.y+51,128,26),d.role,hudSmall);
+            GUI.Label(new Rect(r.x+133,r.y+78,128,38),merges?"자동 합성 가능":"★ "+singles+"   ★★ "+doubles,hudWrap);
+            GUI.Label(new Rect(r.x+14,r.y+116,243,26),UnitName(d),hudName);
+            GUI.Label(new Rect(r.x+14,r.y+144,243,24),!afford?"골드 부족":!room?"대기석 가득":merges?"클릭하여 구매 · 합성":"클릭하여 모집",hudSmall);
+            bool enabled=GUI.enabled;GUI.enabled=enabled&&afford&&room;
+            if(GUI.Button(r,new GUIContent("",ShopUnitSummary(d,singles,doubles)),GUIStyle.none)&&Buy(i))
+            {NotifyPlacement(UnitName(d)+(merges?" · 자동 합성 완료":" 모집 완료"));Save();}
+            GUI.enabled=enabled;
+            if(!afford||!room)DrawRect(r,new Color(.012f,.018f,.026f,.22f));
+        }
+        bool carousel=RoundType()=="초밥집";
+        GUI.Label(new Rect(1694,870,208,28),battling?"전투 진행 중":"배치 준비",center);
+        if(Btn(new Rect(1696,916,205,87),battling?"전투 중":carousel?"보상 선택 [SPACE]":"전투 시작 [SPACE]",!battling&&(carousel||board.Any(u=>u!=null))))StartRoundAction();
+        GUI.Label(new Rect(1696,1014,205,46),"배치 "+board.Count(u=>u!=null)+" / "+level+"\n대기석 "+bench.Count(u=>u!=null)+" / 9",center);
+    }
+}

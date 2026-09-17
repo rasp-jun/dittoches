@@ -121,7 +121,7 @@ class ServerTests(unittest.TestCase):
         self.assertGreater(len(room['frames']),1)
         with self.assertRaises(Rejected):
             self.request('/action',{'action':'reroll'})
-        self.now+=9
+        self.now=room['deadline']+.1
         self.request('/state')
         self.assertEqual(room['phase'],'prepare')
         self.assertEqual(room['round'],2)

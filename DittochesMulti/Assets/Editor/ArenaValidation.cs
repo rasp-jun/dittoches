@@ -9,6 +9,7 @@ public static class ArenaValidation
     public static void Validate()
     {
         CombatMotionValidation.Validate();
+        SkillTimingValidation.Validate();
         ValidatePointer();
         ValidateView(TacticalArena.SoloViewport,"solo");
         ValidateView(TacticalArena.MultiViewport,"multi");

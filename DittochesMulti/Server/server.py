@@ -10,6 +10,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from combat_skills import simulate
 
 ROOT = Path(__file__).resolve().parent
 ROSTER = json.loads((ROOT / 'roster.json').read_text(encoding='utf-8'))
@@ -191,36 +192,10 @@ class Game:
                 hp=(75+definition['cost']*32)*1.72**(unit['star']-1)
                 fighters.append(dict(key=len(fighters),side=side,id=unit['id'],star=unit['star'],x=float(slot%7 if side==0 else 6-slot%7),
                                      y=float(slot//7+4 if side==0 else 3-slot//7),hp=hp,maxHp=hp,cooldown=0))
-        frames=[]
-        # Fixed-step server simulation. Clients receive positions and health, never report a winner.
-        for step in range(121):
-            if step%4==0:
-                frames.append({'units':[{k:v for k,v in f.items() if k!='cooldown'} for f in fighters]})
-            if len({f['side'] for f in fighters if f['hp']>0})<2:
-                break
-            hits=[]
-            for f in fighters:
-                if f['hp']<=0:
-                    continue
-                enemies=[e for e in fighters if e['side']!=f['side'] and e['hp']>0]
-                target=min(enemies,key=lambda e:((e['x']-f['x'])**2+(e['y']-f['y'])**2,e['key']))
-                dx,dy=target['x']-f['x'],target['y']-f['y']
-                distance=math.hypot(dx,dy)
-                definition=DEFS[f['id']]
-                ranged=definition['role'] in ('사수','마법사','지원')
-                if distance>(2.55 if ranged else 1.05):
-                    f['x']+=dx/distance*.3
-                    f['y']+=dy/distance*.3
-                f['cooldown']-=.2
-                if distance<=(2.55 if ranged else 1.05) and f['cooldown']<=0:
-                    hits.append((target,(13+definition['cost']*5)*1.48**(f['star']-1)))
-                    f['cooldown']=1.05 if ranged else .78
-            for target,damage in hits:
-                target['hp']=max(0,target['hp']-damage)
-        frames.append({'units':[{k:v for k,v in f.items() if k!='cooldown'} for f in fighters]})
+        frames, skill_events, playback_duration = simulate(fighters, DEFS)
         totals=[sum(f['hp'] for f in fighters if f['side']==side) for side in (0,1)]
         winner=-1 if abs(totals[0]-totals[1])<.001 else int(totals[1]>totals[0])
-        room.update(phase='battle',deadline=self.clock()+8,frames=frames,roundWinner=winner)
+        room.update(phase='battle',deadline=self.clock()+playback_duration,frames=frames,skillEvents=skill_events,battleDuration=playback_duration,roundWinner=winner)
 
     def settle(self, room):
         winner=room['roundWinner']
@@ -297,7 +272,7 @@ class Game:
                                     bench=self.units(p['bench']) if i==side else [],shop=[u or '' for u in p['shop']] if i==side else []))
             result='' if room['phase']!='finished' else ('무승부' if not room['winner'] else ('승리' if room['winner']==session['id'] else '패배'))
             response['room']=dict(id=room['id'],mode=room['mode'],phase=room['phase'],round=room['round'],side=side,
-                                  remaining=max(0,room['deadline']-self.clock()),players=players,result=result,message=room['message'],
+                                  remaining=max(0,room['deadline']-self.clock()),battleDuration=room.get('battleDuration',8),skillEvents=room.get('skillEvents',[]) if room['phase']=='battle' else [],players=players,result=result,message=room['message'],
                                   ratingDelta=room['ratingDelta']*(1 if side==0 else -1),frames=room['frames'] if room['phase']=='battle' else [])
         return response
 

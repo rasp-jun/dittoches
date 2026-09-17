@@ -12,7 +12,7 @@ public sealed partial class NativeGame
     private string lastReportRound="";
     private string placementNotice="";
     private float placementNoticeUntil;
-    private static readonly Rect SellDropZone=new Rect(1380,672,500,48);
+    private Rect SellDropZone { get { return artPack==0?new Rect(1699,767,192,42):new Rect(1380,672,500,48); } }
     private int UnitSaleValue(Unit unit){return unit==null?0:unit.def.cost*(int)Mathf.Pow(3,unit.star-1);}
     private void RerollShop()
     {
@@ -97,7 +97,7 @@ public sealed partial class NativeGame
     private Rect FormationPieceRect(Unit unit,Vector3 ground,float width)
     {
         Vector3 displayed;if(formationPositions.TryGetValue(unit,out displayed))ground=displayed;
-        Vector2 head=arena.Project(ground+Vector3.up*1.3f),feet=arena.Project(ground);
+        Vector2 head=arena.Project(ground+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(unit.def.id,unit.star):1.3f)),feet=arena.Project(ground);
         return new Rect(feet.x-width*.5f,head.y,width,Mathf.Max(24,feet.y-head.y+8));
     }
     private void DrawFormationLabel(Unit unit,Vector3 ground,bool focused)
@@ -113,7 +113,7 @@ public sealed partial class NativeGame
     }
     private int PickFormationTarget(Vector2 point)
     {
-        if(!TacticalArena.SoloViewport.Contains(point))return -1;
+        if(!SoloArenaViewport.Contains(point))return -1;
         if(!draggingUnit)
         {
             // Nearer portraits take precedence where silhouettes overlap.
@@ -154,7 +154,7 @@ public sealed partial class NativeGame
         {
             foreach(Fighter fighter in fighters.Where(f=>!f.dead).OrderByDescending(f=>f.renderPos.y))
             {
-                Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*1.4f),feet=arena.Project(FighterWorld(fighter));
+                Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(fighter.unit.def.id,fighter.unit.star):1.4f)),feet=arena.Project(FighterWorld(fighter));
                 if(!new Rect(feet.x-40,head.y,80,Mathf.Max(24,feet.y-head.y)).Contains(Event.current.mousePosition))continue;
                 if(fighter.enemy)return "상대 유닛에는 장비를 장착할 수 없습니다";
                 target=fighter.unit;break;
@@ -189,7 +189,7 @@ public sealed partial class NativeGame
             bool valid=seat>=0||ValidBoardDestination(cell);
             if(seat>=0)target=TacticalArena.BenchWorld(seat);
             else if(cell>=0)target=TacticalArena.CellWorld(cell%7,cell/7);
-            else {Vector3 ground;if(arena.GroundPoint(mouse,out ground)&&TacticalArena.SoloViewport.Contains(mouse))target=ground;}
+            else {Vector3 ground;if(arena.GroundPoint(mouse,out ground)&&SoloArenaViewport.Contains(mouse))target=ground;}
             target+=Vector3.up*.35f;
             color=valid?new Color(.3f,1f,.75f):new Color(1f,.3f,.24f);
             arena.HighlightDestination(cell,seat,valid);
@@ -200,6 +200,7 @@ public sealed partial class NativeGame
         float until;float promotion=promotions.TryGetValue(unit,out until)?Mathf.Clamp01((until-Time.unscaledTime)/1.25f):0;
         scale*=1+Mathf.Sin((1-promotion)*Mathf.PI)*.12f*promotion;
         arena.SetActor(unit,displayed,Tex(UnitSprite(unit.def)),color,scale);
+        if(artPack==0)arena.PoseDigimon(unit,unit.def.id,Vector3.Distance(displayed,target)*3f,0,Time.unscaledTime,-1,0,0,unit.star);
         bool selected=held||(!battling&&(selectedBoard>=0&&board[selectedBoard]==unit||selectedBench>=0&&bench[selectedBench]==unit));
         bool gearTarget=selectedItem>=0&&scoutedRival<0&&(board.Contains(unit)||bench.Contains(unit));
         arena.DecorateActor(unit,selected||gearTarget,promotion,invalid:gearTarget&&!CanEquipSelected(unit));
@@ -222,8 +223,9 @@ public sealed partial class NativeGame
             text+="  ·  ESC / 우클릭 취소";
         }
         else text="유닛을 끌어서 배치 · 클릭 후 다른 칸을 눌러도 이동합니다";
-        DrawRect(new Rect(330,158,972,32),new Color(.01f,.025f,.045f,.92f));
-        GUI.Label(new Rect(340,161,952,26),text,center);
+        float y=artPack==0?803:158,x=SoloArenaViewport.center.x-486;
+        DrawRect(new Rect(x,y,972,32),new Color(.01f,.025f,.045f,.92f));
+        GUI.Label(new Rect(x+10,y+3,952,26),text,center);
     }
     private void DrawRoundStatus()
     {

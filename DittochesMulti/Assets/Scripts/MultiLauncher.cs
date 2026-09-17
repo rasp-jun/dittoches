@@ -1,3 +1,6 @@
+#if DITTOCHES_PORTABLE_PREVIEW
+using PlayerPrefs = PortablePreviewPrefs;
+#endif
 using System;
 using System.Collections;
 using System.Text;
@@ -11,9 +14,10 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; }
     [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp; public bool ready; public Unit[] board, bench; public string[] shop; }
-    [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp; }
-    [Serializable] public class Frame { public Fighter[] units; }
-    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining; public Player[] players; public Frame[] frames; }
+    [Serializable] public class Fighter { public int key, side, star; public string id; public float x, y, hp, maxHp, mana, maxMana, attackAt, hitAt, stun; public int target; }
+    [Serializable] public class Frame { public float time; public Fighter[] units; }
+    [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
+    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
     [Serializable] public class State { public string token, name, queue, error; public int rating, waiting; public Room room; }
     [Serializable] public class Command { public string name, key, mode, action, area, targetArea; public int slot, targetSlot; }
 
@@ -43,6 +47,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Boot()
     {
+#if DITTOCHES_PORTABLE_PREVIEW
+        if(PortablePreview.TryBoot())return;
+#endif
         if (FindAnyObjectByType<MultiLauncher>() != null) return;
         var root = new GameObject("Dittoches Multi");
         DontDestroyOnLoad(root);
@@ -388,6 +395,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
             GUI.Label(new Rect(r.x+140,r.y+20,120,32),LobbyName(def),text);
             GUI.Label(new Rect(r.x+140,r.y+55,120,28),def.role,eyebrow);
             GUI.Label(new Rect(r.x+140,r.y+90,120,28),def.cost+" GOLD",small);
+            var skill=artPack==0?DigimonSkillCatalog.Find(def.id):null;
+            if(skill!=null)GUI.Label(new Rect(r.x+15,r.y+132,245,24),new GUIContent(skill.name,skill.technique+"\n"+skill.description),small);
         }
         if(Btn(new Rect(610,850,150,48),"← 이전",codexPage>0)) codexPage--;
         GUI.Label(new Rect(770,852,160,44),$"{codexPage+1} / {pageCount}",centered);
@@ -414,7 +423,14 @@ public sealed partial class MultiLauncher : MonoBehaviour
         string path="Sprites/"+def.sprite;
         if(artPack==1 && originalSprites.TryGetValue(id,out string originalPath)) path=originalPath;
         else if(artPack==0 && fanUnitSprites.TryGetValue(id,out string fanPath)) path=fanPath;
-        if(!textures.TryGetValue(path,out Texture2D texture)) { texture=Resources.Load<Texture2D>(path); textures[path]=texture; }
+        if(!textures.TryGetValue(path,out Texture2D texture))
+        {
+            texture=Resources.Load<Texture2D>(path);
+#if DITTOCHES_PORTABLE_PREVIEW
+            if(texture==null)texture=PortablePreview.Texture(path);
+#endif
+            textures[path]=texture;
+        }
         if(texture==null && path!="Sprites/"+def.sprite)
         {
             path="Sprites/"+def.sprite;
@@ -525,7 +541,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     {
 
         if (room.frames == null || room.frames.Length == 0) return;
-        float progress = Mathf.Clamp01(1 - remaining / 8f) * (room.frames.Length - 1);
+        float progress = CombatProgress(room,remaining);
         int frame = Mathf.FloorToInt(progress), next = Mathf.Min(frame + 1, room.frames.Length - 1);
         foreach (Fighter f in room.frames[frame].units)
         {
@@ -533,12 +549,16 @@ public sealed partial class MultiLauncher : MonoBehaviour
             Fighter to = Array.Find(room.frames[next].units, u => u.key == f.key) ?? f;
             float x = Mathf.Lerp(f.x,to.x,progress-frame), y = Mathf.Lerp(f.y,to.y,progress-frame);
             if (room.side == 1) { x = 6-x; y = 7-y; }
-            Vector2 head=arena.Project(TacticalArena.CellWorld(x,y)+Vector3.up*1.4f);
+            Vector2 head=arena.Project(TacticalArena.CellWorld(x,y)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(f.id,f.star):1.4f));
             float width=Mathf.Clamp(arena.CellRect(Mathf.Clamp(Mathf.RoundToInt(y),0,7),3).width*.78f,52,88);
             float health=Mathf.Lerp(f.hp,to.hp,progress-frame)/Mathf.Max(1,f.maxHp);
-            Panel(new Rect(head.x-width/2-2,head.y-2,width+4,11),new Color(.008f,.015f,.025f,.95f));
+            Panel(new Rect(head.x-width/2-2,head.y-2,width+4,17),new Color(.008f,.015f,.025f,.95f));
             Panel(new Rect(head.x-width/2,head.y,width,7),new Color(.12f,.16f,.2f));
             Panel(new Rect(head.x-width/2,head.y,width*Mathf.Clamp01(health),7),f.side==room.side?new Color(.32f,.94f,.57f):new Color(.96f,.3f,.27f));
+            if(f.maxMana>0)Panel(new Rect(head.x-width/2,head.y+9,width*Mathf.Clamp01(Mathf.Lerp(f.mana,to.mana,progress-frame)/f.maxMana),3),new Color(.25f,.65f,1));
+            float castAge=ActiveCastAge(room,f.key,CombatTime(room,remaining));
+            var skill=artPack==0&&castAge>=0?DigimonSkillCatalog.Find(f.id):null;
+            if(skill!=null)GUI.Label(new Rect(head.x-115,head.y-25,230,22),skill.name,centered);
             int segments=Mathf.Clamp(Mathf.CeilToInt(f.maxHp/250f),1,12);
             for(int i=1;i<segments;i++)Panel(new Rect(head.x-width/2+width*i/segments,head.y,1,7),new Color(.015f,.025f,.03f,.7f));
         }
