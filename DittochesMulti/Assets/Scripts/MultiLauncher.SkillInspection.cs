@@ -37,7 +37,7 @@ public sealed partial class MultiLauncher
     {
         if(string.IsNullOrEmpty(onlineSkillId))return;
         Unit unit;string context;
-        if(onlineSkillArea==""){unit=new Unit{id=onlineSkillId,star=1,items=new int[0]};context="도감 · 1성 기본 능력치 (장비·시너지 없음)";}
+        if(onlineSkillArea==""||onlineSkillArea=="shop"){unit=new Unit{id=onlineSkillId,star=1,items=new int[0]};context=(onlineSkillArea=="shop"?"상점":"도감")+" · 1성 기본 능력치 (장비·시너지 없음)";}
         else
         {
             var me=OnlineMe;unit=me==null?null:At(onlineSkillArea=="board"?me.board:me.bench,onlineSkillSlot);

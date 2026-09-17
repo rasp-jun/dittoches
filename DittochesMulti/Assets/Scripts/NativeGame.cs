@@ -218,6 +218,7 @@ public sealed partial class NativeGame : MonoBehaviour
         GUI.matrix=Matrix4x4.TRS(new Vector3(guiOffset.x,guiOffset.y,0),Quaternion.identity,new Vector3(scale,scale,1)); DrawRect(new Rect(0,0,1920,1080),bg);
 #if DITTOCHES_PORTABLE_PREVIEW
         if(validationPointer.HasValue)Event.current.mousePosition=validationPointer.Value;
+        ValidateShopInputInGUI();
 #endif
         if(lobby) DrawLobby(); else DrawGame();DrawTransientTooltip();if(Time.unscaledTime<screenTransitionUntil){float fade=Mathf.Clamp01((screenTransitionUntil-Time.unscaledTime)/.34f);DrawRect(new Rect(0,0,1920,1080),new Color(.005f,.012f,.025f,fade));}GUI.matrix=old;
     }

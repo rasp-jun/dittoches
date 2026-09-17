@@ -275,6 +275,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         GUI.matrix=Matrix4x4.TRS(new Vector3(offsetX,offsetY,0),Quaternion.identity,new Vector3(scale,scale,1));
 #if DITTOCHES_PORTABLE_PREVIEW
         if(onlineValidationPointer.HasValue)Event.current.mousePosition=onlineValidationPointer.Value;
+        ValidateOnlineRecruitInputInGUI();
 #endif
         Color oldColor=GUI.color; Panel(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),Color.black); GUI.color=oldColor;
         DrawBackdrop();
@@ -545,6 +546,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         for (int i = 0; i < me.shop.Length; i++)
         {
             float x = 310 + i * 191; string id = me.shop[i]; UnitDef def = Def(id);
+            if(artPack==0){DrawOnlineRecruitCard(new Rect(x,814,181,108),id,i,me,editable);continue;}
             Card(new Rect(x,814,181,108),surface2,def==null?new Color(.15f,.25f,.3f):gold);
             if (def != null)
             {
@@ -560,7 +562,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
         { Send("/action", new Command { action = "sell", area = selectedArea, slot = selectedSlot }); selectedSlot = -1; selectedArea = ""; }
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
         DrawOnlineEquipment(me,editable);
-        if(artPack!=0||!DrawOnlineReport(room,remaining))
+        var formationPreview=OnlineFormationForecast(me,editable);
+        if(formationPreview!=null){DrawOnlineUnitEquipment(me,room);FormationForecastUI.Draw(new Rect(1305,490,270,438),formationPreview);}
+        else if(artPack!=0||!DrawOnlineReport(room,remaining))
         {DrawOnlineUnitEquipment(me,room);if(artPack==0)DrawOnlineTraits(me);}
         DrawOnlineEquipmentPreview(me,editable);
         if (!fresh) GUI.Label(new Rect(310, 80, 970, 50), "연결 복구 중 · 조작을 잠시 중지합니다.", text);

@@ -60,25 +60,30 @@ public sealed partial class NativeGame
     void DrawArenaHudLeft()
     {
         HudPanel(new Rect(16,106,215,720));
-        GUI.Label(new Rect(30,121,188,28),"팀 시너지",hudName);
-        var traits=TeamTraits();int pages=Mathf.Max(1,(traits.Count+7)/8);traitPage=Mathf.Clamp(traitPage,0,pages-1);
-        for(int row=0;row<8;row++)
+        var formationPreview=CurrentFormationForecast();
+        if(formationPreview!=null)FormationForecastUI.Draw(new Rect(16,106,215,398),formationPreview);
+        else
         {
-            int i=traitPage*8+row;if(i>=traits.Count)break;
-            var trait=traits[i];int tier=TraitTier(trait.category,trait.count);float y=164+row*37;
-            Rect r=new Rect(28,y,189,32);DrawRect(r,tier>0?new Color(.16f,.16f,.105f):new Color(.04f,.065f,.072f));
-            DrawRect(new Rect(r.x,r.y,3,r.height),TraitColor(tier));
-            GUI.Label(new Rect(38,y+5,126,24),trait.key,hudSmall);
-            GUI.Label(new Rect(169,y+5,49,24),trait.count+"/"+TraitTarget(trait.category,trait.count),hudSmall);
-            if(GUI.Button(r,new GUIContent("",TraitEffectText(trait.category,trait.key,tier)),GUIStyle.none))
-            {showRecipeGuide=false;traitFocus=trait;traitGuideUntil=Time.unscaledTime+60f;}
-        }
-        if(traits.Count==0)GUI.Label(new Rect(30,170,182,60),"유닛을 배치하면\n시너지가 표시됩니다",hudWrap);
-        if(pages>1)
-        {
-            if(HudButton(new Rect(30,469,40,26),"‹",traitPage>0))traitPage--;
-            GUI.Label(new Rect(75,469,90,26),(traitPage+1)+" / "+pages,center);
-            if(HudButton(new Rect(174,469,40,26),"›",traitPage+1<pages))traitPage++;
+            GUI.Label(new Rect(30,121,188,28),"팀 시너지",hudName);
+            var traits=TeamTraits();int pages=Mathf.Max(1,(traits.Count+7)/8);traitPage=Mathf.Clamp(traitPage,0,pages-1);
+            for(int row=0;row<8;row++)
+            {
+                int i=traitPage*8+row;if(i>=traits.Count)break;
+                var trait=traits[i];int tier=TraitTier(trait.category,trait.count);float y=164+row*37;
+                Rect r=new Rect(28,y,189,32);DrawRect(r,tier>0?new Color(.16f,.16f,.105f):new Color(.04f,.065f,.072f));
+                DrawRect(new Rect(r.x,r.y,3,r.height),TraitColor(tier));
+                GUI.Label(new Rect(38,y+5,126,24),trait.key,hudSmall);
+                GUI.Label(new Rect(169,y+5,49,24),trait.count+"/"+TraitTarget(trait.category,trait.count),hudSmall);
+                if(GUI.Button(r,new GUIContent("",TraitEffectText(trait.category,trait.key,tier)),GUIStyle.none))
+                {showRecipeGuide=false;traitFocus=trait;traitGuideUntil=Time.unscaledTime+60f;}
+            }
+            if(traits.Count==0)GUI.Label(new Rect(30,170,182,60),"유닛을 배치하면\n시너지가 표시됩니다",hudWrap);
+            if(pages>1)
+            {
+                if(HudButton(new Rect(30,469,40,26),"‹",traitPage>0))traitPage--;
+                GUI.Label(new Rect(75,469,90,26),(traitPage+1)+" / "+pages,center);
+                if(HudButton(new Rect(174,469,40,26),"›",traitPage+1<pages))traitPage++;
+            }
         }
         GUI.Label(new Rect(30,511,180,26),"장비  "+inventory.Count,hudName);
         int itemPages=Mathf.Max(1,(inventory.Count+11)/12);inventoryPage=Mathf.Clamp(inventoryPage,0,itemPages-1);
@@ -150,7 +155,7 @@ public sealed partial class NativeGame
             if(d==null){GUI.Label(r,"모집 완료",center);continue;}
             int singles=FindUnits(d.id,1).Count,doubles=FindUnits(d.id,2).Count;
             bool merges=singles>=2,room=bench.Any(u=>u==null)||merges,afford=gold>=d.cost;
-            Color rarity=CostColor(d.cost);var meta=Meta(d.id);
+            Color rarity=CostColor(d.cost);var skill=DigimonSkillCatalog.Find(d.id);
             DrawRect(new Rect(r.x+1,r.y+1,r.width-2,117),Color.Lerp(new Color(.025f,.055f,.075f),rarity,.16f+shopHover[i]*.1f));
             DrawRect(new Rect(r.x,r.y,r.width,3),rarity);
             Portrait(new Rect(r.x+4,r.y+7-shopHover[i]*3,126,117),UnitSprite(d));
@@ -158,7 +163,9 @@ public sealed partial class NativeGame
             GUI.Label(new Rect(r.x+218,r.y+11,43,25),d.cost+" G",center);
             GUI.Label(new Rect(r.x+141,r.y+43,119,23),DigimonBuildCatalog.ForUnit(d.id).First().name,hudSmall);
             GUI.Label(new Rect(r.x+141,r.y+68,119,23),DigimonBuildCatalog.ForUnit(d.id).Last().name,hudSmall);
-            GUI.Label(new Rect(r.x+141,r.y+93,119,23),meta.attr,hudSmall);
+            GUI.Label(new Rect(r.x+141,r.y+93,119,23),skill.ScalingRole.Replace(" 딜러","")+" · "+skill.attackRange+"칸",hudSmall);
+            if(DigimonSkillUI.DrawIcon(new Rect(r.x+141,r.y+7,30,30),skill))OpenShopSkill(d);
+            GUI.Label(new Rect(r.x+176,r.y+12,39,22),"스킬",hudSmall);
             DrawRect(new Rect(r.x,r.y+122,r.width,48),new Color(.022f,.039f,.052f));
             GUI.Label(new Rect(r.x+12,r.y+122,246,25),UnitName(d),hudName);
             string status=!afford?"골드 부족":!room?"대기석 가득":merges?"구매하면 자동 합성":singles+doubles>0?"보유  ★ "+singles+"  ★★ "+doubles:"클릭하여 모집";

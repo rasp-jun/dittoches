@@ -237,7 +237,7 @@ public sealed partial class NativeGame
         else if(scoutedRival>=0)text="관전 중 · 오른쪽 나의 테이머를 눌러 복귀";
         else if(HeldUnit()!=null)
         {
-            int cell=arena.HitCell(Event.current.mousePosition),seat=arena.HitBench(Event.current.mousePosition);
+            int placement=PlacementTarget(),cell=placement>=28&&placement<56?placement:-1,seat=placement>=56?placement-56:-1;
             text=seat>=0?(bench[seat]==null?"대기석으로 이동":"대기석 유닛과 교환")
                 :cell>=28?(ValidBoardDestination(cell)?(board[cell-28]==null?"이 위치에 배치":"두 유닛의 위치 교환"):"배치 인원 초과 · 유닛과 교환하거나 레벨을 올리세요")
                 :"내 전장의 칸 또는 대기석을 선택하세요";

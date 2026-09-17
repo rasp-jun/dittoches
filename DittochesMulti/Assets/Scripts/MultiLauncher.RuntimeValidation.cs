@@ -11,6 +11,22 @@ public sealed partial class MultiLauncher
 {
     int onlineChecks;State smokePeer;
     Vector2? onlineValidationPointer;
+    bool onlineRecruitInputPending;
+    void ValidateOnlineRecruitInputInGUI()
+    {
+        if(!onlineRecruitInputPending||Event.current.type!=EventType.Repaint)return;
+        onlineRecruitInputPending=false;var me=OnlineMe;string offer=me.shop[0];int savedGold=me.gold,count=me.bench.Length;
+        Event saved=new Event(Event.current);bool enabled=GUI.enabled;
+        try
+        {
+            me.gold=0;GUI.enabled=true;
+            Event.current=new Event{type=EventType.MouseDown,button=1,mousePosition=new Vector2(310+160,814+87)};
+            DrawOnlineRecruitCard(new Rect(310,814,181,108),offer,0,me,true);
+            OnlineRequire(onlineSkillId==offer&&onlineSkillArea=="shop","online shop icon opens while purchase is unavailable");
+            OnlineRequire(!busy&&me.gold==0&&me.shop[0]==offer&&me.bench.Length==count,"shop inspection never sends a purchase");
+        }
+        finally{me.gold=savedGold;Event.current=saved;GUI.enabled=enabled;}
+    }
     void OnlineRequire(bool condition,string message)
     {if(!condition){Application.Quit(2);throw new InvalidOperationException("ONLINE SMOKE FAILED: "+message);}onlineChecks++;}
     public void BeginOnlineSmoke(){StartCoroutine(OnlineSmoke());}
@@ -72,6 +88,21 @@ public sealed partial class MultiLauncher
         OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{0,1,2,3,14}),"initial supplies deserialize");
         OnlineRequire(state.room.players[1-state.room.side].inventory.Length==0,"opponent inventory hidden");
         yield return new WaitForEndOfFrame();OnlineCapture("01-inventory");
+        onlineRecruitInputPending=true;yield return new WaitForEndOfFrame();OnlineCapture("12-shop-skill");
+        OnlineRequire(!onlineRecruitInputPending,"online shop inspection exercised in GUI");onlineSkillId="";
+        yield return SmokeRequest("/action",new Command{action="buy",slot=0});
+        int newcomerSlot=OnlineMe.bench[0].slot;selectedArea="bench";selectedSlot=newcomerSlot;
+        onlineValidationPointer=arena.Project(TacticalArena.CellWorld(3,5));
+        yield return new WaitForEndOfFrame();OnlineCapture("13-formation-preview");onlineValidationPointer=null;
+        var formationBoard=new string[28];var formationBench=new string[9];
+        foreach(var u in OnlineMe.board)formationBoard[u.slot]=u.id;
+        foreach(var u in OnlineMe.bench)formationBench[u.slot]=u.id;
+        var formationPlan=FormationForecast.Preview(formationBoard,formationBench,false,newcomerSlot,true,10,OnlineMe.level);
+        yield return SmokeRequest("/action",new Command{action="move",area="bench",slot=newcomerSlot,targetArea="board",targetSlot=10});
+        OnlineRequire(formationPlan.allowed&&OnlineMe.board.All(u=>formationPlan.board[u.slot]==u.id),"placement forecast matches server unit positions");
+        foreach(var t in formationPlan.traits)OnlineRequire(t.after==DigimonBuildCatalog.Count(t.trait,OnlineMe.board.Select(u=>u.id)),"placement forecast matches server traits");
+        yield return SmokeRequest("/action",new Command{action="move",area="board",slot=10,targetArea="bench",targetSlot=newcomerSlot});
+        selectedArea="";selectedSlot=-1;
         onlineItemGuide=0;yield return new WaitForEndOfFrame();OnlineCapture("02-recipes");onlineItemGuide=-1;
         SelectOnlineItem(0);SelectOnlineItem(1);yield return AwaitEquipmentAction();
         OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{2,3,14,5}),"UI combines two components");

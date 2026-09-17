@@ -71,7 +71,7 @@ public sealed partial class NativeGame
             arena.BeginFrame(!scouting?sourceCell:-1,hover,sourceBench,!scouting&&!blocked&&(selectedBench>=0||selectedBoard>=0||draggingUnit));
             if(!battling&&!scouting&&!blocked&&HeldUnit()!=null)
             {
-                int destination=arena.HitCell(Event.current.mousePosition);
+                int placement=PlacementTarget(),destination=placement>=28&&placement<56?placement:-1;
                 int rangeCell=artPack==0?(ValidBoardDestination(destination)?destination:sourceCell):(draggingUnit?destination:sourceCell);
                 if(rangeCell>=28)
                 {
@@ -87,7 +87,7 @@ public sealed partial class NativeGame
             }
             if(!battling&&!scouting&&!blocked&&HeldUnit()!=null&&!draggingUnit)
             {
-                int cell=arena.HitCell(Event.current.mousePosition),seat=arena.HitBench(Event.current.mousePosition);
+                int placement=PlacementTarget(),cell=placement>=28&&placement<56?placement:-1,seat=placement>=56?placement-56:-1;
                 arena.HighlightDestination(cell,seat,seat>=0||ValidBoardDestination(cell));
             }
             if(battling)

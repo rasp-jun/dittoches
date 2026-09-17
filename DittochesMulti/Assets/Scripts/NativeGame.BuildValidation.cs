@@ -5,6 +5,38 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    void ValidateFormationRules()
+    {
+        artPack=0;battling=false;selectedItem=-1;
+        int[][] cases={new[]{0,0,1,0,3},new[]{0,2,1,0,3},new[]{0,0,1,5,3},new[]{0,0,1,5,4},
+            new[]{1,0,0,3,3},new[]{1,0,0,0,3},new[]{1,0,1,2,3},new[]{0,0,0,1,3},
+            new[]{1,0,1,0,3},new[]{0,1,1,2,3},new[]{1,2,0,0,3},new[]{0,2,1,5,4}};
+        foreach(var test in cases)
+        {
+            Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);
+            board[0]=new Unit(RosterById["agumon"]);board[1]=new Unit(RosterById["koromon"]);board[2]=new Unit(RosterById["palmon"]);
+            bench[0]=new Unit(RosterById["gabumon"]);bench[1]=new Unit(RosterById["lilimon"]);bench[2]=new Unit(RosterById["agumon"]){star=2};level=test[4];
+            var beforeBoard=board.Select(u=>u==null?null:u.def.id).ToArray();var beforeBench=bench.Select(u=>u==null?null:u.def.id).ToArray();
+            var plan=FormationForecast.Preview(beforeBoard,beforeBench,test[0]==1,test[1],test[2]==1,test[3],level);
+            Require(board.Select(u=>u==null?null:u.def.id).SequenceEqual(beforeBoard)&&bench.Select(u=>u==null?null:u.def.id).SequenceEqual(beforeBench),"formation preview is read-only");
+            bool blocked=test[0]==0&&test[2]==1&&test[3]==5&&level==3;
+            Require(plan.allowed!=blocked,"formation preview enforces level cap");
+            selectedBoard=test[0]==1?test[1]:-1;selectedBench=test[0]==0?test[1]:-1;
+            if(test[2]==1)ClickBoard(test[3]);else ClickBench(test[3]);
+            Require(plan.board.SequenceEqual(board.Select(u=>u==null?null:u.def.id))&&plan.bench.SequenceEqual(bench.Select(u=>u==null?null:u.def.id)),"forecast equals actual native move and swap");
+            foreach(var t in DigimonBuildCatalog.Data.traits)
+            {
+                var predicted=plan.traits.FirstOrDefault(c=>c.trait==t);
+                Require((predicted==null?0:predicted.after)==TraitCount(t.category,t.name),"forecast matches applied trait count "+t.id);
+            }
+        }
+        var b=new string[28];var seats=new string[9];b[0]="agumon";b[1]="koromon";seats[0]="agumon";
+        Require(!FormationForecast.Preview(b,seats,false,0,true,2,3).Changed,"duplicate species do not increase synergy");
+        seats[0]="gabumon";var lost=FormationForecast.Preview(b,seats,false,0,true,0,2).traits.First(t=>t.trait.id=="courage");
+        Require(lost.BeforeTier==1&&lost.AfterTier==0,"swap forecasts deactivation when the unique contributor leaves");
+        Require(!FormationForecast.Preview(b,seats,false,8,true,0,3).allowed&&!FormationForecast.Preview(b,seats,true,99,true,0,3).allowed,"empty or stale source selection is rejected");
+        Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);selectedBoard=selectedBench=-1;placementNoticeUntil=0;
+    }
     void ValidateReportRules()
     {
         artPack=0;battling=false;fighters.Clear();lastBattleReport.Clear();

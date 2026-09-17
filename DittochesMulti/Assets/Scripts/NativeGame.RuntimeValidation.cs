@@ -12,6 +12,22 @@ public sealed partial class NativeGame
     bool validationIconGallery;
     bool validatedIconInput;
     Vector2? validationPointer;
+    bool validationShopInputPending;
+    void ValidateShopInputInGUI()
+    {
+        if(!validationShopInputPending||Event.current.type!=EventType.Repaint)return;
+        validationShopInputPending=false;Event saved=new Event(Event.current);bool enabled=GUI.enabled;int savedGold=gold;
+        var offer=shop[0];int count=board.Concat(bench).Count(u=>u!=null);
+        try
+        {
+            GUI.enabled=true;gold=0;
+            Event.current=new Event{type=EventType.MouseDown,button=1,mousePosition=new Vector2(249+156,893+22)};
+            DrawArenaHudShop();
+            Require(skillDetailUnit!=null&&skillDetailUnit.def==offer&&skillDetailFromShop,"shop icon opens basic skill inspection without gold");
+            Require(gold==0&&shop[0]==offer&&board.Concat(bench).Count(u=>u!=null)==count,"shop inspection cannot buy or consume gold");
+        }
+        finally{Event.current=saved;GUI.enabled=enabled;gold=savedGold;}
+    }
     void ValidateIconInputInGUI()
     {
         if(validatedIconInput||Event.current.type!=EventType.Repaint)return;
@@ -60,6 +76,7 @@ public sealed partial class NativeGame
         ValidateScalingRules();
         ValidateTacticalRules();
         ValidateReportRules();
+        ValidateFormationRules();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
         string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
@@ -97,6 +114,12 @@ public sealed partial class NativeGame
         OpenSkillDetails(board[3]);yield return new WaitForEndOfFrame();CaptureRuntime("10-skill-magic");skillDetailUnit=null;
         OpenSkillDetails(new Unit(RosterById["wargreymon"]){star=2});yield return new WaitForEndOfFrame();CaptureRuntime("11-skill-hybrid");skillDetailUnit=null;
         validationIconGallery=true;yield return new WaitForEndOfFrame();CaptureRuntime("12-skill-icons");validationIconGallery=false;inspectedUnit=null;
+        selectedBench=0;selectedBoard=-1;validationPointer=arena.Project(TacticalArena.CellWorld(3,6));
+        yield return new WaitForEndOfFrame();CaptureRuntime("19-synergy-swap");
+        validationPointer=arena.Project(TacticalArena.CellWorld(6,7));
+        yield return new WaitForEndOfFrame();CaptureRuntime("21-placement-blocked");selectedBench=-1;validationPointer=null;
+        var previousOffer=shop[0];shop[0]=RosterById["wargreymon"];validationShopInputPending=true;
+        yield return new WaitForEndOfFrame();CaptureRuntime("20-shop-skill");Require(!validationShopInputPending,"shop right click exercised in GUI");skillDetailUnit=null;shop[0]=previousOffer;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
         inspectedUnit=board[18];
