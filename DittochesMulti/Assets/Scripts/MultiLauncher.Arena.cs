@@ -3,11 +3,15 @@ using UnityEngine;
 public sealed partial class MultiLauncher
 {
     TacticalArena arena;
+    readonly ArenaPointer arenaPointer=new ArenaPointer();
     void DrawPerspectiveMatch(Room room, Player me, Player enemy, bool editable, float remaining)
     {
         if(arena==null)arena=new TacticalArena(TacticalArena.MultiViewport);
         bool combat=room.phase=="battle";
-        int hit=arena.HitCell(Event.current.mousePosition);
+        Event e=Event.current;
+        int hit=arena.HitCell(e.mousePosition),seat=arena.HitBench(e.mousePosition);
+        arenaPointer.Update(seat>=0?56+seat:hit,e.type==EventType.MouseDown&&e.button==0,
+            e.type==EventType.MouseUp&&e.button==0,false,!editable||busy||!GUI.enabled);
         if(Event.current.type==EventType.Repaint)
         {
             arena.BeginFrame(selectedArea=="board"&&selectedSlot>=0?selectedSlot+28:-1,editable?hit:-1,selectedArea=="bench"?selectedSlot:-1,editable&&selectedSlot>=0);
@@ -43,14 +47,14 @@ public sealed partial class MultiLauncher
             bool own=row>=4;int slot=own?(row-4)*7+col:(3-row)*7+6-col;
             Unit unit=At(own?me.board:enemy.board,slot);
             if(unit!=null)GUI.Label(arena.LabelRect(TacticalArena.CellWorld(col,row),3),new string('★',unit.star),centered);
-            if(own&&editable&&!busy&&GUI.enabled&&hit==row*7+col&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
+            if(own&&editable&&!busy&&GUI.enabled&&arenaPointer.Released==row*7+col&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
             {ClickSlot("board",slot,unit);Event.current.Use();}
         }
         for(int i=0;i<9;i++)
         {
             Rect rect=arena.BenchRect(i);Unit unit=At(me.bench,i);
             GUI.Label(new Rect(rect.x,rect.yMax+2,rect.width,20),unit==null?(i+1).ToString():new string('★',unit.star),centered);
-            if(editable&&!busy&&GUI.enabled&&arena.HitBench(Event.current.mousePosition)==i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickSlot("bench",i,unit);Event.current.Use();}
+            if(editable&&!busy&&GUI.enabled&&arenaPointer.Released==56+i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickSlot("bench",i,unit);Event.current.Use();}
         }
     }
 }

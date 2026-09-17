@@ -19,11 +19,17 @@ public sealed class TacticalArena : IDisposable
     readonly MeshRenderer[] tiles = new MeshRenderer[56], seats = new MeshRenderer[9];
     readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
     readonly Material stone, trim, grass, dark, glow, shadow;
-    readonly Mesh hex, cube, quad, disc;
+    readonly Mesh hex, cube, quad, disc, ringMesh;
     Rect viewport;
     int generation;
     bool disposed;
-    sealed class Actor { public GameObject root; public MeshRenderer portrait; public int generation; }
+    sealed class Actor
+    {
+        public GameObject root;
+        public MeshRenderer portrait, contactShadow, teamBase, halo, destination;
+        public MeshRenderer[] sparkles;
+        public int generation;
+    }
     public RenderTexture Texture { get { return target; } }
     public int ActorCount { get { return actors.Count; } }
 
@@ -33,7 +39,7 @@ public sealed class TacticalArena : IDisposable
         root = new GameObject("Tactical Arena (runtime)") { hideFlags = HideFlags.HideAndDontSave };
         // Isolate from scene lights/cameras without changing global render settings.
         root.transform.position = new Vector3(200f * nextArenaId++, -1000, 0);
-        hex = Prism(6, 30); cube = Box(); quad = Billboard(); disc = Prism(32, 0);
+        hex = Prism(6, 30); cube = Box(); quad = Billboard(); disc = Prism(32, 0); ringMesh = Ring();
         stone = Material(new Color(.28f,.37f,.36f));
         trim = Material(new Color(.57f,.43f,.22f));
         grass = Material(new Color(.16f,.27f,.22f));
@@ -213,8 +219,9 @@ public sealed class TacticalArena : IDisposable
             var node=new GameObject("Arena piece"){layer=Layer,hideFlags=HideFlags.HideAndDontSave};
             node.transform.SetParent(root.transform,false);
             actor=new Actor{root=node};
-            Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
+            actor.contactShadow=Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
             var ring=Shape("Team base",disc,glow,new Vector3(0,.025f,0),new Vector3(.30f,.012f,.24f),node.transform);
+            actor.teamBase=ring;
             Tint(ring,team);
             actor.portrait=Shape("Character",quad,stone,new Vector3(0,.67f,0),Vector3.one,node.transform);
             actor.portrait.transform.rotation=camera.transform.rotation;
@@ -232,6 +239,52 @@ public sealed class TacticalArena : IDisposable
         }
         else actor.portrait.sharedMaterial=glow;
         Tint(actor.portrait,texture==null?team:Color.Lerp(Color.white,new Color(1,.4f,.3f),Mathf.Clamp01(flash)));
+    }
+    public void SetTactician(object key, Vector3 point, Vector3 destination, Texture texture,
+        Color color, float movement, float horizontalSpeed, float time, float celebration)
+    {
+        SetActor(key,point,texture,color,1.08f);
+        Actor actor=actors[key];
+        if(actor.halo==null)
+        {
+            actor.teamBase.enabled=false;
+            actor.halo=Shape("Tactician halo",ringMesh,glow,new Vector3(0,.035f,0),Vector3.one*.53f,actor.root.transform);
+            actor.destination=Shape("Move destination",ringMesh,glow,Vector3.zero,Vector3.one*.35f,actor.root.transform);
+            actor.sparkles=new MeshRenderer[6];
+            for(int i=0;i<actor.sparkles.Length;i++)
+                actor.sparkles[i]=Shape("Tactician sparkle",cube,glow,Vector3.zero,Vector3.one*.055f,actor.root.transform);
+        }
+        float speed=Mathf.Clamp01(movement),reward=Mathf.Clamp01(celebration);
+        float hop=Mathf.Abs(Mathf.Sin(time*9f))*.19f*speed;
+        float breath=Mathf.Sin(time*2.8f)*.025f;
+        float cheer=Mathf.Abs(Mathf.Sin(time*7f))*.28f*reward;
+        float stretch=Mathf.Sin(time*18f)*.045f*speed;
+        actor.portrait.transform.localScale=new Vector3(1-stretch,1+stretch,1);
+        actor.portrait.transform.localPosition=camera.transform.up*(.65f*(1+stretch))+Vector3.up*(.045f+hop+breath+cheer);
+        actor.portrait.transform.rotation=camera.transform.rotation*Quaternion.Euler(0,0,-Mathf.Clamp(horizontalSpeed/100f,-1,1)*7f*speed+Mathf.Sin(time*3f)*2f);
+        actor.contactShadow.transform.localScale=new Vector3(.46f,.01f,.32f)*(1-hop*.65f-cheer*.35f);
+        actor.halo.transform.localScale=Vector3.one*(.53f+breath+reward*.1f);
+        Tint(actor.halo,Color.Lerp(color,new Color(1,.82f,.35f),reward));
+        properties.Clear();properties.SetColor("_Color",Color.white);
+        properties.SetColor("_OutlineColor",Color.Lerp(color,Color.white,.45f));
+        properties.SetFloat("_OutlineWidth",2.5f);actor.portrait.SetPropertyBlock(properties);
+        bool moving=(destination-point).sqrMagnitude>.035f;
+        actor.destination.enabled=moving;
+        if(moving)
+        {
+            actor.destination.transform.position=root.transform.TransformPoint(destination+Vector3.up*.025f);
+            actor.destination.transform.localScale=Vector3.one*(.26f+.07f*Mathf.Sin(time*6f));
+            Tint(actor.destination,color);
+        }
+        for(int i=0;i<actor.sparkles.Length;i++)
+        {
+            var sparkle=actor.sparkles[i];sparkle.enabled=reward>0||speed>.15f;
+            float angle=time*(1.1f+reward)+i*Mathf.PI/3;
+            sparkle.transform.localPosition=new Vector3(Mathf.Cos(angle)*(.48f+reward*.22f),.18f+Mathf.Repeat(time*.55f+i*.17f,1)*(.5f+reward),Mathf.Sin(angle)*.38f);
+            sparkle.transform.localRotation=Quaternion.Euler(45,time*80+i*30,45);
+            sparkle.transform.localScale=Vector3.one*(.035f+reward*.045f);
+            Tint(sparkle,Color.Lerp(color,new Color(1,.87f,.45f),i%2));
+        }
     }
     public void Render()
     {
@@ -267,10 +320,39 @@ public sealed class TacticalArena : IDisposable
     {
         return Own(new Mesh{name="Arena billboard",vertices=new[]{new Vector3(-.65f,-.65f,0),new Vector3(.65f,-.65f,0),new Vector3(.65f,.65f,0),new Vector3(-.65f,.65f,0)},uv=new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(1,1),new Vector2(0,1)},triangles=new[]{0,2,1,0,3,2}});
     }
+    Mesh Ring()
+    {
+        const int segments=48;
+        var vertices=new Vector3[segments*2];var triangles=new int[segments*6];
+        for(int i=0;i<segments;i++)
+        {
+            float angle=i*Mathf.PI*2/segments;Vector3 p=new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle));
+            vertices[i*2]=p;vertices[i*2+1]=p*.84f;
+            int n=i*2,next=((i+1)%segments)*2,t=i*6;
+            triangles[t]=n;triangles[t+1]=next;triangles[t+2]=n+1;
+            triangles[t+3]=n+1;triangles[t+4]=next;triangles[t+5]=next+1;
+        }
+        return Own(new Mesh{name="Tactician ring",vertices=vertices,triangles=triangles});
+    }
     static void Release(UnityEngine.Object value){if(value==null)return;GameObject node=value as GameObject;if(node!=null)node.SetActive(false);if(Application.isPlaying)UnityEngine.Object.Destroy(value);else UnityEngine.Object.DestroyImmediate(value);}
     public void Dispose()
     {
         if(disposed)return;disposed=true;camera.targetTexture=null;target.Release();Release(target);Release(root);
         foreach(var resource in resources)Release(resource);actors.Clear();portraits.Clear();
+    }
+}
+
+/// <summary>A release is a click only when its press began on the same target.</summary>
+public sealed class ArenaPointer
+{
+    int pressed=-1;
+    public int Released { get; private set; } = -1;
+    public void Reset(){pressed=-1;Released=-1;}
+    public void Update(int target,bool down,bool up,bool dragging,bool blocked)
+    {
+        Released=-1;
+        if(blocked||dragging){pressed=-1;return;}
+        if(down)pressed=target;
+        if(up){if(target>=0&&pressed==target)Released=target;pressed=-1;}
     }
 }

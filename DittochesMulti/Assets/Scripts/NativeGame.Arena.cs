@@ -4,8 +4,34 @@ using UnityEngine;
 public sealed partial class NativeGame
 {
     private TacticalArena arena;
+    private readonly ArenaPointer arenaPointer=new ArenaPointer();
+    private float legendCelebrateUntil;
+    private Color LegendColor(){return legend==0?new Color(.25f,.85f,1f):legend==1?new Color(1f,.55f,.75f):legend==2?new Color(1f,.82f,.4f):new Color(.68f,.65f,1f);}
+    private Rect LootRect(LootOrb orb)
+    {
+        Vector2 p=arena.Project(LegacyWorld(orb.pos)+Vector3.up*.25f);
+        return new Rect(p.x-20,p.y-20,40,40);
+    }
+    private void HandleArenaPointer()
+    {
+        Event e=Event.current;Vector2 point=e.mousePosition;
+        int target=arena.HitCell(point),seat=arena.HitBench(point);
+        if(seat>=0)target=56+seat;
+        if(!battling)for(int i=lootOrbs.Count-1;i>=0;i--)if(LootRect(lootOrbs[i]).Contains(point)){target=100+i;break;}
+        bool down=e.type==EventType.MouseDown&&e.button==0,up=e.type==EventType.MouseUp&&e.button==0;
+        bool guide=showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point);
+        guide|=traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&new Rect(270,145,475,155).Contains(point);
+        arenaPointer.Update(target,down,up,draggingUnit,showCarousel||hp<=0||guide);
+        if(arenaPointer.Released>=100)
+        {
+            int index=arenaPointer.Released-100;
+            if(index<lootOrbs.Count){legendCelebrateUntil=Time.unscaledTime+1.4f;CollectOrb(lootOrbs[index]);}
+            e.Use();
+        }
+        else if(down&&target>=100&&!showCarousel&&hp>0&&!guide)e.Use();
+    }
     private void EnsureArena() { if(arena==null)arena=new TacticalArena(TacticalArena.SoloViewport); }
-    private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false; }
+    private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset(); }
     private void OnDestroy() { if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
     {
@@ -45,7 +71,10 @@ public sealed partial class NativeGame
                 arena.SetActor(visible[i],TacticalArena.CellWorld(i%7,i/7+4),Tex(UnitSprite(visible[i].def)),scouting?new Color(1,.5f,.28f):new Color(.25f,1,.62f));
             for(int i=0;i<bench.Length;i++)if(bench[i]!=null)
                 arena.SetActor(bench[i],TacticalArena.BenchWorld(i),Tex(UnitSprite(bench[i].def)),new Color(.95f,.74f,.28f),.85f);
-            arena.SetActor(this,LegacyWorld(legendPos),Tex(LegendSprites[legend]),new Color(1,.8f,.32f),.83f);
+            float celebration=Mathf.Clamp01((legendCelebrateUntil-Time.unscaledTime)/.8f);
+            if(win&&!battling&&Time.unscaledTime<resultNoticeUntil)celebration=Mathf.Max(celebration,.65f);
+            arena.SetTactician(this,LegacyWorld(legendPos),LegacyWorld(legendTarget),Tex(LegendSprites[legend]),LegendColor(),
+                legendVelocity.magnitude/550f,legendVelocity.x,Time.unscaledTime,celebration);
             arena.Render();
         }
         GUI.DrawTexture(TacticalArena.SoloViewport,arena.Texture,ScaleMode.StretchToFill,false);
@@ -59,8 +88,12 @@ public sealed partial class NativeGame
             for(int i=0;i<visible.Length;i++)
             {
                 Vector3 point=TacticalArena.CellWorld(i%7,i/7+4);
-                if(visible[i]!=null)GUI.Label(arena.LabelRect(point,3),new string('★',visible[i].star)+" "+UnitName(visible[i].def),center);
-                if(!blocked&&hit==i+28&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
+                if(visible[i]!=null)
+                {
+                    GUI.Label(arena.LabelRect(point,3),new string('★',visible[i].star)+" "+UnitName(visible[i].def),center);
+                    if(visible[i].items.Count>0)GUI.Label(arena.LabelRect(point,21),string.Join(" ",visible[i].items.Select(item=>ItemIcons[item]).ToArray()),center);
+                }
+                if(!blocked&&arenaPointer.Released==i+28&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
                 {
                     if(scouting){if(visible[i]!=null)inspectedUnit=visible[i];}
                     else ClickBoard(i);
@@ -79,10 +112,13 @@ public sealed partial class NativeGame
             Rect r=new Rect(p.x-16,p.y-16,32,32);
             Color c=orb.rarity==2?new Color(1,.75f,.15f):orb.rarity==1?new Color(.25f,.65f,1):new Color(.65f,1,.65f);
             Color old=GUI.color;GUI.color=c;GUI.Label(r,"◆",title);GUI.color=old;
-            if(!battling&&!blocked&&GUI.Button(r,GUIContent.none,GUIStyle.none))CollectOrb(orb);
+
         }
         UpdateLegendInput();
-        GUI.Label(arena.LabelRect(LegacyWorld(legendPos),8),Legends[legend],center);
+        Rect nameplate=arena.LabelRect(LegacyWorld(legendPos),12);
+        DrawRect(new Rect(nameplate.x-6,nameplate.y-1,nameplate.width+12,23),new Color(.018f,.035f,.055f,.88f));
+        DrawRect(new Rect(nameplate.x-6,nameplate.y+21,nameplate.width+12,2),LegendColor());
+        GUI.Label(nameplate,Legends[legend],center);
         if(!string.IsNullOrEmpty(lastCombatSummary))GUI.Label(new Rect(305,808,1020,20),lastCombatSummary,small);
         if(!battling&&Time.unscaledTime<resultNoticeUntil)
         {
@@ -120,7 +156,7 @@ public sealed partial class NativeGame
             Rect r=BenchRect(i);
             if(bench[i]!=null)GUI.Label(new Rect(r.x-10,r.yMax+3,r.width+20,20),new string('★',bench[i].star),center);
             else GUI.Label(new Rect(r.x,r.yMax+3,r.width,20),(i+1).ToString(),small);
-            if(!showCarousel&&hp>0&&arena.HitBench(Event.current.mousePosition)==i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickBench(i);Event.current.Use();}
+            if(!showCarousel&&hp>0&&arenaPointer.Released==56+i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickBench(i);Event.current.Use();}
         }
     }
 }

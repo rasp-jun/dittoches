@@ -8,11 +8,27 @@ public static class ArenaValidation
     [MenuItem("Dittoches Multi/Validate Perspective Arena")]
     public static void Validate()
     {
+        ValidatePointer();
         ValidateView(TacticalArena.SoloViewport,"solo");
         ValidateView(TacticalArena.MultiViewport,"multi");
         Debug.Log("ARENA VALIDATION PASSED: 112 cell projections, bench bounds, outside rejection, actor lifecycle and rendering.");
     }
     static void Check(bool value,string message){if(!value)throw new Exception("Arena validation: "+message);}
+    public static void ValidatePointer()
+    {
+        var pointer=new ArenaPointer();
+        pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"release without press");
+        pointer.Update(28,true,false,false,false);pointer.Update(28,false,true,false,false);Check(pointer.Released==28,"board click");
+        pointer.Update(28,true,false,false,false);pointer.Update(29,false,true,false,false);Check(pointer.Released==-1,"release on another cell");
+        pointer.Update(-1,true,false,false,false);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"UI press cannot click board");
+        pointer.Update(56,true,false,false,false);pointer.Update(56,false,true,false,false);Check(pointer.Released==56,"bench click");
+        pointer.Update(100,true,false,false,false);pointer.Update(100,false,true,false,false);Check(pointer.Released==100,"loot owns click");
+        pointer.Update(100,true,false,false,false);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"loot cannot click through");
+        pointer.Update(28,true,false,false,false);pointer.Update(28,false,false,true,false);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"drag is not click");
+        pointer.Update(28,true,false,false,false);pointer.Update(28,false,false,false,true);pointer.Update(28,false,true,false,false);Check(pointer.Released==-1,"overlay cancels press");
+        pointer.Update(56,true,false,false,false);pointer.Reset();pointer.Update(56,false,true,false,false);Check(pointer.Released==-1,"screen change cancels press");
+        Debug.Log("ARENA POINTER: 10 regression checks passed.");
+    }
     static void ValidateView(Rect view,string name)
     {
         using(var arena=new TacticalArena(view))
@@ -41,6 +57,8 @@ public static class ArenaValidation
                 arena.SetActor(i+20,TacticalArena.BenchWorld(i),texture,Color.yellow,.85f);
             }
             arena.Render();Check(arena.ActorCount==21,"actor creation");
+            arena.SetTactician("legend",TacticalArena.CellWorld(0,7),TacticalArena.CellWorld(2,7),Resources.Load<Texture2D>("ArtVariants/LicensedFanArt/Koromon-v1"),Color.cyan,.6f,100,1,.8f);
+            arena.Render();Check(arena.ActorCount==22,"tactician creation");
             RenderTexture previous=RenderTexture.active;
             var capture=new Texture2D(arena.Texture.width,arena.Texture.height,TextureFormat.RGB24,false);
             try

@@ -190,12 +190,12 @@ public sealed partial class NativeGame : MonoBehaviour
         GUI.Box(new Rect(585,780,1210,125),GUIContent.none,card);GUI.Label(new Rect(615,797,1150,30),"전설이는 능력치에 영향을 주지 않습니다.",header);GUI.Label(new Rect(615,837,1150,42),"자유롭게 전장을 이동하고 전리품 구슬을 회수하며, 승리 연출을 함께합니다.",small);
     }
 
-    private void DrawGame(){EnsureArena();HandleUnitDrag();HandleHotkeys();DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();if(showCarousel)DrawCarousel();if(showRecipeGuide&&Time.unscaledTime<recipeGuideUntil)DrawRecipeGuide();else if(showRecipeGuide)showRecipeGuide=false;if(traitFocus!=null&&Time.unscaledTime<traitGuideUntil)DrawTraitGuide();else if(traitFocus!=null)traitFocus=null;if(hp<=0&&!battling)DrawGameOver();}
+    private void DrawGame(){EnsureArena();HandleArenaPointer();HandleUnitDrag();HandleHotkeys();DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();if(showCarousel)DrawCarousel();if(showRecipeGuide&&Time.unscaledTime<recipeGuideUntil)DrawRecipeGuide();else if(showRecipeGuide)showRecipeGuide=false;if(traitFocus!=null&&Time.unscaledTime<traitGuideUntil)DrawTraitGuide();else if(traitFocus!=null)traitFocus=null;if(hp<=0&&!battling)DrawGameOver();}
     private Rect BenchRect(int index){EnsureArena();return arena.BenchRect(index);}
     private void HandleUnitDrag()
     {
         Event e=Event.current;if(e==null||battling||showCarousel||hp<=0||scoutedRival>=0)return;Vector2 p=e.mousePosition;
-        if(e.type==EventType.MouseDown&&e.button==0){dragSource=-1;for(int i=0;i<board.Length;i++){int row=i/7+4,col=i%7;if(board[i]!=null&&arena.HitCell(p)==i+28){dragSource=i;dragFromBoard=true;break;}}if(dragSource<0)for(int i=0;i<bench.Length;i++)if(bench[i]!=null&&arena.HitBench(p)==i){dragSource=i;dragFromBoard=false;break;}dragStart=p;draggingUnit=false;}
+        if(e.type==EventType.MouseDown&&e.button==0){dragSource=-1;for(int i=0;i<board.Length;i++){int row=i/7+4,col=i%7;if(board[i]!=null&&arena.HitCell(p)==i+28){dragSource=i;dragFromBoard=true;break;}}if(dragSource<0)for(int i=0;i<bench.Length;i++)if(bench[i]!=null&&arena.HitBench(p)==i){dragSource=i;dragFromBoard=false;break;}dragStart=p;draggingUnit=false;if(dragSource>=0)e.Use();}
         if(e.type==EventType.MouseDrag&&dragSource>=0&&Vector2.Distance(dragStart,p)>8f){draggingUnit=true;e.Use();}
         if(e.type==EventType.MouseUp&&e.button==0){if(draggingUnit&&dragSource>=0){DropDraggedUnit(p);e.Use();}dragSource=-1;draggingUnit=false;}
     }
