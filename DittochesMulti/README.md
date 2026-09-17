@@ -1,5 +1,7 @@
 # 디토체스 멀티
 
+다른 PC에서 이어서 작업하려면 [HOME_HANDOFF.md](HOME_HANDOFF.md)의 복원·실행 절차와 [NEXT_SESSION.md](NEXT_SESSION.md)의 작업 메모를 먼저 읽으세요. 최신 코드는 `develop` 브랜치이며, 현재 에셋·미리보기 빌드는 USB 보존 폴더에도 함께 보관합니다.
+
 ## 모집 카드·배치 시너지 미리보기 (2026-09-17)
 
 디지몬 솔로·온라인 상점 카드에 공격/마법/혼합 유형, 기본 공격 사거리, 스킬 아이콘을 표시합니다. 아이콘을 **우클릭**하면 구매 전에 스킬 계수와 피해를 확인합니다. 상점 상세는 장비·시너지가 없는 **1성 기본 능력치**이며, 골드가 부족해도 조회할 수 있고 구매나 골드 소모가 발생하지 않습니다.
@@ -96,11 +98,11 @@ Unity Editor가 없는 이 PC에서는 `Play_Preview.bat`로 기존 Mono 플레�
 
 - 솔로 체력이 0이 되면 최종 라운드와 전투 통계를 보여주는 게임오버 화면이 열립니다.
 - 같은 난이도·캐릭터 버전으로 즉시 재도전하거나 솔로/멀티 로비로 돌아갈 수 있습니다.
-- `Tools/Sync-ExternalAssets.ps1`로 GitHub 밖의 이미지 에셋을 백업하거나 새 PC에 복원할 수 있습니다.
+- Git 루트의 `Tools/Sync-ExternalAssets.ps1`로 외부 에셋을 백업/복원합니다. 아래는 이 프로젝트(`DittochesMulti`) 폴더에서의 경로입니다. 새 clone 복원 시 최신 JSON·메타데이터를 유지하는 절차는 [HOME_HANDOFF.md](HOME_HANDOFF.md)를 따르세요.
 
 ```powershell
-.\Tools\Sync-ExternalAssets.ps1 -Mode Backup -AssetVault 'D:\Cloud\digimon-game-assets'
-.\Tools\Sync-ExternalAssets.ps1 -Mode Restore -AssetVault 'D:\Cloud\digimon-game-assets'
+..\Tools\Sync-ExternalAssets.ps1 -Mode Backup -AssetVault 'D:\Cloud\digimon-game-assets'
+..\Tools\Sync-ExternalAssets.ps1 -Mode Restore -AssetVault 'D:\Cloud\digimon-game-assets'
 ```
 
 ## 0.3.4 전투 그래픽·통계·에셋 분리 업데이트

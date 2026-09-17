@@ -1,64 +1,110 @@
-# 집에서 이어서 작업하기
+# 다른 컴퓨터에서 이어서 작업하기
 
-전체 진행 현황과 작업 우선순위는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 정리했습니다.
+기준일: 2026-09-17. 작업 맥락은 [NEXT_SESSION.md](NEXT_SESSION.md), 전체 진행표는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 있습니다. 최신 기능은 상점 스킬 조회와 배치 시너지 미리보기이며, 최신 작업은 [GitHub develop](https://github.com/rasp-jun/dittoches/tree/develop)에 업로드했습니다. main은 이전 상태입니다.
 
-최신 패치는 상점 스킬 조회와 배치 시너지 미리보기입니다. 솔로·온라인 모집 카드에서 유형·사거리를 보고 스킬 아이콘을 우클릭하면 장비·시너지 없는 1성 정보를 확인합니다. 준비 중 유닛 선택 후 목적지를 가리키면 교환으로 빠지는 유닛까지 포함해 현재/이동 후 시너지 단계를 비교합니다. 중복 종류와 배치 제한도 반영하며 실제 클릭/드롭 전에는 적용하지 않습니다. `Play_Preview.bat`로 최신 클라이언트를 실행하세요.
+## 가장 빠른 방법: USB 보존 폴더 전체 사용
 
-이전 패치의 [전투 기록과 현재 체력·마나·보호막 표시](COMBAT_STATS_AND_SKILLS.md)도 유지합니다. 피해는 평타/스킬, 받은 피해는 체력/보호막 흡수로 나눕니다. 온라인 완료 기록은 같은 서버의 같은 방에 재접속하면 유지되며 서버 재시작 후에는 초기화됩니다. 솔로 지난 전투 정보는 장비·성급을 다음 라운드에 바꿔도 유지합니다.
+1. `Dittoches_KEEP_20260917` 폴더 전체를 다른 PC에 복사하거나 USB에서 그대로 사용합니다. 드라이브 문자는 달라도 됩니다.
+2. IDE/Codex에서는 `01_CurrentProject/DittochesMulti`를 엽니다. Git 저장소 루트는 한 단계 위 `01_CurrentProject`입니다. 숨김 폴더 `.git`도 함께 옮겨야 합니다.
+3. 이 프로젝트의 `Play_Preview.bat` 또는 보존 폴더 루트의 `Play_Current_Preview.bat`를 더블클릭하면 마지막으로 검증한 미리보기를 실행합니다. 실행 파일만 따로 복사하지 마세요.
+4. 새 대화에는 “NEXT_SESSION.md와 HOME_HANDOFF.md를 읽고 develop에서 이어서 작업해”라고 입력합니다.
+5. 소스를 수정한 뒤에는 아래 재컴파일 또는 정식 Unity 빌드를 수행합니다. `Play_Preview.bat` 자체는 코드를 다시 컴파일하지 않습니다.
 
-이번 검증은 이동/타이밍 894개, 계산 비교 1,458개, 솔로 실행 822개, 온라인 실행 68개 통과입니다. 서버는 이번에 수정하지 않았으며 직전 패치에서 65개 테스트를 통과했습니다. 아래 44/440개 기록은 이전 장비 패치 때의 검증입니다.
+보존 폴더 루트의 `Play_Windows.bat`는 9월 15일 이전 빌드입니다. 현재 작업 실행 경로와 다릅니다.
 
-이전 패치의 육각 사거리 표시, 사거리 내 적 우선 공격, 장착 전후 능력치·스킬 피해 미리보기와 스킬 아이콘 우클릭도 적용되어 있습니다. 온라인 서버와 `Play_Preview.bat`를 함께 최신 버전으로 실행하세요.
+## 반드시 함께 옮길 것
 
-장비 명칭은 기본 재료 크롬/레드/블루디지조이드·디지코어와 고유 무장 10종입니다. 베렌헤나는 완성품, 회수 소모품은 데이터 추출기입니다. `DigimonBuilds.json`의 이름·용도·소재 설명을 솔로/온라인에서 공유하며 아이템 ID와 합성식은 유지했습니다.
+| 위치 (보존 폴더 기준) | 용도 |
+|---|---|
+| `01_CurrentProject/.git` | 커밋과 develop 브랜치 |
+| `01_CurrentProject/DittochesMulti` 전체 | 현재 소스·설정·에셋·실행본·문서 |
+| `01_CurrentProject/DittochesMulti/Builds/PortablePreview` 전체 | 현재 코드가 적용된 실행본, 데이터·DLL·Mono 런타임 포함 |
+| `01_CurrentProject/DittochesMulti/Builds/Windows` 전체 | 미리보기 재컴파일의 원본 플레이어와 Unity 참조 DLL |
+| `01_CurrentProject/tmp/roslyn` 전체 | Unity Editor 없는 PC의 C# 컴파일러 |
+| `01_CurrentProject/tmp/mingit`, `tmp/github-cli` | 선택: 준비한 Git·GitHub CLI 실행본 |
+| `02_ArtVault` | 현재 프로젝트 이미지의 별도 보관본 |
+| `03_PreviousWork.zip`, `04_Android` | 이전 작업과 이전 Android 빌드 보관용 |
 
-시너지·장비 개편은 [SYNERGIES_AND_EQUIPMENT.md](SYNERGIES_AND_EQUIPMENT.md)를 참고하세요. 문장 6종/전투 특성 5종 및 기본 4종/완성 10종 장비를 적용했고, 온라인 장비 획득·합성·장착·회수까지 이어서 구현했습니다. 서버도 최신 코드로 재시작하세요. 캡슐 증강은 다음 단계입니다. 서버 테스트는 44개이며 솔로 검사 기록은 `BuildsSmoke.log` (440개), 온라인은 `OnlineEquipmentSmoke.log`에 있습니다.
+저장 시점에 필수 경로가 모두 존재했고, 현재 Resources의 이미지·아트 53개는 `02_ArtVault/Resources`와 SHA-256이 모두 일치했습니다. 보존 폴더 루트의 `CURRENT_HANDOFF.json`에는 이번 저장 시점의 Git HEAD, 소스·에셋·실행본·도구 파일 해시를 기록합니다. `FILE_HASHES.json`과 `PRESERVATION_COMPLETE.json`은 최초 보존 시점 기록이므로 덮어쓰지 않았습니다.
 
-현재 프로젝트는 이 문서가 있는 `DittochesMulti` 폴더입니다. 상위 `01_CurrentProject`가 Git 저장소이며 작업 브랜치는 `develop`, 업로드 대상은 `dittoches` 원격(`rasp-jun/dittoches`)입니다.
+## Unity 없이 수정한 코드 실행
 
-## 실행
+Windows에서 Python 3.12로 검증했습니다. Python과 .NET Framework 기반 Roslyn 실행 환경이 필요합니다. 아래 명령은 `DittochesMulti` 폴더의 터미널에서 실행합니다.
 
-- `Play_Preview.bat`: Unity Editor 없이 현재 코드로 게임 실행. 솔로 입장 → 디지몬 버전 선택.
-- `Skills_Preview.bat`: 34종 기술 타이밍과 이펙트 확인. 현재 캐릭터 표시는 기존 이미지입니다.
-- `Models_Preview.bat`: 아구몬 한 종의 미완성 직접 제작 3D 시험본. 일반 게임에는 적용되지 않습니다.
+```powershell
+python Tools/build_portable_preview.py
+.\Play_Preview.bat
+```
 
-미리보기는 `Builds/Windows`의 기존 Mono 플레이어를 `Builds/PortablePreview`에 복사하고 현재 C#을 컴파일한 것입니다. 일반 Unity 빌드와 셰이더가 다르고 새 Unity 에셋을 임포트하지 않습니다. 최신 팬 아트 PNG와 기술·시너지·장비 JSON을 외부 파일로 읽습니다. 저장 데이터는 기존 실행본과 다른 키를 사용합니다.
+기본 컴파일러 위치는 `../tmp/roslyn/tasks/net472/csc.exe`입니다. 다른 위치라면 `--compiler "C:/.../csc.exe"`를 지정합니다. 실행 중인 미리보기는 닫고 재컴파일합니다.
 
-집에서는 Unity Hub에 이 폴더를 추가하고 `ProjectSettings/ProjectVersion.txt`의 버전으로 열어 정식 빌드를 확인합니다. GitHub에는 이미지·3D 바이너리를 올리지 않으므로 USB의 프로젝트 에셋과 `02_ArtVault`도 보관해야 합니다.
+미리보기는 기존 Mono 플레이어에 현재 C#과 두 JSON을 넣습니다. 대체 셰이더를 사용하고 Unity 에셋을 새로 임포트하지 않습니다. 일반 플레이는 2D 캐릭터 이미지이며 전체 3D 게임이 완성된 상태는 아닙니다. `Skills_Preview.bat`는 기술 연출, `Models_Preview.bat`는 아구몬 한 종의 미완성 3D 시험본 확인용입니다.
 
-## 이번 코드 변경
+## Unity가 있는 PC
 
-- 추가 UI 패치: 상점 옆 레벨/XP, 색상별 등급 확률, 이자 5칸, 오른쪽 잠금 버튼, 합성 카드 금색 테두리, 평면 버튼, 중앙 라운드 진행 표시. 전투 시작/결과 안내를 전장 위쪽으로 옮겨 유닛 가림을 줄였습니다. 3D 제작 상태는 바뀌지 않았습니다.
+Unity Hub에서 `01_CurrentProject/DittochesMulti`를 추가하고 `ProjectSettings/ProjectVersion.txt`의 **6000.6.0f1**로 엽니다. 임포트 완료 후 `Assets/Scenes/Bootstrap.unity`를 열어 Play하고, 새 Windows 빌드에서 셰이더·아트·입력을 확인합니다. 아구몬 시험본의 일반 플레이 적용은 별도 작업이며 현재 기본값은 비활성입니다.
 
-- 디지몬 솔로 전장 폭을 넓히고 왼쪽 시너지/장비, 오른쪽 테이머/상세/전투 기록, 아래 5개 모집 카드를 재배치했습니다.
-- 카드 전체 구매, 비용/대기석 제한 표시, 합성 안내, 드래그 판매, 56칸 및 대기석 9칸의 카메라 기준 판정을 연결했습니다.
-- 테라스·수로·이끼·낮은 등불로 전장을 재구성했습니다. 오리지널 버전은 이전 UI와 전장을 사용합니다.
-- `Assets/Resources/DigimonSkills.json`의 30종 유닛+4종 크립 정의를 솔로/온라인 서버/표시에 공유합니다. 준비·발사·명중·회복, 다중 발사, 범위, 기절을 분리했습니다.
-- 온라인 재생은 서버 프레임 시간과 스킬 이벤트를 사용합니다. 이전처럼 모든 전투를 8초로 압축하지 않습니다.
-- 결과가 결정된 뒤에는 추가 피해 없이 이펙트를 마무리합니다.
+## GitHub에서 새로 받을 때
 
-## 3D 작업은 보류
+코드만 clone해서는 현재 에셋과 미리보기 실행본이 모두 준비되지 않습니다. USB 보존 폴더도 필요합니다. 아래는 **아직 수정하지 않은 새 clone**에서만 실행하는 절차입니다.
 
-사용자 요청에 따라 집 PC에서 계속합니다. `DigimonModelLibrary.PreviewEnabled`는 기본값 false이며 모델 미리보기에서만 true입니다. 아구몬 시험본은 `DigimonMeshBuilder.cs`, `DigimonModelLibrary.cs`, `DigimonRig.cs`에 보관했습니다. 다른 유닛의 3D 모델은 아직 제작하지 않았습니다.
+```powershell
+git clone --branch develop --origin dittoches https://github.com/rasp-jun/dittoches.git 01_CurrentProject
+cd 01_CurrentProject
+powershell -NoProfile -ExecutionPolicy Bypass -File ./Tools/Sync-ExternalAssets.ps1 -Mode Restore -AssetVault "E:/Dittoches_KEEP_20260917/02_ArtVault"
+git restore --source=HEAD -- DittochesMulti/Assets/Resources
+```
 
-현재 시험본은 코드로 만든 메쉬/본/스킨 가중치와 절차적 관절 동작입니다. 완성된 롤토체스 수준 모델이나 전체 애니메이션 세트가 아닙니다. 집에서 형상·관절·걷기·공격·스킬·사망 동작을 개선한 다음 일반 플레이 연결 여부를 정해야 합니다.
+예시의 E:는 실제 USB 위치로 바꿉니다. 마지막 명령은 보관소에서 함께 복사된 예전 JSON·메타데이터 대신 Git의 최신 정의와 GUID를 유지합니다. 이미 작업한 폴더에는 이 복원 절차를 적용하지 않습니다.
 
-기술 이름/설명은 일본어 원명 기반이며 한국 더빙 명칭 및 애니메이션 장면별 포즈를 모두 대조한 상태는 아닙니다. 자료 링크는 JSON의 `source`에 있습니다.
+Unity 없이 실행/재컴파일하려면 USB에서 `DittochesMulti/Builds`와 `01_CurrentProject/tmp/roslyn`도 같은 상대 위치로 복사합니다. 정식 Unity 빌드를 만들 수 있으면 기존 플레이어에 의존하지 않아도 됩니다.
 
-## 확인 방법과 남은 검증
+## 새 PC의 GitHub 로그인
+
+이 PC에서는 GitHub CLI로 `rasp-jun` 인증 후 `dittoches/develop` 업로드와 원격 SHA 일치를 확인했습니다. 자격증명은 Windows 저장소에 있으므로 USB 복사만으로 새 PC에 로그인되지는 않습니다.
+
+Git과 gh를 설치했다면 `gh auth login --hostname github.com --git-protocol https --web`로 브라우저 승인을 진행합니다. 사용자 계정과 대상 저장소를 확인한 뒤 업로드합니다. GitHub 연결 앱의 쓰기 403과 로컬 gh 인증은 별개입니다.
+
+USB에 준비한 도구를 그대로 쓸 때는 `DittochesMulti` 폴더의 PowerShell에서:
+
+```powershell
+$env:Path = (Resolve-Path ../tmp/mingit/cmd).Path + ";" + (Resolve-Path ../tmp/github-cli/bin).Path + ";" + $env:Path
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+USB의 드라이브 문자가 달라졌다면 이 저장소의 기존 GitHub 자격증명 도우미 경로를 갱신합니다. 현재 PC는 절대 경로의 gh 실행본을 사용하도록 연결되어 있습니다.
+
+```powershell
+git config --local --replace-all credential.https://github.com.helper "!gh auth git-credential"
+git remote -v
+git status -sb
+```
+
+이는 Git과 gh가 PATH에 있는 터미널에서 실행합니다. USB 파일 시스템의 소유권 경고가 나오면 메시지에 표시된 **현재 Git 루트 하나만** safe.directory로 등록합니다. 이 USB 저장소의 `origin`은 이전 digimon-game일 수 있으므로 업로드는 `git push dittoches develop`을 사용합니다.
+
+## 온라인 실행과 검증
+
+솔로는 서버가 필요 없습니다. 현재 온라인은 두 사용자 1대1 시험 구현입니다. 아래는 로컬 접속용 서버 실행 명령입니다.
+
+```powershell
+python Server/server.py --host 127.0.0.1 --port 7777
+```
+
+클라이언트 주소는 `http://127.0.0.1:7777`입니다. 두 PC 연결은 서버의 LAN 주소·방화벽·클라이언트 주소를 별도로 설정하고 확인해야 합니다.
+
+코드 변경 범위에 맞춰 다음 검사를 사용합니다.
 
 ```powershell
 python Tools/validate_code.py
 python -m unittest discover -s Server -v
 python Tools/build_portable_preview.py
+python Tools/validate_online.py
 ```
 
-컴파일러 기본 경로는 상위 `tmp/roslyn/tasks/net472/csc.exe`입니다. 없으면 `--compiler`로 Roslyn 경로를 전달합니다. Unity가 설치되어 있으면 Editor의 정식 빌드 검사를 우선합니다.
+솔로 실제 실행 검사는 미리보기 폴더에서 `DittochesMulti.exe --arena-smoke`로 실행합니다. 이 검사는 별도 시험 저장 키를 사용합니다. 마지막 결과는 서버 65개, 이동/타이밍 894개, C#/서버 계산 비교 1,458개, 솔로 822개, 온라인 68개 통과입니다. 온라인 검사 수는 상점 추첨·폴링 등에 따라 조금 달라질 수 있습니다.
 
-현재 PC에서 서버 테스트 44개, C# 이동/기술 검사 894개, 솔로 실행 검사 440개를 수행했습니다. `Tools/validate_online.py`로 실제 플레이어의 HTTP 접속·장비 조작·재접속·전투·보급도 검사했습니다. 솔로 화면은 `ArenaCaptures`, 온라인 화면은 `OnlineCaptures`에 있습니다.
+화면과 로그는 `Builds/PortablePreview/ArenaCaptures`, `OnlineCaptures`, `BuildsSmoke.log`, `OnlineEquipmentSmoke.log`에 있습니다. 정식 Unity 셰이더, Android 실기기, 실제 두 PC의 입력·연결, 장시간 밸런스는 추가 검증이 필요합니다.
 
-정식 Unity의 새 셰이더 임포트, Android 실기기, 두 PC의 실시간 네트워크 UI는 별도 확인이 필요합니다. 온라인 초밥집·8인 매칭은 아직 미구현입니다. 온라인 장비는 이번 업데이트에서 연결했습니다.
+## 작업 기록과 개인 세이브의 차이
 
-2026-09-17 GitHub CLI로 `rasp-jun` 계정을 인증하고 최신 기능 커밋 `6a72aa5`를 [GitHub develop 브랜치](https://github.com/rasp-jun/dittoches/tree/develop)에 업로드했습니다. 원격 커밋 일치도 확인했습니다. 로컬 `develop`은 `dittoches/develop`을 추적하며 `main`은 이전 상태로 유지합니다. 연결 앱의 코드 쓰기 403과 별개로 로컬 Git 업로드는 정상입니다.
-
-이 PC의 Git과 GitHub CLI 실행본은 상위 `tmp/mingit/cmd/git.exe`, `tmp/github-cli/bin/gh.exe`에 있습니다. 인증은 이 PC의 Windows 자격증명 저장소에 있으므로 USB만 옮겨도 집 PC에 자동 로그인되는 것은 아닙니다. 집 PC에서 로그인하고, USB 드라이브 경로가 바뀌면 저장소의 GitHub 자격증명 도우미 실행 경로도 새 `gh.exe` 위치로 갱신하세요.
+이번에 저장한 것은 개발 코드·문서·에셋·미리보기와 검증 기록입니다. 플레이어의 개인 세이브/설정은 Unity PlayerPrefs, 온라인 RP는 서버의 `ratings.sqlite3`에 별도로 저장됩니다. GitHub 로그인 정보와 이 개인 데이터는 Git에 올리지 않습니다. 실행 중인 서버 방과 전투 기록은 서버 재시작 시 초기화됩니다.
