@@ -103,43 +103,8 @@ public sealed partial class NativeGame
     {
         if(DrawEquipmentPreview())return;
         const float x=1686;HudPanel(new Rect(x,106,218,720));
-        if(inspectedUnit!=null)
-        {
-            var unit=inspectedUnit;var meta=Meta(unit.def.id);
-            GUI.Label(new Rect(x+14,120,152,30),"유닛 정보",hudName);
-            if(HudButton(new Rect(x+170,116,33,30),"×"))inspectedUnit=null;
-            Portrait(new Rect(x+29,162,160,162),UnitSprite(unit.def));
-            GUI.Label(new Rect(x+14,332,190,52),UnitName(unit.def)+"  "+new string('★',unit.star),hudWrap);
-            GUI.Label(new Rect(x+14,388,190,50),BuildTags(unit.def.id)+"\n"+meta.attr+" · "+unit.def.cost+" G",hudWrap);
-            var skill=DigimonSkillCatalog.Find(unit.def.id);
-            var stats=InspectStats(unit);
-            GUI.Label(new Rect(x+14,444,190,25),battling?"전투 능력치":"장비·시너지 적용 능력치",hudSmall);
-            GUI.Label(new Rect(x+14,476,190,94),"최대 체력 "+stats.health.ToString("0")+"\n공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),hudWrap);
-            if(DigimonSkillUI.DrawIcon(new Rect(x+14,586,60,60),skill))OpenSkillDetails(unit);
-            GUI.Label(new Rect(x+84,587,120,43),skill.name,hudWrap);
-            GUI.Label(new Rect(x+84,632,120,23),skill.ScalingRole,hudSmall);
-            GUI.Label(new Rect(x+14,664,190,42),"우클릭 → 계수·스킬 정보\n현재 "+skill.Damage(unit.star,stats.attack,stats.abilityPower).ToString("0.#")+" "+skill.DamageLabel+" 피해",hudWrap);
-            for(int i=0;i<unit.items.Count&&i<2;i++)
-            {int item=unit.items[i];GUI.Box(new Rect(x+14+i*95,711,88,35),new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),card);}
-        }
-        else if(showCombatReport&&(battling||lastBattleReport.Count>0))
-        {
-            GUI.Label(new Rect(x+14,122,190,29),battling?"실시간 전투 기록":"지난 전투 기록",hudName);
-            string[] tabs={"피해","회복","보호"};
-            for(int i=0;i<3;i++)if(HudButton(new Rect(x+12+i*65,161,61,29),tabs[i],true,reportMetric==i))reportMetric=i;
-            var rows=(battling?fighters:lastBattleReport).Where(f=>!f.enemy).OrderByDescending(ReportValue).Take(9).ToArray();
-            float max=rows.Length>0?Mathf.Max(1,rows.Max(ReportValue)):1;
-            for(int i=0;i<rows.Length;i++)
-            {
-                var f=rows[i];float y=207+i*51;
-                Portrait(new Rect(x+13,y,32,35),UnitSprite(f.unit.def));
-                GUI.Label(new Rect(x+51,y,149,22),UnitName(f.unit.def),hudSmall);
-                GUI.Label(new Rect(x+51,y+21,149,20),Mathf.RoundToInt(ReportValue(f)).ToString(),hudSmall);
-                MiniBar(new Rect(x+51,y+43,147,3),ReportValue(f)/max,RoleColor(f.unit.def.role));
-                if(GUI.Button(new Rect(x+10,y,196,47),GUIContent.none,GUIStyle.none))inspectedUnit=f.unit;
-            }
-            if(HudButton(new Rect(x+13,695,192,34),"테이머 목록"))showCombatReport=false;
-        }
+        if(inspectedUnit!=null)DrawTacticalUnitDetails(inspectedUnit,x);
+        else if(showCombatReport&&(battling||lastBattleReport.Count>0))DrawTacticalReport(x);
         else
         {
             GUI.Label(new Rect(x+14,122,190,29),"테이머",hudName);

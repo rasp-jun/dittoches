@@ -105,12 +105,26 @@ public sealed partial class MultiLauncher
         Fighter enemy=state.room.frames[0].units.First(f=>f.side!=state.room.side);
         OnlineRequire(Mathf.Abs(own.maxHp-enemy.maxHp-120)<.01f,"equipment health in actual server frames");
         OnlineRequire(Mathf.Abs(own.mana-enemy.mana-20)<.01f,"equipment start mana in server frames");
+        OnlineRequire(VisibleCombatFrame(state.room,state.room.battleDuration).units.All(f=>f.damageDone==0),"live report starts at current frame without future damage");
+        OnlineRequire(state.room.frames.Last().units.Sum(f=>f.damageDone)>0,"completed frames contain damage counters");
+        onlineReport=true;
         yield return new WaitForEndOfFrame();OnlineCapture("05-combat");
+        yield return ServerPause(1.5);yield return new WaitForEndOfFrame();OnlineCapture("09-live-report");
+        onlineReport=false;selectedArea="board";selectedSlot=own.slot;
+        OnlineRequire(OnlineLiveFighter(At(OnlineMe.board,own.slot),"board")!=null,"selected board unit resolves replay vitals");
+        yield return new WaitForEndOfFrame();OnlineCapture("10-live-vitals");onlineReport=true;
         DateTime timeout=DateTime.UtcNow.AddSeconds(35);
         while(state.room.phase=="battle"&&DateTime.UtcNow<timeout)
         {yield return ServerPause(.7);yield return SmokeRequest("/state");}
         OnlineRequire(state.room.phase=="prepare"&&state.room.round==2,"battle settles to next round");
         OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{0}),"next round supply arrives once");
+        OnlineRequire(state.room.reportRound==1&&state.room.lastCombat.Length==2,"completed report received after frames expire");
+        float damage=state.room.lastCombat.Sum(f=>f.damageDone);
+        OnlineRequire(damage>0&&Mathf.Abs(damage-state.room.lastCombat.Sum(f=>f.damageTaken))<.1f,"reported damage matches received health loss");
+        OnlineRequire(state.room.lastCombat.All(f=>Mathf.Abs(f.damageDone-f.basicDamageDone-f.skillDamageDone)<.1f),"online basic and skill totals reconcile");
+        yield return SmokeRequest("/login",new Command{name="장비 테스트",key=key});
+        OnlineRequire(state.room.reportRound==1&&Mathf.Abs(state.room.lastCombat.Sum(f=>f.damageDone)-damage)<.1f,"reconnect retains completed combat report");
+        yield return new WaitForEndOfFrame();OnlineCapture("11-last-report");
         selectedArea="board";selectedSlot=3;yield return new WaitForEndOfFrame();OnlineCapture("06-next-round");
         Debug.Log("ONLINE SMOKE COMPLETE: "+onlineChecks+" checks");Application.Quit();
     }

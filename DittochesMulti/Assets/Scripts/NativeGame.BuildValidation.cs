@@ -5,6 +5,31 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    void ValidateReportRules()
+    {
+        artPack=0;battling=false;fighters.Clear();lastBattleReport.Clear();
+        var source=CreateFighter(new Unit(RosterById["agumon"]),false,new Vector2(3,4));
+        var target=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+        source.build=new DigimonBuildCatalog.Bonus();target.build=new DigimonBuildCatalog.Bonus{armor=100};
+        target.hp=target.maxHp=100;target.shield=40;
+        DealDamage(source,target,120);
+        Require(source.damageDone==20&&source.basicDamageDone==20&&source.skillDamageDone==0,"basic report counts post-resistance health damage");
+        Require(target.damageTaken==20&&target.shieldAbsorbed==40,"received report separates health and shield");
+        applyingSkillDamage=true;try{DealDamage(source,target,500,"magic");}finally{applyingSkillDamage=false;}
+        Require(source.damageDone==100&&source.basicDamageDone==20&&source.skillDamageDone==80,"skill report excludes overkill");
+        DealDamage(source,target,500);Require(source.damageDone==100,"dead target adds no report damage");
+        source.maxHp=100;source.hp=90;source.shield=0;Heal(source,source,100);Heal(source,source,100);
+        Shield(source,source,100);Shield(source,source,100);
+        Require(source.healingDone==10&&source.shieldingDone==50,"recovery report excludes capped overflow");
+        source.unit.items.Add(3);var snapshot=source.Snapshot();lastBattleReport.Add(snapshot);
+        float recorded=InspectStats(snapshot.unit).abilityPower;
+        source.unit.items.Clear();source.unit.star=3;source.damageDone=999;
+        Require(snapshot.unit.star==1&&snapshot.unit.items.SequenceEqual(new[]{3})&&snapshot.damageDone==100,"completed report freezes unit and counters");
+        Require(InspectedFighter(snapshot.unit)==snapshot&&InspectStats(snapshot.unit).abilityPower==recorded,"historical selection resolves historical fighter");
+        var row=new CombatReportUI.Row{damage=100,basic=20,skill=80,taken=20,absorbed=40,healing=10,shielding=50};
+        Require(row.Value(0)==100&&row.Value(1)==60&&row.Value(2)==10&&row.Value(3)==50,"report tabs use explicit accounting");
+        lastBattleReport.Clear();combatPopups.Clear();battleTraces.Clear();
+    }
     void ValidateTacticalRules()
     {
         artPack=0;battling=false;fighters.Clear();

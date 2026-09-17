@@ -36,6 +36,7 @@ public sealed partial class MultiLauncher
         if(busy)return true;
         var command=new Command{action="equip",itemSlot=onlineItem,inventoryRevision=onlineItemRevision,area=area,slot=slot};
         selectedArea=area;selectedSlot=slot;
+        onlineReport=false;
         ResetEquipmentSelection();Send("/action",command);return true;
     }
     void DrawOnlineEquipment(Player me,bool editable)

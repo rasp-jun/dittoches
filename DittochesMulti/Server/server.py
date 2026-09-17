@@ -255,6 +255,14 @@ class Game:
     def settle(self, room):
         if room['phase']!='battle':
             return
+        # Only publish a completed round. The report survives preparation/reconnects
+        # without exposing inventory, bench, internal bonuses or future rounds.
+        report_fields = ('key','side','slot','id','star','hp','maxHp','shield','mana','maxMana',
+                         'damageDone','basicDamageDone','skillDamageDone','damageTaken','shieldAbsorbed',
+                         'healingDone','shieldingDone','attacks','casts')
+        final = room['frames'][-1]['units'] if room['frames'] else []
+        room['lastCombat'] = [{key:f[key] for key in report_fields if key in f} for f in final]
+        room['reportRound'] = room['round']
         winner=room['roundWinner']
         for side,p in enumerate(room['players']):
             if side!=winner:
@@ -336,7 +344,8 @@ class Game:
             result='' if room['phase']!='finished' else ('무승부' if not room['winner'] else ('승리' if room['winner']==session['id'] else '패배'))
             response['room']=dict(id=room['id'],mode=room['mode'],phase=room['phase'],round=room['round'],side=side,
                                   remaining=max(0,room['deadline']-self.clock()),battleDuration=room.get('battleDuration',8),skillEvents=room.get('skillEvents',[]) if room['phase']=='battle' else [],players=players,result=result,message=room['message'],
-                                  ratingDelta=room['ratingDelta']*(1 if side==0 else -1),frames=room['frames'] if room['phase']=='battle' else [])
+                                  ratingDelta=room['ratingDelta']*(1 if side==0 else -1),frames=room['frames'] if room['phase']=='battle' else [],
+                                  lastCombat=room.get('lastCombat',[]),reportRound=room.get('reportRound',0))
         return response
 
     def request(self, path, data, token=''):

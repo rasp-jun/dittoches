@@ -29,6 +29,7 @@ def duration(skill):
 
 def begin_cast(fighter, target, now, serial, damage=None):
     skill = SKILLS[fighter['id']]
+    fighter['casts'] = fighter.get('casts', 0)+1
     fighter['mana'] = 0
     fighter['cooldown'] = duration(skill)
     fighter['castUntil'] = now+duration(skill)

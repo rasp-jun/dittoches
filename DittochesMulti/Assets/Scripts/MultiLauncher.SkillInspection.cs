@@ -17,12 +17,20 @@ public sealed partial class MultiLauncher
     void DrawOnlineSkillStats(Unit unit)
     {
         var stats=OnlineStats(unit,selectedArea);var skill=DigimonSkillCatalog.Find(unit.id);
+        var live=OnlineLiveFighter(unit,selectedArea);
         Card(new Rect(1305,490,270,430),surface,new Color(.2f,.38f,.43f));
         GUI.Label(new Rect(1320,504,240,28),skill.ScalingRole+" · "+skill.DamageLabel+" 스킬",eyebrow);
-        GUI.Label(new Rect(1320,543,240,139),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n최대 체력 "+stats.health.ToString("0")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),small);
-        if(DigimonSkillUI.DrawIcon(new Rect(1320,694,64,64),skill))OpenOnlineSkill(unit,selectedArea);
-        GUI.Label(new Rect(1395,693,158,54),skill.name,small);
-        GUI.Label(new Rect(1395,748,158,27),"우클릭 → 스킬 정보",new GUIStyle(small){fontSize=12});
+        if(live!=null)
+        {
+            float time=CombatTime(state.room,Mathf.Max(0,state.room.remaining-(Time.unscaledTime-receivedAt)));
+            string status=live.hp<=0?"전투 불능":live.stun>0?"기절 "+live.stun.ToString("0.0")+"초":ActiveCastAge(state.room,live.key,time)>=0?"스킬 시전":live.mana>=live.maxMana?"스킬 준비":"전투 중";
+            CombatReportUI.Vitals(new Rect(1320,539,240,90),live.hp,live.maxHp,live.mana,live.maxMana,live.shield,status);
+            GUI.Label(new Rect(1320,638,240,57),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸",new GUIStyle(small){fontSize=13});
+        }
+        else GUI.Label(new Rect(1320,543,240,139),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n최대 체력 "+stats.health.ToString("0")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n시작 마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),small);
+        if(DigimonSkillUI.DrawIcon(new Rect(1320,709,64,64),skill))OpenOnlineSkill(unit,selectedArea);
+        GUI.Label(new Rect(1395,708,158,54),skill.name,small);
+        GUI.Label(new Rect(1395,763,158,27),"우클릭 → 스킬 정보",new GUIStyle(small){fontSize=12});
         GUI.Label(new Rect(1320,794,240,96),"현재 스킬 "+skill.Damage(unit.star,stats.attack,stats.abilityPower).ToString("0.#")+" 피해\n"+DigimonSkillUI.Formula(skill,unit.star)+"\n"+(selectedArea=="board"?"장비 + 전장 시너지 적용":"대기석 · 장비만 적용"),small);
     }
     void DrawOnlineSkillDetails()

@@ -14,10 +14,11 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; public int[] items; }
     [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision; public bool ready; public Unit[] board, bench; public string[] shop; public int[] inventory; }
-    [Serializable] public class Fighter { public int key, side, star,slot,attackRange; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; }
+    [Serializable] public class Fighter { public int key, side, star,slot,attackRange,attacks,casts; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target;
+        public float damageDone,basicDamageDone,skillDamageDone,damageTaken,shieldAbsorbed,healingDone,shieldingDone; }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
-    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; }
+    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta,reportRound; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; public Fighter[] lastCombat; }
     [Serializable] public class State { public string token, name, queue, error; public int rating, waiting; public Room room; }
     [Serializable] public class Command { public string name, key, mode, action, area, targetArea; public int slot, targetSlot, itemSlot, targetItemSlot, inventoryRevision; }
 
@@ -497,7 +498,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
                 Send("/action", new Command { action = "move", area = selectedArea, slot = selectedSlot, targetArea = area, targetSlot = slot });
             selectedSlot = -1; selectedArea = "";
         }
-        else if (unit != null) { selectedArea = area; selectedSlot = slot; }
+        else if (unit != null) { selectedArea = area; selectedSlot = slot; onlineReport=false; }
     }
 
     void DrawSlot(Rect rect, Unit unit, string area, int slot, bool editable)
@@ -559,8 +560,8 @@ public sealed partial class MultiLauncher : MonoBehaviour
         { Send("/action", new Command { action = "sell", area = selectedArea, slot = selectedSlot }); selectedSlot = -1; selectedArea = ""; }
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
         DrawOnlineEquipment(me,editable);
-        DrawOnlineUnitEquipment(me,room);
-        if(artPack==0)DrawOnlineTraits(me);
+        if(artPack!=0||!DrawOnlineReport(room,remaining))
+        {DrawOnlineUnitEquipment(me,room);if(artPack==0)DrawOnlineTraits(me);}
         DrawOnlineEquipmentPreview(me,editable);
         if (!fresh) GUI.Label(new Rect(310, 80, 970, 50), "연결 복구 중 · 조작을 잠시 중지합니다.", text);
         if (room.phase == "finished")
@@ -602,7 +603,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             if(protection>0)Panel(new Rect(head.x-width/2,head.y-3,width*Mathf.Clamp01(protection),2),new Color(.75f,.9f,1f));
             if(f.maxMana>0)Panel(new Rect(head.x-width/2,head.y+9,width*Mathf.Clamp01(Mathf.Lerp(f.mana,to.mana,progress-frame)/f.maxMana),3),new Color(.25f,.65f,1));
             if(f.side==room.side&&GUI.enabled&&Event.current.type==EventType.MouseDown&&Event.current.button==0&&new Rect(head.x-width/2,head.y-5,width,60).Contains(Event.current.mousePosition))
-            {selectedArea="board";selectedSlot=f.slot;Event.current.Use();}
+            {selectedArea="board";selectedSlot=f.slot;onlineReport=false;Event.current.Use();}
             float castAge=ActiveCastAge(room,f.key,CombatTime(room,remaining));
             var skill=artPack==0&&castAge>=0?DigimonSkillCatalog.Find(f.id):null;
             if(skill!=null)GUI.Label(new Rect(head.x-115,head.y-25,230,22),skill.name,centered);

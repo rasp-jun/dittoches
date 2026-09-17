@@ -59,6 +59,7 @@ public sealed partial class NativeGame
         ValidateBuildRules();
         ValidateScalingRules();
         ValidateTacticalRules();
+        ValidateReportRules();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
         string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
@@ -101,12 +102,18 @@ public sealed partial class NativeGame
         inspectedUnit=board[18];
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");
         yield return new WaitForSeconds(2f);yield return new WaitForEndOfFrame();CaptureRuntime("05-skills");
+        inspectedUnit=null;tacticalReportMetric=0;yield return new WaitForEndOfFrame();CaptureRuntime("16-live-damage");
+        tacticalReportMetric=1;yield return new WaitForEndOfFrame();CaptureRuntime("17-damage-received");tacticalReportMetric=0;
         float deadline=Time.unscaledTime+34;
         while(battling&&Time.unscaledTime<deadline)yield return null;
         Require(!battling,"battle reaches results");Require(lastBattleReport.Count==6,"combat report preserves team");
         Require(lastBattleReport.Sum(f=>f.casts)>0,"canonical skills actually cast in runtime");
+        Require(lastBattleReport.All(f=>Mathf.Abs(f.damageDone-f.basicDamageDone-f.skillDamageDone)<.1f),"completed native report damage totals reconcile");
+        Require(lastBattleReport.All(f=>!board.Contains(f.unit)),"completed report unit records are detached from preparation board");
         Require(skillCasts.Count==0||skillCasts.All(c=>c.hits>=c.skill.shots),"no unprocessed released hits");
         yield return new WaitForEndOfFrame();CaptureRuntime("06-result");
+        inspectedUnit=lastBattleReport.OrderByDescending(f=>f.damageDone).First().unit;
+        yield return new WaitForEndOfFrame();CaptureRuntime("18-last-combat-unit");inspectedUnit=null;
         artPack=1;EnsureArena();Require(SoloArenaViewport==TacticalArena.SoloViewport,"original layout retained");
         yield return new WaitForEndOfFrame();CaptureRuntime("07-original");
         Debug.Log("ARENA SMOKE COMPLETE: "+validationChecks+" checks");Application.Quit();
