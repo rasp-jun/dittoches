@@ -53,7 +53,7 @@
 1. **집 PC에서 최신 작업 기반 확보**
    - 현재 USB 프로젝트와 아트 보관소를 함께 옮깁니다.
    - Unity `6000.6.0f1`로 열어 C#·에셋·셰이더 임포트 오류를 확인하고 Windows 정식 빌드를 만듭니다.
-   - 인증된 Git에서 최신 로컬 `develop`을 새 저장소에 업로드합니다. 오래된 원격 `main`을 최신 작업으로 오인하지 않도록 합니다.
+   - GitHub의 `develop` 브랜치에 최신 작업을 업로드했습니다. 집 PC에서도 `develop`을 사용하고, 이전 상태인 `main`을 최신 작업으로 오인하지 않도록 합니다.
 
 2. **아구몬 한 종을 3D 품질 기준으로 완성**
    - 얼굴·비율·재질·실루엣을 다듬고 관절과 스킨 가중치를 정리합니다.
@@ -96,7 +96,8 @@
 
 - 현재 프로젝트: `F:\Dittoches_KEEP_20260917\01_CurrentProject\DittochesMulti`
 - Git 루트: 상위 `01_CurrentProject`, 로컬 브랜치 `develop`.
-- 최신 기능: 전투 기록 분리 집계, 실시간 체력/마나/보호막, 완료 전투 기록 보존 (이 문서와 같은 커밋).
+- 최신 기능 커밋: `6a72aa5` — 상점 스킬 우클릭 조회, 공격/마법/혼합 유형·사거리 표시, 배치 전후 시너지 미리보기.
+- 직전 전투 기록 커밋: `406221a` — 피해 분리 집계, 실시간 체력/마나/보호막, 완료 전투 기록 보존.
 - 직전 사거리 표시·대상 선택·장비 미리보기 커밋: `1c4f0c1`.
 - 직전 AD/AP 계수·유닛별 사거리·스킬 아이콘 커밋: `0b5155a`.
 - 직전 장비 명칭/온라인 장비 커밋: `30e5724`.
@@ -104,8 +105,8 @@
 - 직전 기능 커밋: `462443d` — 상점 카드·레벨/XP·라운드 HUD 보완.
 - 이전 주요 커밋: `bde9eab` — 전장/UI 재구성과 개별 기술·온라인 재생.
 - GitHub: `https://github.com/rasp-jun/dittoches` (`dittoches` 원격).
-- 2026-09-17 원격 조회: `main = e5405ace`, 원격 `develop` 없음. 최신 로컬 기능 커밋은 아직 업로드되지 않았습니다.
-- 연결 앱 쓰기는 `403 Resource not accessible by integration`, 로컬 Git HTTP 푸시는 `HTTPUnauthorized: No valid credentials provided`로 실패했습니다. 로컬 작업은 커밋으로 보존되어 있습니다.
+- 2026-09-17 GitHub CLI로 `rasp-jun` 인증 후 최신 기능 커밋 `6a72aa5`를 `dittoches/develop`에 업로드하고 원격 SHA 일치를 확인했습니다. `main = e5405ace`는 유지합니다.
+- 로컬 `develop`은 `dittoches/develop`을 추적하고 기본 푸시 대상도 `dittoches`입니다. 연결 앱의 코드 쓰기 403과 별개로 로컬 Git은 GitHub CLI 인증으로 업로드됩니다.
 
 현재 수정본 실행은 이 프로젝트 폴더의 `Play_Preview.bat`를 사용합니다. 보존 폴더 루트의 예전 실행 바로가기와 구분하세요.
 

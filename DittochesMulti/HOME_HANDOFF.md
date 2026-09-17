@@ -59,4 +59,6 @@ python Tools/build_portable_preview.py
 
 정식 Unity의 새 셰이더 임포트, Android 실기기, 두 PC의 실시간 네트워크 UI는 별도 확인이 필요합니다. 온라인 초밥집·8인 매칭은 아직 미구현입니다. 온라인 장비는 이번 업데이트에서 연결했습니다.
 
-GitHub 연결 앱 쓰기는 `403 Resource not accessible by integration`, 로컬 HTTP 푸시는 `HTTPUnauthorized: No valid credentials provided`로 실패했습니다. 로컬 커밋은 남겨 두며 집의 인증된 Git에서 `git push dittoches develop`으로 올릴 수 있습니다. 현재 로컬 변경이 GitHub에 업로드되었다고 간주하지 마세요.
+2026-09-17 GitHub CLI로 `rasp-jun` 계정을 인증하고 최신 기능 커밋 `6a72aa5`를 [GitHub develop 브랜치](https://github.com/rasp-jun/dittoches/tree/develop)에 업로드했습니다. 원격 커밋 일치도 확인했습니다. 로컬 `develop`은 `dittoches/develop`을 추적하며 `main`은 이전 상태로 유지합니다. 연결 앱의 코드 쓰기 403과 별개로 로컬 Git 업로드는 정상입니다.
+
+이 PC의 Git과 GitHub CLI 실행본은 상위 `tmp/mingit/cmd/git.exe`, `tmp/github-cli/bin/gh.exe`에 있습니다. 인증은 이 PC의 Windows 자격증명 저장소에 있으므로 USB만 옮겨도 집 PC에 자동 로그인되는 것은 아닙니다. 집 PC에서 로그인하고, USB 드라이브 경로가 바뀌면 저장소의 GitHub 자격증명 도우미 실행 경로도 새 `gh.exe` 위치로 갱신하세요.
