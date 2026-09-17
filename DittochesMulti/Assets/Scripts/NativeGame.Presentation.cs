@@ -12,6 +12,27 @@ public sealed partial class NativeGame
     private string lastReportRound="";
     private string placementNotice="";
     private float placementNoticeUntil;
+    private static readonly Rect SellDropZone=new Rect(1380,672,500,48);
+    private int UnitSaleValue(Unit unit){return unit==null?0:unit.def.cost*(int)Mathf.Pow(3,unit.star-1);}
+    private void RerollShop()
+    {
+        if(showCarousel||hp<=0||gold<2)return;
+        gold-=2;RollShop();Save();
+    }
+    private void PurchaseExperience()
+    {
+        if(showCarousel||hp<=0||gold<4||level>=9)return;
+        int previous=level;gold-=4;AddXp(4);Save();
+        if(level>previous)NotifyPlacement("레벨 "+level+" · 배치 한도가 늘어났습니다");
+    }
+    private void DrawDragSaleTarget()
+    {
+        if(!draggingUnit||HeldUnit()==null||showCarousel)return;
+        bool hovered=SellDropZone.Contains(Event.current.mousePosition);
+        DrawRect(SellDropZone,hovered?new Color(.42f,.16f,.12f):new Color(.12f,.075f,.05f));
+        DrawRect(new Rect(SellDropZone.x,SellDropZone.y,SellDropZone.width,3),hovered?new Color(1f,.5f,.3f):accent);
+        GUI.Label(SellDropZone,"여기에 놓아 판매  ·  "+UnitSaleValue(HeldUnit())+" G",center);
+    }
     private readonly Dictionary<Unit,float> promotions=new Dictionary<Unit,float>();
     private readonly List<BattleTrace> battleTraces=new List<BattleTrace>();
     private sealed class BattleTrace
@@ -73,10 +94,78 @@ public sealed partial class NativeGame
         return (showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point))
             ||(traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&new Rect(270,145,475,155).Contains(point));
     }
+    private Rect FormationPieceRect(Unit unit,Vector3 ground,float width)
+    {
+        Vector3 displayed;if(formationPositions.TryGetValue(unit,out displayed))ground=displayed;
+        Vector2 head=arena.Project(ground+Vector3.up*1.3f),feet=arena.Project(ground);
+        return new Rect(feet.x-width*.5f,head.y,width,Mathf.Max(24,feet.y-head.y+8));
+    }
+    private void DrawFormationLabel(Unit unit,Vector3 ground,bool focused)
+    {
+        Vector2 point=arena.Project(ground);
+        GUI.Label(new Rect(point.x-45,point.y+2,90,20),new string('★',unit.star),center);
+        if(!focused)return;
+        Rect nameplate=new Rect(Mathf.Clamp(point.x-90,286,1166),point.y+22,180,unit.items.Count>0?44:25);
+        DrawRect(nameplate,new Color(.008f,.022f,.038f,.93f));
+        DrawRect(new Rect(nameplate.x,nameplate.y,nameplate.width,2),CostColor(unit.def.cost));
+        GUI.Label(new Rect(nameplate.x+4,nameplate.y+2,172,23),UnitName(unit.def),center);
+        if(unit.items.Count>0)GUI.Label(new Rect(nameplate.x+4,nameplate.y+24,172,20),string.Join("  ",unit.items.Select(i=>ItemIcons[i]).ToArray()),center);
+    }
+    private int PickFormationTarget(Vector2 point)
+    {
+        if(!TacticalArena.SoloViewport.Contains(point))return -1;
+        if(!draggingUnit)
+        {
+            // Nearer portraits take precedence where silhouettes overlap.
+            for(int i=bench.Length-1;i>=0;i--)
+                if(bench[i]!=null&&FormationPieceRect(bench[i],TacticalArena.BenchWorld(i),62).Contains(point))return 56+i;
+            if(!battling)
+            {
+                Unit[] visible=scoutedRival>=0?scoutBoard:board;
+                for(int i=visible.Length-1;i>=0;i--)
+                {
+                    if(visible[i]==null)continue;
+                    float width=Mathf.Clamp(arena.CellRect(i/7+4,i%7).width*.72f,44,78);
+                    if(FormationPieceRect(visible[i],TacticalArena.CellWorld(i%7,i/7+4),width).Contains(point))return i+28;
+                }
+            }
+        }
+        int seat=arena.HitBench(point);
+        return seat>=0?56+seat:arena.HitCell(point);
+    }
     private Unit HeldUnit()
     {
         if(draggingUnit&&dragSource>=0)return dragFromBoard?board[dragSource]:bench[dragSource];
         return selectedBench>=0?bench[selectedBench]:selectedBoard>=0?board[selectedBoard]:null;
+    }
+    private bool CanEquipSelected(Unit unit)
+    {
+        if(unit==null||selectedItem<0||selectedItem>=inventory.Count)return false;
+        int item=inventory[selectedItem];
+        if(item==14)return unit.items.Count>0;
+        return (item<=3&&unit.items.Any(i=>i<=3))||unit.items.Count<2;
+    }
+    private string EquipmentHint()
+    {
+        if(selectedItem<0||selectedItem>=inventory.Count)return "";
+        int hit=PickFormationTarget(Event.current.mousePosition);
+        Unit target=hit>=56?bench[hit-56]:!battling&&scoutedRival<0&&hit>=28?board[hit-28]:null;
+        if(battling&&target==null)
+        {
+            foreach(Fighter fighter in fighters.Where(f=>!f.dead).OrderByDescending(f=>f.renderPos.y))
+            {
+                Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*1.4f),feet=arena.Project(FighterWorld(fighter));
+                if(!new Rect(feet.x-40,head.y,80,Mathf.Max(24,feet.y-head.y)).Contains(Event.current.mousePosition))continue;
+                if(fighter.enemy)return "상대 유닛에는 장비를 장착할 수 없습니다";
+                target=fighter.unit;break;
+            }
+        }
+        int item=inventory[selectedItem];
+        if(target==null)return ItemNames[item]+" · 장착할 아군 유닛을 선택하세요";
+        if(item==14)return target.items.Count>0?UnitName(target.def)+" · 장비 "+target.items.Count+"개 회수":"회수할 장비가 없는 유닛입니다";
+        int partner=target.items.FindIndex(i=>i<=3);
+        if(item<=3&&partner>=0)return UnitName(target.def)+" · "+ItemNames[ItemRecipes[target.items[partner],item]]+" 자동 합성";
+        return target.items.Count>=2?"장비 슬롯이 가득 찼습니다 · 재료 합성 또는 자석 제거기를 이용하세요":UnitName(target.def)+" · "+ItemNames[item]+" 장착";
     }
     private bool ValidBoardDestination(int cell)
     {
@@ -112,13 +201,16 @@ public sealed partial class NativeGame
         scale*=1+Mathf.Sin((1-promotion)*Mathf.PI)*.12f*promotion;
         arena.SetActor(unit,displayed,Tex(UnitSprite(unit.def)),color,scale);
         bool selected=held||(!battling&&(selectedBoard>=0&&board[selectedBoard]==unit||selectedBench>=0&&bench[selectedBench]==unit));
-        arena.DecorateActor(unit,selected,promotion);
+        bool gearTarget=selectedItem>=0&&scoutedRival<0&&(board.Contains(unit)||bench.Contains(unit));
+        arena.DecorateActor(unit,selected||gearTarget,promotion,invalid:gearTarget&&!CanEquipSelected(unit));
     }
     private void DrawFormationStatus()
     {
         if(showCarousel||hp<=0)return;
         string text;
         if(Time.unscaledTime<placementNoticeUntil)text=placementNotice;
+        else if(draggingUnit&&SellDropZone.Contains(Event.current.mousePosition))text=UnitName(HeldUnit().def)+" · 놓으면 "+UnitSaleValue(HeldUnit())+"G에 판매합니다";
+        else if(selectedItem>=0)text=EquipmentHint();
         else if(battling)text="전투 중 · 유닛을 눌러 정보 확인 / 아이템 장착";
         else if(scoutedRival>=0)text="관전 중 · 오른쪽 나의 테이머를 눌러 복귀";
         else if(HeldUnit()!=null)

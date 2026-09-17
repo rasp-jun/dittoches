@@ -9,14 +9,13 @@ public sealed partial class NativeGame
     private Color LegendColor(){return legend==0?new Color(.25f,.85f,1f):legend==1?new Color(1f,.55f,.75f):legend==2?new Color(1f,.82f,.4f):new Color(.68f,.65f,1f);}
     private Rect LootRect(LootOrb orb)
     {
-        Vector2 p=arena.Project(LegacyWorld(orb.pos)+Vector3.up*.25f);
+        Vector2 p=arena.Project(LegacyWorld(orb.pos)+Vector3.up*(.25f+Mathf.Sin(Time.unscaledTime*3f+orb.pos.x*.013f)*.07f));
         return new Rect(p.x-20,p.y-20,40,40);
     }
     private void HandleArenaPointer()
     {
         Event e=Event.current;Vector2 point=e.mousePosition;
-        int target=arena.HitCell(point),seat=arena.HitBench(point);
-        if(seat>=0)target=56+seat;
+        int target=PickFormationTarget(point);
         if(!battling)for(int i=lootOrbs.Count-1;i>=0;i--)if(LootRect(lootOrbs[i]).Contains(point)){target=100+i;break;}
         bool down=e.type==EventType.MouseDown&&e.button==0,up=e.type==EventType.MouseUp&&e.button==0;
         bool guide=showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point);
@@ -32,6 +31,7 @@ public sealed partial class NativeGame
     }
     private void EnsureArena() { if(arena==null)arena=new TacticalArena(TacticalArena.SoloViewport); }
     private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear(); }
+    private void OnApplicationFocus(bool focused){if(!focused){dragSource=-1;draggingUnit=false;arenaPointer.Reset();}}
     private void OnDestroy() { if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
     {
@@ -59,8 +59,16 @@ public sealed partial class NativeGame
         if(Event.current.type==EventType.Repaint)
         {
             legendPos=Vector2.SmoothDamp(legendPos,legendTarget,ref legendVelocity,battling?.30f:.18f,battling?430f:720f,Time.deltaTime);
-            int hover=blocked||scouting||battling?-1:arena.HitCell(Event.current.mousePosition);
-            arena.BeginFrame(!scouting&&selectedBoard>=0?selectedBoard+28:-1,hover,selectedBench,!scouting&&!blocked&&(selectedBench>=0||selectedBoard>=0||draggingUnit));
+            int hover=blocked||scouting||battling?-1:PickFormationTarget(Event.current.mousePosition);
+            if(hover>=56)hover=-1;
+            int sourceCell=draggingUnit?(dragFromBoard?dragSource+28:-1):selectedBoard>=0?selectedBoard+28:-1;
+            int sourceBench=draggingUnit?(!dragFromBoard?dragSource:-1):selectedBench;
+            arena.BeginFrame(!scouting?sourceCell:-1,hover,sourceBench,!scouting&&!blocked&&(selectedBench>=0||selectedBoard>=0||draggingUnit));
+            if(!battling&&!scouting&&!blocked&&HeldUnit()!=null)
+            {
+                int rangeCell=draggingUnit?arena.HitCell(Event.current.mousePosition):sourceCell;
+                if(rangeCell>=28)arena.HighlightAttackRange(rangeCell,Mathf.Lerp(1.05f,2.9f,(Meta(HeldUnit().def.id).range-1)/3f));
+            }
             if(!battling&&!scouting&&!blocked&&HeldUnit()!=null&&!draggingUnit)
             {
                 int cell=arena.HitCell(Event.current.mousePosition),seat=arena.HitBench(Event.current.mousePosition);
@@ -68,10 +76,13 @@ public sealed partial class NativeGame
             }
             if(battling)
             {
-                foreach(Fighter f in fighters)if(!f.dead)
+                foreach(Fighter f in fighters)if(!f.dead||Time.unscaledTime-f.diedAt<.45f)
                 {
-                    arena.SetActor(f,FighterWorld(f),Tex(f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?"Apocalymon_Attack":UnitSprite(f.unit.def)),f.enemy?new Color(1,.35f,.28f):new Color(.25f,1,.62f),1+f.skillFlash*.16f,f.hitFlash*2);
-                    arena.DecorateActor(f,inspectedUnit==f.unit,0,f.hitFlash/.18f,f.healFlash/.28f,f.shieldFlash/.35f);
+                    float death=f.dead?Mathf.Clamp01((Time.unscaledTime-f.diedAt)/.45f):0;
+                    arena.SetActor(f,FighterWorld(f)-Vector3.up*(death*.15f),Tex(f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?"Apocalymon_Attack":UnitSprite(f.unit.def)),f.enemy?new Color(1,.35f,.28f):new Color(.25f,1,.62f),(1+f.skillFlash*.16f)*(1-death*.88f),f.hitFlash*2);
+                    bool gearTarget=!f.dead&&!f.enemy&&selectedItem>=0;
+                    arena.DecorateActor(f,!f.dead&&inspectedUnit==f.unit||gearTarget,0,f.hitFlash/.18f,f.healFlash/.28f,f.shieldFlash/.35f,gearTarget&&!CanEquipSelected(f.unit));
+                    arena.PoseCombatActor(f,f.renderVelocity.magnitude,f.renderVelocity.x,Time.unscaledTime,death);
                 }
             }
             else for(int i=0;i<visible.Length;i++)if(visible[i]!=null)
@@ -91,9 +102,10 @@ public sealed partial class NativeGame
         GUI.Label(new Rect(295,96,1040,26),heading,center);
         GUI.Label(new Rect(306,132,240,22),"FILE ISLAND / ARENA",small);
         GUI.Label(new Rect(1080,132,245,22),battling?Mathf.CeilToInt(battleTimeRemaining)+"s":"7 x 4  /  HEX FORMATION",small);
+        GUI.Label(new Rect(550,132,500,22),battling?"아군 "+fighters.Count(f=>!f.enemy&&!f.dead)+" / "+fighters.Count(f=>!f.enemy)+"   ·   상대 "+fighters.Count(f=>f.enemy&&!f.dead)+" / "+fighters.Count(f=>f.enemy):"",center);
         if(!battling)
         {
-            int hit=arena.HitCell(Event.current.mousePosition);
+            int hit=PickFormationTarget(Event.current.mousePosition);
             for(int i=0;i<visible.Length;i++)
             {
                 Vector3 point=TacticalArena.CellWorld(i%7,i/7+4);
@@ -101,8 +113,7 @@ public sealed partial class NativeGame
                 if(visible[i]!=null&&!(draggingUnit&&visible[i]==HeldUnit()))
                 {
                     bool focused=selectedBoard==i||inspectedUnit==visible[i]||hit==i+28;
-                    GUI.Label(arena.LabelRect(point,3),new string('★',visible[i].star)+(focused?" "+UnitName(visible[i].def):""),center);
-                    if(focused&&visible[i].items.Count>0)GUI.Label(arena.LabelRect(point,21),string.Join(" ",visible[i].items.Select(item=>ItemIcons[item]).ToArray()),center);
+                    DrawFormationLabel(visible[i],point,focused);
                 }
                 if(!blocked&&arenaPointer.Released==i+28&&Event.current.type==EventType.MouseUp&&Event.current.button==0)
                 {
@@ -120,8 +131,8 @@ public sealed partial class NativeGame
         }
         for(int i=lootOrbs.Count-1;i>=0;i--)
         {
-            LootOrb orb=lootOrbs[i];Vector2 p=arena.Project(LegacyWorld(orb.pos)+Vector3.up*.25f);
-            Rect r=new Rect(p.x-16,p.y-16,32,32);
+            LootOrb orb=lootOrbs[i];Vector2 p=arena.Project(LegacyWorld(orb.pos)+Vector3.up*(.25f+Mathf.Sin(Time.unscaledTime*3f+orb.pos.x*.013f)*.07f));
+            Rect r=new Rect(p.x-20,p.y-20,40,40);
             Color c=orb.rarity==2?new Color(1,.75f,.15f):orb.rarity==1?new Color(.25f,.65f,1):new Color(.65f,1,.65f);
             Color old=GUI.color;GUI.color=c;GUI.Label(r,"◆",title);GUI.color=old;
 
@@ -176,7 +187,12 @@ public sealed partial class NativeGame
         for(int i=0;i<9;i++)
         {
             Rect r=BenchRect(i);
-            if(bench[i]!=null)GUI.Label(new Rect(r.x-10,r.yMax+3,r.width+20,20),new string('★',bench[i].star),center);
+            if(bench[i]!=null)
+            {
+                Vector3 ground; if(!formationPositions.TryGetValue(bench[i],out ground))ground=TacticalArena.BenchWorld(i);
+                bool focused=selectedBench==i||PickFormationTarget(Event.current.mousePosition)==56+i;
+                if(!(draggingUnit&&bench[i]==HeldUnit()))DrawFormationLabel(bench[i],ground,focused);
+            }
             else GUI.Label(new Rect(r.x,r.yMax+3,r.width,20),(i+1).ToString(),small);
             if(!showCarousel&&hp>0&&arenaPointer.Released==56+i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickBench(i);Event.current.Use();}
         }

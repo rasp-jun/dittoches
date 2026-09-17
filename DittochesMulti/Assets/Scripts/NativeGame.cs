@@ -30,10 +30,10 @@ public sealed partial class NativeGame : MonoBehaviour
     private sealed class SkillMeta { public float startMana,maxMana,power;public SkillMeta(float start,float max,float ratio){startMana=start;maxMana=max;power=ratio;} }
     private sealed class Fighter
     {
-        public Unit unit; public bool enemy, dead; public Vector2 pos, renderPos, renderVelocity, attackTarget; public float hp, maxHp, shield, mana, maxMana=100, cooldown, stun, hitFlash, healFlash, shieldFlash, attackFlash, skillFlash, attackScale=1f, damageDone, healingDone, shieldingDone; public int casts;
+        public Unit unit; public Fighter target; public float diedAt; public bool enemy, dead; public Vector2 pos, renderPos, renderVelocity, attackTarget; public float hp, maxHp, shield, mana, maxMana=100, cooldown, stun, hitFlash, healFlash, shieldFlash, attackFlash, skillFlash, attackScale=1f, damageDone, healingDone, shieldingDone; public int casts;
     }
     private sealed class LootOrb { public Vector2 pos; public int rarity, rewardType, amount; }
-    private sealed class CombatPopup { public Vector2 pos; public string text; public Color color; public float life; }
+    private sealed class CombatPopup { public Fighter target; public Vector2 pos; public string text; public Color color; public float life; }
 
     private static readonly UnitDef[] Roster = {
         new UnitDef("koromon","코로몬",1,"Koromon","전사"),new UnitDef("tsunomon","뿔몬",1,"Tunomon","사수"),new UnitDef("mochimon","모티몬",1,"Mochimon","탱커"),new UnitDef("tanemon","시드몬",1,"Tanemon","지원"),new UnitDef("pyocomon","어니몬",1,"Pyocomon","마법사"),new UnitDef("tokomon","토코몬",1,"Tokomon","지원"),
@@ -127,6 +127,14 @@ public sealed partial class NativeGame : MonoBehaviour
 
     private void Update()
     {
+        if(battling)TickCombatPresentation(Time.deltaTime);
+        if(!lobby&&!battling&&!showCarousel&&hp>0&&scoutedRival<0&&!arenaPointer.HasPress&&!draggingUnit)
+        {
+            int before=lootOrbs.Count;
+            for(int i=lootOrbs.Count-1;i>=0;i--)
+                if(Vector3.Distance(LegacyWorld(legendPos),LegacyWorld(lootOrbs[i].pos))<.48f)CollectOrb(lootOrbs[i],false,false);
+            if(before!=lootOrbs.Count)Save();
+        }
         if(observedLobby!=lobby){observedLobby=lobby;screenTransitionUntil=Time.unscaledTime+.34f;}
         if(lobby||battling||Input.touchCount==0)return;Touch touch=Input.GetTouch(0);if(touch.phase!=TouchPhase.Began&&touch.phase!=TouchPhase.Moved)return;
         Vector2 point=new Vector2((touch.position.x-guiOffset.x)/guiScale,(Screen.height-touch.position.y-guiOffset.y)/guiScale);TryMoveLegend(point);
@@ -167,6 +175,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private void OnGUI()
     {
         Styles(); float scale=Mathf.Min(Screen.width/1920f,Screen.height/1080f);guiScale=Mathf.Max(.01f,scale); Matrix4x4 old=GUI.matrix;
+        GUI.matrix=Matrix4x4.identity;DrawRect(new Rect(0,0,Screen.width,Screen.height),bg);
         guiOffset=new Vector2((Screen.width-1920*scale)*.5f,(Screen.height-1080*scale)*.5f);
         GUI.matrix=Matrix4x4.TRS(new Vector3(guiOffset.x,guiOffset.y,0),Quaternion.identity,new Vector3(scale,scale,1)); DrawRect(new Rect(0,0,1920,1080),bg);
         if(lobby) DrawLobby(); else DrawGame();DrawTransientTooltip();if(Time.unscaledTime<screenTransitionUntil){float fade=Mathf.Clamp01((screenTransitionUntil-Time.unscaledTime)/.34f);DrawRect(new Rect(0,0,1920,1080),new Color(.005f,.012f,.025f,fade));}GUI.matrix=old;
@@ -211,7 +220,7 @@ public sealed partial class NativeGame : MonoBehaviour
         HandleArenaPointer();HandleUnitDrag();HandleHotkeys();
         bool previous=GUI.enabled;
         GUI.enabled=previous&&!modal;
-        DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();DrawReportToggle();
+        DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();DrawReportToggle();DrawDragSaleTarget();
         GUI.enabled=previous;
         if(showCarousel)DrawCarousel();
         if(!modal&&!showCarousel)
@@ -235,7 +244,7 @@ public sealed partial class NativeGame : MonoBehaviour
         if(e.type==EventType.MouseDown&&e.button==0&&!PointerOverGuide(p))
         {
             dragSource=-1;
-            int cell=arena.HitCell(p),seat=arena.HitBench(p);
+            int target=PickFormationTarget(p),cell=target<56?target:-1,seat=target>=56?target-56:-1;
             if(seat>=0&&bench[seat]!=null){dragSource=seat;dragFromBoard=false;}
             else if(cell>=28&&board[cell-28]!=null){dragSource=cell-28;dragFromBoard=true;}
             dragStart=p;draggingUnit=false;
@@ -253,6 +262,11 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         Unit moving=dragFromBoard?board[dragSource]:bench[dragSource];
         if(moving==null)return;
+        if(SellDropZone.Contains(p))
+        {
+            selectedBoard=dragFromBoard?dragSource:-1;selectedBench=dragFromBoard?-1:dragSource;
+            SellSelectedUnit();NotifyPlacement(lastReward);return;
+        }
         int seat=arena.HitBench(p),cell=arena.HitCell(p);
         if(seat>=0)
         {
@@ -271,7 +285,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private void HandleHotkeys()
     {
         Event e=Event.current;if(e==null||e.type!=EventType.KeyDown||showCarousel||hp<=0)return;
-        if(e.keyCode==KeyCode.D&&gold>=2){gold-=2;RollShop();e.Use();return;}if(e.keyCode==KeyCode.F&&gold>=4&&level<9){gold-=4;AddXp(4);Save();e.Use();return;}if(e.keyCode==KeyCode.Space&&!battling&&(RoundType()=="초밥집"||board.Any(u=>u!=null))){StartRoundAction();e.Use();return;}if(e.keyCode==KeyCode.Escape){selectedBench=selectedBoard=selectedItem=-1;dragSource=-1;draggingUnit=false;arenaPointer.Reset();inspectedUnit=null;showRecipeGuide=false;traitFocus=null;e.Use();}
+        if(e.keyCode==KeyCode.D&&gold>=2){RerollShop();e.Use();return;}if(e.keyCode==KeyCode.F&&gold>=4&&level<9){PurchaseExperience();e.Use();return;}if(e.keyCode==KeyCode.Space&&!battling&&(RoundType()=="초밥집"||board.Any(u=>u!=null))){StartRoundAction();e.Use();return;}if(e.keyCode==KeyCode.Escape){selectedBench=selectedBoard=selectedItem=-1;dragSource=-1;draggingUnit=false;arenaPointer.Reset();inspectedUnit=null;showRecipeGuide=false;traitFocus=null;e.Use();}
     }
     private void StartRoundAction(){if(battling||showCarousel||hp<=0)return;if(RoundType()=="초밥집")OpenCarousel();else if(board.Any(u=>u!=null))StartCoroutine(Battle());}
     private void DrawGameOver()
@@ -390,7 +404,10 @@ public sealed partial class NativeGame : MonoBehaviour
     private bool TryMoveLegend(Vector2 point)
     {
         if(battling||lobby||showCarousel||hp<=0||scoutedRival>=0||selectedBoard>=0||selectedBench>=0||selectedItem>=0||draggingUnit)return false;
-        if(PointerOverGuide(point))return false;EnsureArena();Vector3 world;
+        if(PointerOverGuide(point))return false;EnsureArena();
+        int hit=PickFormationTarget(point);
+        if(hit>=56||(hit>=28&&board[hit-28]!=null))return false;
+        Vector3 world;
         if(!arena.GroundPoint(point,out world)||Mathf.Abs(world.x)>5||Mathf.Abs(world.z)>4.6f)return false;
         legendTarget=LegacyPoint(world);return true;
     }
@@ -398,9 +415,23 @@ public sealed partial class NativeGame : MonoBehaviour
     private void DrawFighter(Fighter f){DrawPerspectiveFighter(f);}
     private void DrawCombatPopups()
     {
-        foreach(CombatPopup popup in combatPopups){float progress=1-Mathf.Clamp01(popup.life/.72f),alpha=Mathf.Clamp01(popup.life*3f);Color old=GUI.color;GUI.color=new Color(popup.color.r,popup.color.g,popup.color.b,alpha);GUI.Label(new Rect(popup.pos.x-35,popup.pos.y-25-progress*34,90,26),popup.text,center);GUI.color=old;}
+        foreach(CombatPopup popup in combatPopups)
+        {
+            float progress=1-Mathf.Clamp01(popup.life/.72f),alpha=Mathf.Clamp01(popup.life*3f);
+            Rect rect=new Rect(popup.pos.x-45,popup.pos.y-25-progress*34,90,26);
+            Color old=GUI.color;GUI.color=new Color(0,0,0,alpha*.8f);
+            GUI.Label(new Rect(rect.x+1,rect.y+2,rect.width,rect.height),popup.text,center);
+            GUI.color=new Color(popup.color.r,popup.color.g,popup.color.b,alpha);
+            GUI.Label(rect,popup.text,center);GUI.color=old;
+        }
     }
-    private void AddCombatPopup(Fighter target,string value,Color color){combatPopups.Add(new CombatPopup{pos=BoardPoint(target.renderPos)+new Vector2(52,5),text=value,color=color,life=.72f});}
+    private void AddCombatPopup(Fighter target,string value,Color color)
+    {
+        int nearby=combatPopups.Count(p=>p.target==target&&p.life>.42f);
+        if(combatPopups.Count>=128)combatPopups.RemoveAt(0);
+        Vector2 offset=new Vector2((nearby%3-1)*20,-(nearby/3)*12);
+        combatPopups.Add(new CombatPopup{target=target,pos=BoardPoint(target.renderPos)+new Vector2(52,5)+offset,text=value,color=color,life=.72f});
+    }
     private Color RoleColor(string role){if(role=="탱커")return new Color(.25f,.65f,1f);if(role=="전사")return new Color(1f,.42f,.2f);if(role=="사수")return new Color(1f,.8f,.2f);if(role=="마법사")return new Color(.72f,.35f,1f);return new Color(.25f,1f,.55f);}
     private void DrawUnit(Rect r,Unit u,bool enemy){Color role=RoleColor(u.def.role);DrawRect(new Rect(r.x+22,r.y+57,72,3),new Color(role.r,role.g,role.b,.85f));Texture2D t=Tex(UnitSprite(u.def));if(t)GUI.DrawTexture(new Rect(r.x+22,r.y-16,72,72),t,ScaleMode.ScaleToFit,true);GUI.Label(new Rect(r.x+4,r.y+43,r.width-8,18),new string('★',u.star)+"  "+UnitName(u.def),center);if(u.items.Count>0)GUI.Label(new Rect(r.x+72,r.y+3,40,38),string.Concat(u.items.Select(i=>ItemIcons[i])),small);}
     private void DrawRight()
@@ -422,9 +453,9 @@ public sealed partial class NativeGame : MonoBehaviour
         if(showCarousel||hp<=0||scoutedRival>=0)return;
         Unit held=HeldUnit();
         if(held==null&&selectedItem<0)return;
-        if(draggingUnit)return;
+        if(draggingUnit&&TacticalArena.SoloViewport.Contains(Event.current.mousePosition))return;
         Vector2 p=Event.current.mousePosition;
-        Rect hint=new Rect(Mathf.Clamp(p.x+22,290,1110),Mathf.Clamp(p.y-76,195,710),225,64);
+        Rect hint=new Rect(Mathf.Clamp(p.x+22,12,1683),Mathf.Clamp(p.y-76,110,1004),225,64);
         Color old=GUI.color;GUI.color=new Color(1,1,1,.9f);GUI.Box(hint,GUIContent.none,selectedStyle);
         if(held!=null)
         {
@@ -532,8 +563,8 @@ public sealed partial class NativeGame : MonoBehaviour
         DrawRect(new Rect(0,838,1920,3),accent);
         GUI.Label(new Rect(32,852,220,30),"디지몬 모집",header);
         GUI.Label(new Rect(270,842,1200,22),ShopOddsText(),small);
-        if(Btn(new Rect(32,895,210,42),"새로고침  2G  [D]",gold>=2)){gold-=2;RollShop();}
-        if(Btn(new Rect(32,943,210,42),"경험치 +4  ·  4G  [F]",gold>=4&&level<9)){gold-=4;AddXp(4);Save();}
+        if(Btn(new Rect(32,895,210,42),"새로고침  2G  [D]",gold>=2))RerollShop();
+        if(Btn(new Rect(32,943,210,42),"경험치 +4  ·  4G  [F]",gold>=4&&level<9))PurchaseExperience();
         if(Btn(new Rect(32,991,210,34),shopLocked?"잠금 유지 중":"상점 잠금")){shopLocked=!shopLocked;Save();}
         GUI.Label(new Rect(32,1034,230,24),$"이자 +{Mathf.Min(5,gold/10)}G · 최대 +5G",small);
         for(int i=0;i<5;i++)
@@ -562,7 +593,7 @@ public sealed partial class NativeGame : MonoBehaviour
         bool carousel=RoundType()=="초밥집";
         GUI.Label(new Rect(1530,856,330,28),battling?"전투 진행 중":"준비 단계",center);
         string action=carousel?"선택창 열기":"전투 시작";
-        if(Btn(new Rect(1530,895,330,92),battling?"전투 중":action+"  [SPACE]",!battling&&(carousel||board.Any(u=>u!=null))))StartRoundAction();
+        if(Btn(new Rect(1530,895,330,92),battling?"전투 중":!carousel&&!board.Any(u=>u!=null)?"유닛을 먼저 배치하세요":action+"  [SPACE]",!battling&&(carousel||board.Any(u=>u!=null))))StartRoundAction();
         GUI.Label(new Rect(1530,999,330,46),$"배치 {board.Count(u=>u!=null)} / {level}  ·  대기석 {bench.Count(u=>u!=null)} / {bench.Length}",center);
     }
     private string ShopOddsText(){return $"LV.{level} 배치 {board.Count(u=>u!=null)}/{level}  ·  상점 확률  1G {ShopOdds[level-1,0]}%  2G {ShopOdds[level-1,1]}%  3G {ShopOdds[level-1,2]}%  4G {ShopOdds[level-1,3]}%  5G {ShopOdds[level-1,4]}%";}
@@ -608,7 +639,7 @@ public sealed partial class NativeGame : MonoBehaviour
         battleProgress=1;yield return new WaitForSeconds(.65f);
         int income=5+Mathf.Min(5,gold/10);AddXp(2);
         if(win){gold+=income;if(RoundType()=="크립")CreateLootOrbs();lastReward=RoundType()=="크립"?$"수입 {income}G · 전리품 구슬 {lootOrbs.Count}개 생성":$"수입 {income}G · 승리";}else{int stage=round<=3?1:2+(round-4)/7;int damage=RoundType()=="크립"?stage+1:Mathf.CeilToInt((2+Mathf.Max(0,stage-2)*2+fighters.Count(f=>f.enemy&&!f.dead))*(1+Mathf.Max(0,stage-2)*.1f));hp=Mathf.Max(0,hp-damage);gold+=income;lastReward=$"체력 -{damage} · 수입 {income}G";}
-        Fighter damageAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.damageDone).FirstOrDefault(),healAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.healingDone).FirstOrDefault(),shieldAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.shieldingDone).FirstOrDefault();lastCombatSummary=damageAce==null?"":$"전투 통계 · 피해 1위 {UnitName(damageAce.unit.def)} {damageAce.damageDone:0} · 스킬 {fighters.Where(f=>!f.enemy).Sum(f=>f.casts)}회"+(healAce!=null&&healAce.healingDone>0?$" · 회복 {healAce.healingDone:0}":"")+(shieldAce!=null&&shieldAce.shieldingDone>0?$" · 보호막 {shieldAce.shieldingDone:0}":"");battleText=(win?"승리 · ":"패배 · ")+lastReward;resultNoticeUntil=Time.unscaledTime+4.5f;round++;if(!shopLocked)RollShop();lastBattleReport.Clear();lastBattleReport.AddRange(fighters.Where(f=>!f.enemy));fighters.Clear();battling=false;Save();
+        Fighter damageAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.damageDone).FirstOrDefault(),healAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.healingDone).FirstOrDefault(),shieldAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.shieldingDone).FirstOrDefault();lastCombatSummary=damageAce==null?"":$"전투 통계 · 피해 1위 {UnitName(damageAce.unit.def)} {damageAce.damageDone:0} · 스킬 {fighters.Where(f=>!f.enemy).Sum(f=>f.casts)}회"+(healAce!=null&&healAce.healingDone>0?$" · 회복 {healAce.healingDone:0}":"")+(shieldAce!=null&&shieldAce.shieldingDone>0?$" · 보호막 {shieldAce.shieldingDone:0}":"");battleText=(win?"승리 · ":"패배 · ")+lastReward;resultNoticeUntil=Time.unscaledTime+4.5f;round++;if(!shopLocked)RollShop();lastBattleReport.Clear();lastBattleReport.AddRange(fighters.Where(f=>!f.enemy));foreach(Fighter survivor in fighters.Where(f=>!f.enemy&&!f.dead))if(board.Contains(survivor.unit))formationPositions[survivor.unit]=TacticalArena.CellWorld(survivor.renderPos.x,survivor.renderPos.y);fighters.Clear();battling=false;Save();
     }
     private void SetupBattle()
     {
@@ -639,17 +670,23 @@ public sealed partial class NativeGame : MonoBehaviour
     private int TraitLevel(string category,string key){return TraitTier(category,TraitCount(category,key));}
     private float TierBonus(int tier,float first,float second,float third){return tier>=3?third:tier==2?second:tier==1?first:0;}
     private bool RoleActive(string role){return TraitLevel("역할",role)>0;}
-    private Fighter SelectTarget(Fighter attacker){IEnumerable<Fighter> enemies=fighters.Where(x=>!x.dead&&x.enemy!=attacker.enemy);if(attacker.unit.def.role=="마법사")return enemies.OrderBy(x=>x.hp/x.maxHp).ThenBy(x=>Vector2.Distance(attacker.pos,x.pos)).FirstOrDefault();if(attacker.unit.def.role=="사수")return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.72f:1f)).FirstOrDefault();return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.58f:1f)).FirstOrDefault();}
+    private Fighter SelectTarget(Fighter attacker)
+    {
+        if(attacker.target!=null&&!attacker.target.dead)return attacker.target;
+        attacker.target=FindCombatTarget(attacker);return attacker.target;
+    }
+    private Fighter FindCombatTarget(Fighter attacker){IEnumerable<Fighter> enemies=fighters.Where(x=>!x.dead&&x.enemy!=attacker.enemy);if(attacker.unit.def.role=="마법사")return enemies.OrderBy(x=>x.hp/x.maxHp).ThenBy(x=>Vector2.Distance(attacker.pos,x.pos)).FirstOrDefault();if(attacker.unit.def.role=="사수")return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.72f:1f)).FirstOrDefault();return enemies.OrderBy(x=>Vector2.Distance(attacker.pos,x.pos)*(x.unit.def.role=="탱커"?.58f:1f)).FirstOrDefault();}
     private void UpdateCombat(float dt)
     {
-        for(int i=combatPopups.Count-1;i>=0;i--){combatPopups[i].life-=dt;if(combatPopups[i].life<=0)combatPopups.RemoveAt(i);}foreach(Fighter f in fighters){f.renderPos=Vector2.SmoothDamp(f.renderPos,f.pos,ref f.renderVelocity,.12f,7f,dt);f.hitFlash=Mathf.Max(0,f.hitFlash-dt);f.healFlash=Mathf.Max(0,f.healFlash-dt);f.shieldFlash=Mathf.Max(0,f.shieldFlash-dt);f.attackFlash=Mathf.Max(0,f.attackFlash-dt);f.skillFlash=Mathf.Max(0,f.skillFlash-dt);if(f.dead)continue;if(f.unit.def.role=="마법사")f.mana=Mathf.Min(f.maxMana,f.mana+2f*dt);else if(f.unit.def.role=="지원")f.mana=Mathf.Min(f.maxMana,f.mana+1.5f*dt);f.cooldown-=dt;f.stun=Mathf.Max(0,f.stun-dt);if(f.stun>0)continue;Fighter target=SelectTarget(f);if(target==null)continue;
+        foreach(Fighter f in fighters){if(f.dead)continue;if(f.unit.def.role=="마법사")f.mana=Mathf.Min(f.maxMana,f.mana+2f*dt);else if(f.unit.def.role=="지원")f.mana=Mathf.Min(f.maxMana,f.mana+1.5f*dt);f.cooldown-=dt;f.stun=Mathf.Max(0,f.stun-dt);if(f.stun>0)continue;Fighter target=SelectTarget(f);if(target==null)continue;
             UnitMeta meta=Meta(f.unit.def.id);float distance=Vector2.Distance(f.pos,target.pos),range=Mathf.Lerp(1.05f,2.9f,(meta.range-1)/3f);
             if(distance>range){float moveSpeed=(meta.range>1?.70f:1.0f)*dt;f.pos=Vector2.MoveTowards(f.pos,target.pos,moveSpeed);continue;}
             if(f.cooldown>0)continue;if(f.mana>=f.maxMana){CastSkill(f,target);continue;}float damage=AttackDamage(f);f.attackTarget=target.renderPos;DealDamage(f,target,damage);float manaPerAttack=f.unit.def.role=="탱커"?5:f.unit.def.role=="마법사"?7:f.unit.def.role=="지원"?8:10;f.mana=Mathf.Min(f.maxMana,f.mana+manaPerAttack);f.attackFlash=.35f;float speedBonus=1+f.unit.items.Sum(ItemSpeed);if(!f.enemy){if(f.unit.def.role=="사수")speedBonus+=TierBonus(TraitLevel("역할","사수"),.08f,.16f,.28f);if(meta.attr=="데이터")speedBonus+=TierBonus(TraitLevel("속성","데이터"),.08f,.16f,.28f);if(meta.family=="야수형")speedBonus+=TierBonus(TraitLevel("계열","야수형"),.08f,.16f,.28f);}f.cooldown=1f/(meta.speed*speedBonus);if(!f.enemy&&f.unit.def.role=="전사"){float steal=TierBonus(TraitLevel("역할","전사"),.08f,.16f,.28f);if(steal>0)Heal(f,f,damage*steal);}
         }
+        SeparateCombatants(dt);
     }
     private float AttackDamage(Fighter f){UnitMeta meta=Meta(f.unit.def.id);float bonus=0;if(!f.enemy){if(f.unit.def.role=="전사"||f.unit.def.role=="마법사")bonus+=TierBonus(TraitLevel("역할",f.unit.def.role),.08f,.16f,.28f);if(meta.attr=="바이러스")bonus+=TierBonus(TraitLevel("속성","바이러스"),.08f,.16f,.28f);if(meta.family=="용형")bonus+=TierBonus(TraitLevel("계열","용형"),.08f,.16f,.28f);}return meta.atk*Mathf.Pow(1.5f,f.unit.star-1)*(1+f.unit.items.Sum(ItemAttack))*(1+bonus)*(f.enemy?f.attackScale:1f);}
-    private void DealDamage(Fighter source,Fighter target,float damage){RecordAttackTrace(source,target);float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;}}
+    private void DealDamage(Fighter source,Fighter target,float damage){RecordAttackTrace(source,target);float absorbed=Mathf.Min(target.shield,damage);target.shield-=absorbed;damage-=absorbed;float actual=Mathf.Min(target.hp,damage);target.hp-=damage;source.damageDone+=Mathf.Max(0,actual);if(actual>0)AddCombatPopup(target,"-"+Mathf.RoundToInt(actual),new Color(1f,.48f,.28f));if(target.unit.def.role=="탱커")target.mana=Mathf.Min(target.maxMana,target.mana+Mathf.Clamp((damage+absorbed)/target.maxHp*60f,2f,12f));target.hitFlash=.18f;if(target.hp<=0){target.hp=0;target.dead=true;target.diedAt=Time.unscaledTime;}}
     private void Heal(Fighter source,Fighter target,float amount){if(!source.enemy){UnitMeta meta=Meta(source.unit.def.id);if(meta.family=="식물형")amount*=1+TierBonus(TraitLevel("계열","식물형"),.12f,.25f,.45f);if(source.unit.def.role=="지원")amount*=1+TierBonus(TraitLevel("역할","지원"),.08f,.16f,.28f);}float actual=Mathf.Min(target.maxHp-target.hp,amount);target.hp+=Mathf.Max(0,actual);target.healFlash=.28f;source.healingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,1f,.55f));}
     private void Shield(Fighter source,Fighter target,float amount){float cap=target.maxHp*.5f,actual=Mathf.Min(cap-target.shield,amount);target.shield+=Mathf.Max(0,actual);target.shieldFlash=.35f;source.shieldingDone+=Mathf.Max(0,actual);if(actual>1)AddCombatPopup(target,"+"+Mathf.RoundToInt(actual),new Color(.35f,.75f,1f));}
     private void CastSkill(Fighter caster,Fighter target)
@@ -665,7 +702,30 @@ public sealed partial class NativeGame : MonoBehaviour
     private float ItemAttack(int i){switch(i){case 0:return .12f;case 4:return .4f;case 5:return .22f;case 6:return .18f;case 7:return .2f;default:return 0;}}
     private float ItemSpeed(int i){switch(i){case 2:return .12f;case 5:return .25f;case 6:return .18f;case 9:return .15f;case 11:return .35f;case 12:return .2f;default:return 0;}}
     private void CreateLootOrbs(){int kills=fighters.Count(f=>f.enemy&&f.dead);for(int i=0;i<kills;i++){float roll=UnityEngine.Random.value;if(roll<.42f)continue;int rarity=roll<.72f?0:roll<.92f?1:2;lootOrbs.Add(new LootOrb{rarity=rarity,rewardType=rarity==1?1:(rarity==2&&UnityEngine.Random.value<.55f?2:0),amount=rarity==2?3+Mathf.Max(1,round/7):1+UnityEngine.Random.Range(0,3),pos=new Vector2(UnityEngine.Random.Range(420,1220),UnityEngine.Random.Range(240,650))});}}
-    private void CollectOrb(LootOrb orb){legendTarget=orb.pos;if(orb.rewardType==1){int item=UnityEngine.Random.value<.15f?14:UnityEngine.Random.Range(0,4);inventory.Add(item);lastReward=ItemNames[item]+" 획득";}else if(orb.rewardType==2){UnitDef[] choices=Roster.Where(d=>d.cost==Mathf.Clamp(1+round/7,1,4)&&pool[d.id]>0).ToArray();if(choices.Length>0){UnitDef d=choices[UnityEngine.Random.Range(0,choices.Length)];if(GrantUnit(d))lastReward=d.name+" 획득";else{gold+=d.cost;lastReward=d.cost+"G 전환";}}}else{gold+=orb.amount;lastReward=orb.amount+"G 획득";}lootOrbs.Remove(orb);Save();}
+    private void CollectOrb(LootOrb orb,bool moveLegend=true,bool persist=true)
+    {
+        if(!lootOrbs.Contains(orb))return;
+        if(moveLegend)legendTarget=orb.pos;
+        if(orb.rewardType==1)
+        {
+            int item=UnityEngine.Random.value<.15f?14:UnityEngine.Random.Range(0,4);
+            inventory.Add(item);lastReward=ItemNames[item]+" 획득";
+        }
+        else if(orb.rewardType==2)
+        {
+            UnitDef[] choices=Roster.Where(d=>d.cost==Mathf.Clamp(1+round/7,1,4)&&pool[d.id]>0).ToArray();
+            if(choices.Length>0)
+            {
+                UnitDef d=choices[UnityEngine.Random.Range(0,choices.Length)];
+                if(GrantUnit(d))lastReward=UnitName(d)+" 획득";
+                else{gold+=d.cost;lastReward=d.cost+"G 전환";}
+            }
+            else{int compensation=Mathf.Max(1,orb.amount);gold+=compensation;lastReward=compensation+"G 전환";}
+        }
+        else{gold+=orb.amount;lastReward=orb.amount+"G 획득";}
+        lootOrbs.Remove(orb);legendCelebrateUntil=Time.unscaledTime+1.4f;
+        NotifyPlacement(lastReward);if(persist)Save();
+    }
     private bool GrantUnit(UnitDef d){int slot=Array.FindIndex(bench,u=>u==null);if(slot>=0){bench[slot]=new Unit(d);pool[d.id]--;Combine(d.id);return true;}List<UnitRef> pair=FindUnits(d.id,1).Take(2).ToList();if(pair.Count<2)return false;pool[d.id]--;MergePurchasedThird(pair[0],pair[1]);Combine(d.id);return true;}
     private string RoundLabel(){int stage=round<=3?1:2+(round-4)/7,step=round<=3?round:1+(round-4)%7;return stage+"-"+step;}
     private string RoundType(){if(round<=3)return "크립";int step=1+(round-4)%7;return step==4?"초밥집":step==7?"크립":"PvP";}
@@ -678,7 +738,7 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         UnitDef d=shop[index];if(d==null||gold<d.cost)return false;int slot=Array.FindIndex(bench,u=>u==null);
         if(slot<0){List<UnitRef> pair=FindUnits(d.id,1).Take(2).ToList();if(pair.Count<2)return false;gold-=d.cost;shop[index]=null;MergePurchasedThird(pair[0],pair[1]);Combine(d.id);return true;}
-        gold-=d.cost;bench[slot]=new Unit(d);shop[index]=null;Combine(d.id);return true;
+        gold-=d.cost;bench[slot]=new Unit(d);promotions[bench[slot]]=Time.unscaledTime+.7f;shop[index]=null;Combine(d.id);return true;
     }
     private List<UnitRef> FindUnits(string id,int star)
     {

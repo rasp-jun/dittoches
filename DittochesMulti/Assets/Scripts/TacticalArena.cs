@@ -247,13 +247,33 @@ public sealed class TacticalArena : IDisposable
         else actor.portrait.sharedMaterial=glow;
         Tint(actor.portrait,texture==null?team:Color.Lerp(Color.white,new Color(1,.4f,.3f),Mathf.Clamp01(flash)));
     }
-    public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0)
+    public void PoseCombatActor(object key,float speed,float direction,float time,float death)
+    {
+        Actor actor;if(!actors.TryGetValue(key,out actor))return;
+        speed=Mathf.Clamp01(speed);
+        float bob=Mathf.Abs(Mathf.Sin(time*10f))*.045f*speed;
+        actor.portrait.transform.localPosition=camera.transform.up*.65f+Vector3.up*bob;
+        actor.portrait.transform.rotation=camera.transform.rotation*Quaternion.Euler(0,0,death>0?-55f*death:Mathf.Sin(time*10f)*3f*speed*Mathf.Sign(direction));
+        actor.contactShadow.transform.localScale=new Vector3(.43f,.01f,.30f)*(1-bob*2);
+    }
+    public void HighlightAttackRange(int cell,float range)
+    {
+        if(cell<0||cell>=tiles.Length)return;
+        int col=cell%7,row=cell/7;
+        for(int i=0;i<tiles.Length;i++)
+        {
+            if(i==cell)continue;
+            float x=i%7-col,y=i/7-row;
+            if(x*x+y*y<=range*range)Tint(tiles[i],i>=28?new Color(.25f,.55f,.64f):new Color(.48f,.4f,.66f));
+        }
+    }
+    public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0,bool invalid=false)
     {
         Actor actor;if(!actors.TryGetValue(key,out actor))return;
         bool visible=selected||promotion>0||healing>0||shielding>0;
         if(visible&&actor.selection==null)
             actor.selection=Shape("Unit selection",ringMesh,glow,new Vector3(0,.035f,0),Vector3.one*.52f,actor.root.transform);
-        Color color=promotion>0?new Color(1f,.82f,.3f):healing>0?new Color(.35f,1f,.6f):shielding>0?new Color(.4f,.8f,1f):new Color(1f,.78f,.3f);
+        Color color=invalid?new Color(1f,.3f,.25f):promotion>0?new Color(1f,.82f,.3f):healing>0?new Color(.35f,1f,.6f):shielding>0?new Color(.4f,.8f,1f):new Color(1f,.78f,.3f);
         if(actor.selection!=null)
         {
             actor.selection.enabled=visible;
@@ -374,6 +394,7 @@ public sealed class TacticalArena : IDisposable
 public sealed class ArenaPointer
 {
     int pressed=-1;
+    public bool HasPress { get { return pressed>=0; } }
     public int Released { get; private set; } = -1;
     public void Reset(){pressed=-1;Released=-1;}
     public void Update(int target,bool down,bool up,bool dragging,bool blocked)
