@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 
 // Online state comes exclusively from the dedicated server; the solo game stays isolated.
-public sealed class MultiLauncher : MonoBehaviour
+public sealed partial class MultiLauncher : MonoBehaviour
 {
     [Serializable] public class UnitDef { public string id, name, sprite, role; public int cost; }
     [Serializable] public class Catalog { public UnitDef[] units; }
@@ -184,6 +184,7 @@ public sealed class MultiLauncher : MonoBehaviour
 
     void OnDestroy()
     {
+        if(arena!=null){arena.Dispose();arena=null;}
         foreach(Texture2D texture in uiTextures) if(texture!=null) Destroy(texture);
     }
 
@@ -479,21 +480,7 @@ public sealed class MultiLauncher : MonoBehaviour
         Pill(new Rect(1323,180,102,36),"HP "+enemy.hp,new Color(.82f,.28f,.25f)); Pill(new Rect(1435,180,118,36),enemy.rating+" RP",gold);
         GUI.Label(new Rect(1325,225,225,25),$"LV {enemy.level}   ·   {(enemy.ready?"준비 완료":"준비 중")}",small);
         GUI.Label(new Rect(310,94,950,30),"상대 진영",eyebrow);
-        if (room.phase == "battle") DrawCombat(room, remaining);
-        else
-        {
-            Panel(new Rect(306,130,962,532),new Color(.025f,.11f,.12f,.72f)); Border(new Rect(306,130,962,532),new Color(.16f,.52f,.53f),1);
-            for (int row = 0; row < 8; row++) for (int col = 0; col < 7; col++)
-            {
-                bool own = row >= 4; int slot = own ? (row - 4) * 7 + col : (3 - row) * 7 + (6 - col);
-                Unit unit = At(own ? me.board : enemy.board, slot);
-                DrawSlot(new Rect(310 + col * 137, 135 + row * 66, 132, 61), unit, own ? "board" : "enemy", slot, own && editable);
-            }
-            Panel(new Rect(310,397,954,3),gold); GUI.Label(new Rect(1110,402,140,22),"내 진영",eyebrow);
-        }
-        int boardCount=me.board==null?0:me.board.Length;
-        GUI.Label(new Rect(310,674,930,30),$"대기석    ·    전장 {boardCount}/{me.level}    ·    유닛 선택 후 목적지를 선택하세요",eyebrow);
-        for (int i = 0; i < 9; i++) DrawSlot(new Rect(310 + i * 106, 710, 101, 70), At(me.bench, i), "bench", i, editable);
+        DrawPerspectiveMatch(room,me,enemy,editable,remaining);
         GUI.Label(new Rect(310,790,500,22),"RECRUIT SHOP",eyebrow);
         for (int i = 0; i < me.shop.Length; i++)
         {
@@ -533,7 +520,7 @@ public sealed class MultiLauncher : MonoBehaviour
 
     void DrawCombat(Room room, float remaining)
     {
-        Panel(new Rect(310,135,954,523), new Color(.08f,.15f,.19f));
+
         if (room.frames == null || room.frames.Length == 0) return;
         float progress = Mathf.Clamp01(1 - remaining / 8f) * (room.frames.Length - 1);
         int frame = Mathf.FloorToInt(progress), next = Mathf.Min(frame + 1, room.frames.Length - 1);
@@ -543,10 +530,9 @@ public sealed class MultiLauncher : MonoBehaviour
             Fighter to = Array.Find(room.frames[next].units, u => u.key == f.key) ?? f;
             float x = Mathf.Lerp(f.x,to.x,progress-frame), y = Mathf.Lerp(f.y,to.y,progress-frame);
             if (room.side == 1) { x = 6-x; y = 7-y; }
-            float px = 325+x*133, py = 139+y*64;
-            Portrait(new Rect(px,py,75,55),f.id);
-            Panel(new Rect(px,py+54,75,5),Color.gray);
-            Panel(new Rect(px,py+54,75*f.hp/f.maxHp,5),f.side==room.side ? Color.green : Color.red);
+            Vector2 head=arena.Project(TacticalArena.CellWorld(x,y)+Vector3.up*1.4f);
+            Panel(new Rect(head.x-30,head.y,60,5),Color.gray);
+            Panel(new Rect(head.x-30,head.y,60*Mathf.Clamp01(f.hp/f.maxHp),5),f.side==room.side ? Color.green : Color.red);
         }
     }
 }

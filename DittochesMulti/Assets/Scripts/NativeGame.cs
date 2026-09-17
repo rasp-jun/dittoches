@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public sealed class NativeGame : MonoBehaviour
+public sealed partial class NativeGame : MonoBehaviour
 {
     [Serializable] private sealed class UnitSave { public string id; public int star; public int[] items; }
     [Serializable] private sealed class LootOrbSave { public float x, y; public int rarity, rewardType, amount; }
@@ -190,19 +190,19 @@ public sealed class NativeGame : MonoBehaviour
         GUI.Box(new Rect(585,780,1210,125),GUIContent.none,card);GUI.Label(new Rect(615,797,1150,30),"전설이는 능력치에 영향을 주지 않습니다.",header);GUI.Label(new Rect(615,837,1150,42),"자유롭게 전장을 이동하고 전리품 구슬을 회수하며, 승리 연출을 함께합니다.",small);
     }
 
-    private void DrawGame(){HandleUnitDrag();HandleHotkeys();DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();if(showCarousel)DrawCarousel();if(showRecipeGuide&&Time.unscaledTime<recipeGuideUntil)DrawRecipeGuide();else if(showRecipeGuide)showRecipeGuide=false;if(traitFocus!=null&&Time.unscaledTime<traitGuideUntil)DrawTraitGuide();else if(traitFocus!=null)traitFocus=null;if(hp<=0&&!battling)DrawGameOver();}
-    private Rect BenchRect(int index){return new Rect(376+index*106,750,98,68);}
+    private void DrawGame(){EnsureArena();HandleUnitDrag();HandleHotkeys();DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();if(showCarousel)DrawCarousel();if(showRecipeGuide&&Time.unscaledTime<recipeGuideUntil)DrawRecipeGuide();else if(showRecipeGuide)showRecipeGuide=false;if(traitFocus!=null&&Time.unscaledTime<traitGuideUntil)DrawTraitGuide();else if(traitFocus!=null)traitFocus=null;if(hp<=0&&!battling)DrawGameOver();}
+    private Rect BenchRect(int index){EnsureArena();return arena.BenchRect(index);}
     private void HandleUnitDrag()
     {
-        Event e=Event.current;if(e==null||battling||showCarousel)return;Vector2 p=e.mousePosition;
-        if(e.type==EventType.MouseDown&&e.button==0){dragSource=-1;for(int i=0;i<board.Length;i++){int row=i/7+4,col=i%7;if(board[i]!=null&&BoardCellRect(row,col).Contains(p)){dragSource=i;dragFromBoard=true;break;}}if(dragSource<0)for(int i=0;i<bench.Length;i++)if(bench[i]!=null&&BenchRect(i).Contains(p)){dragSource=i;dragFromBoard=false;break;}dragStart=p;draggingUnit=false;}
+        Event e=Event.current;if(e==null||battling||showCarousel||hp<=0||scoutedRival>=0)return;Vector2 p=e.mousePosition;
+        if(e.type==EventType.MouseDown&&e.button==0){dragSource=-1;for(int i=0;i<board.Length;i++){int row=i/7+4,col=i%7;if(board[i]!=null&&arena.HitCell(p)==i+28){dragSource=i;dragFromBoard=true;break;}}if(dragSource<0)for(int i=0;i<bench.Length;i++)if(bench[i]!=null&&arena.HitBench(p)==i){dragSource=i;dragFromBoard=false;break;}dragStart=p;draggingUnit=false;}
         if(e.type==EventType.MouseDrag&&dragSource>=0&&Vector2.Distance(dragStart,p)>8f){draggingUnit=true;e.Use();}
         if(e.type==EventType.MouseUp&&e.button==0){if(draggingUnit&&dragSource>=0){DropDraggedUnit(p);e.Use();}dragSource=-1;draggingUnit=false;}
     }
     private void DropDraggedUnit(Vector2 p)
     {
-        for(int i=0;i<board.Length;i++){Rect r=BoardCellRect(i/7+4,i%7);if(!r.Contains(p))continue;if(!dragFromBoard&&board[i]==null&&board.Count(u=>u!=null)>=level)return;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=board[i];board[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
-        for(int i=0;i<bench.Length;i++){if(!BenchRect(i).Contains(p))continue;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=bench[i];bench[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
+        for(int i=0;i<board.Length;i++){if(arena.HitCell(p)!=i+28)continue;if(!dragFromBoard&&board[i]==null&&board.Count(u=>u!=null)>=level)return;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=board[i];board[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
+        for(int i=0;i<bench.Length;i++){if(arena.HitBench(p)!=i)continue;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=bench[i];bench[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
     }
     private void HandleHotkeys()
     {
@@ -259,39 +259,17 @@ public sealed class NativeGame : MonoBehaviour
         if(category=="계열")return key=="용형"?"용형 디지몬 공격력 +"+values[0]:key=="야수형"?"야수형 디지몬 공격 속도 +"+values[0]:key=="곤충형"?"곤충형 디지몬 최대 체력 +"+values[1]:key=="천사형"?"천사형 디지몬 시작 마나 +"+(tier*10):"식물형 디지몬 회복 효과 +"+values[2];
         return key=="탱커"?"탱커 최대 체력 +"+values[1]:key=="전사"?"전사 공격력과 흡혈 +"+values[0]:key=="사수"?"사수 공격 속도 +"+values[0]:key=="마법사"?"마법사 스킬 피해 +"+values[0]:"아군 생존력과 회복 효과 +"+values[0];
     }
-    private Rect BoardCellRect(int row,int col){return new Rect(330+col*132+(row%2)*60,126+row*70,116,66);}
-    private Vector2 BoardPoint(Vector2 boardPos)
-    {
-        int row0=Mathf.Clamp(Mathf.FloorToInt(boardPos.y),0,7),row1=Mathf.Clamp(row0+1,0,7);float t=Mathf.Clamp01(boardPos.y-row0);float offset=Mathf.Lerp((row0%2)*60,(row1%2)*60,t);
-        return new Vector2(332+boardPos.x*132+offset,124+boardPos.y*70);
-    }
+    private Rect BoardCellRect(int row,int col){EnsureArena();return arena.CellRect(row,col);}
+    private Vector2 BoardPoint(Vector2 boardPos){EnsureArena();return arena.Project(TacticalArena.CellWorld(boardPos.x,boardPos.y)+Vector3.up*1.4f)-new Vector2(52,5);}
+
     private void DrawHex(Rect rect,Color color){Color old=GUI.color;GUI.color=color;GUI.DrawTexture(rect,hexTexture);GUI.color=old;}
-    private void DrawBoard()
-    {
-        bool scouting=!battling&&scoutedRival>=0;int visibleCount=scouting?scoutBoard.Count(u=>u!=null):board.Count(u=>u!=null);string boardTitle=battling?battleText:scouting?RivalNames[scoutedRival]+" 테이머의 전장 · 디지몬을 눌러 상세 확인":Time.unscaledTime<resultNoticeUntil?battleText:$"{RoundType()} · 배치 {board.Count(u=>u!=null)} / {level} · 유닛을 눌러 배치";GUI.Label(new Rect(285,96,1070,30),boardTitle,center);
-        Rect arenaRect=new Rect(282,118,1068,594);if(arenaBackground!=null){GUI.DrawTexture(arenaRect,arenaBackground,ScaleMode.ScaleAndCrop,true);DrawRect(arenaRect,new Color(.005f,.025f,.045f,.38f));}else DrawRect(arenaRect,new Color(.025f,.095f,.11f));DrawRect(new Rect(282,411,1068,3),new Color(accent.r,accent.g,accent.b,.32f));
-        GUI.Label(new Rect(292,132,70,24),"ENEMY",small);GUI.Label(new Rect(292,677,90,24),scouting?"SCOUT":"ALLY",small);GUI.Box(new Rect(1185,675,145,27),GUIContent.none,card);GUI.Label(new Rect(1190,677,135,22),scouting?$"전력 {visibleCount}":$"배치 {visibleCount} / {level}",center);
-        for(int row=0;row<8;row++)for(int col=0;col<7;col++){
-            Rect r=BoardCellRect(row,col);Color zone=row<4?new Color(.42f,.10f,.13f,.32f):new Color(.04f,.45f,.40f,.30f);DrawHex(r,new Color(zone.r,zone.g,zone.b,.62f));DrawHex(new Rect(r.x+3,r.y+3,r.width-6,r.height-6),new Color(.025f,.065f,.085f,.70f));
-            if(!battling&&row>=4){int idx=(row-4)*7+col;Unit u=scouting?scoutBoard[idx]:board[idx];if(!scouting&&idx==selectedBoard){float pulse=.58f+Mathf.Sin(Time.unscaledTime*5f)*.18f;DrawHex(new Rect(r.x-3,r.y-3,r.width+6,r.height+6),new Color(accent.r,accent.g,accent.b,pulse));}if(!scouting&&draggingUnit&&r.Contains(Event.current.mousePosition))DrawHex(new Rect(r.x-4,r.y-4,r.width+8,r.height+8),new Color(.25f,1f,.62f,.72f));if(!showCarousel&&GUI.Button(r,GUIContent.none,GUIStyle.none)){if(scouting&&u!=null)inspectedUnit=u;else if(!scouting)ClickBoard(idx);}if(u!=null)DrawUnit(r,u,scouting);}
-        }
-        if(battling){foreach(Fighter f in fighters.Where(x=>!x.dead))DrawFighter(f);DrawCombatPopups();GUI.Box(new Rect(1190,128,130,34),GUIContent.none,card);GUI.Label(new Rect(1195,131,120,27),Mathf.CeilToInt(battleTimeRemaining)+"초",center);float intro=Time.unscaledTime-battleStartedAt;if(intro<1.15f){float alpha=Mathf.Clamp01(Mathf.Min(intro*5f,(1.15f-intro)*4f));DrawRect(new Rect(555,315,520,86),new Color(.008f,.025f,.045f,.82f*alpha));Color old=GUI.color;GUI.color=new Color(1,1,1,alpha);GUI.Label(new Rect(580,325,470,54),"전투 시작",title);GUI.color=old;}}
-        for(int oi=lootOrbs.Count-1;oi>=0;oi--){LootOrb orb=lootOrbs[oi];Rect or=new Rect(orb.pos.x-24,orb.pos.y-24,48,48);DrawRect(or,orb.rarity==2?new Color(1,.75f,.15f):orb.rarity==1?new Color(.25f,.65f,1):new Color(.65f,1,.65f));GUI.Label(or,"◆",center);if(!battling&&!showCarousel&&GUI.Button(or,GUIContent.none,GUIStyle.none))CollectOrb(orb);}
-        UpdateLegendInput();
-        if(Event.current.type==EventType.Repaint)legendPos=Vector2.SmoothDamp(legendPos,legendTarget,ref legendVelocity,battling?.30f:.18f,battling?430f:720f,Time.deltaTime);
-        float legendBob=Mathf.Sin(Time.unscaledTime*3.2f)*2.5f,moveStretch=Mathf.Clamp01(legendVelocity.magnitude/500f);DrawRect(new Rect(legendPos.x-34,legendPos.y+39,68,9),new Color(0,0,0,.30f));
-        Portrait(new Rect(legendPos.x-48-moveStretch*3,legendPos.y-55+legendBob,96+moveStretch*6,96-moveStretch*3),LegendSprites[legend],"⌁");
-        GUI.Label(new Rect(legendPos.x-65,legendPos.y+39,130,20),Legends[legend],center);
-        if(battling){DrawRect(new Rect(420,704,790,8),new Color(.06f,.08f,.10f));DrawRect(new Rect(420,704,790*battleProgress,8),accent);}
-        if(!string.IsNullOrEmpty(lastCombatSummary))GUI.Label(new Rect(300,714,1040,22),lastCombatSummary,center);
-        if(!battling&&Time.unscaledTime<resultNoticeUntil){float remain=resultNoticeUntil-Time.unscaledTime,alpha=Mathf.Clamp01(Mathf.Min((4.5f-remain)*3f,remain*2f));Rect banner=new Rect(525,300,590,105);DrawRect(banner,new Color(.008f,.025f,.045f,.88f*alpha));DrawRect(new Rect(banner.x,banner.y,banner.width,4),new Color(accent.r,accent.g,accent.b,alpha));Color old=GUI.color;GUI.color=new Color(1,1,1,alpha);GUI.Label(new Rect(550,311,540,42),win?"전투 승리":"전투 패배",title);GUI.Label(new Rect(550,354,540,32),lastReward,center);GUI.color=old;}
-    }
+    private void DrawBoard(){DrawPerspectiveBoard();}
     private void ClickBoard(int idx)
     {
         if(selectedItem>=0&&board[idx]!=null){Equip(board[idx]);return;}
         if(selectedBench>=0){Unit temp=board[idx];if(temp==null&&board.Count(u=>u!=null)>=level)return;board[idx]=bench[selectedBench];bench[selectedBench]=temp;selectedBench=-1;selectedBoard=-1;Save();return;}
         if(selectedBoard>=0){if(selectedBoard==idx){selectedBoard=-1;return;}Unit temp=board[idx];board[idx]=board[selectedBoard];board[selectedBoard]=temp;selectedBoard=-1;Save();return;}
-        Rect cell=BoardCellRect(idx/7+4,idx%7);legendTarget=new Vector2(Mathf.Clamp(cell.center.x,345,1290),Mathf.Clamp(cell.center.y,175,665));if(board[idx]!=null){selectedBoard=idx;inspectedUnit=board[idx];}
+        legendTarget=LegacyPoint(TacticalArena.CellWorld(idx%7,idx/7+4));if(board[idx]!=null){selectedBoard=idx;inspectedUnit=board[idx];}
     }
     private void UpdateLegendInput()
     {
@@ -300,28 +278,13 @@ public sealed class NativeGame : MonoBehaviour
     }
     private bool TryMoveLegend(Vector2 point)
     {
-        if(battling||lobby||showCarousel||selectedBoard>=0||selectedBench>=0||selectedItem>=0||draggingUnit||point.x<292||point.x>1340||point.y<120||point.y>712)return false;
-        legendTarget=new Vector2(Mathf.Clamp(point.x,345,1290),Mathf.Clamp(point.y,175,665));return true;
+        if(battling||lobby||showCarousel||hp<=0||scoutedRival>=0||selectedBoard>=0||selectedBench>=0||selectedItem>=0||draggingUnit)return false;
+        EnsureArena();Vector3 world;
+        if(!arena.GroundPoint(point,out world)||Mathf.Abs(world.x)>5||Mathf.Abs(world.z)>4.6f)return false;
+        legendTarget=LegacyPoint(world);return true;
     }
-    private void DrawFighter(Fighter f)
-    {
-        Vector2 screen=BoardPoint(f.renderPos);float x=screen.x,y=screen.y+Mathf.Sin(Time.unscaledTime*3.4f+f.unit.def.id.GetHashCode()*.013f)*3f;
-        Fighter target=SelectTarget(f);Vector2 direction=target==null?Vector2.zero:(BoardPoint(target.renderPos)-screen).normalized;
-        float attackProgress=1-Mathf.Clamp01(f.attackFlash/.35f),attackAmount=f.attackFlash>0?Mathf.Sin(attackProgress*Mathf.PI)*28f:0;
-        x+=direction.x*attackAmount;y+=direction.y*attackAmount;
-        if(f.hitFlash>0)x+=Mathf.Sin(Time.unscaledTime*75f)*7f;
-        float skillPulse=f.skillFlash>0?1f+Mathf.Sin(f.skillFlash*22f)*.12f:1f;
-        Rect r=new Rect(x,y,112,70);
-        Color roleColor=RoleColor(f.unit.def.role);DrawRect(new Rect(x+3,y-2,104,3),new Color(roleColor.r,roleColor.g,roleColor.b,.9f));
-        if(f.skillFlash>0){float radius=10+(1-f.skillFlash/.8f)*48;DrawRect(new Rect(x+56-radius,y+32-radius,radius*2,radius*2),new Color(roleColor.r,roleColor.g,roleColor.b,.18f));}
-        if(f.hitFlash>0)DrawRect(new Rect(x-4,y-4,120,78),new Color(1,.22f,.16f,.75f));
-        if(f.healFlash>0)DrawRect(new Rect(x-3,y-3,118,76),new Color(.25f,1f,.48f,.45f));
-        if(f.shieldFlash>0||f.shield>0)DrawRect(new Rect(x-2,y-2,116,74),new Color(.20f,.65f,1f,f.shieldFlash>0?.55f:.16f));
-        if(f.attackFlash>0&&target!=null&&Meta(f.unit.def.id).range>1){Vector2 targetScreen=BoardPoint(target.renderPos);float tx=targetScreen.x+55,ty=targetScreen.y+30;DrawRect(new Rect(Mathf.Lerp(x+55,tx,.55f)-7,Mathf.Lerp(y+28,ty,.55f)-7,14,14),roleColor);}
-        string combatSprite=f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?"Apocalymon_Attack":UnitSprite(f.unit.def);
-        Texture2D sprite=Tex(combatSprite);float bossScale=f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?1.55f:1f;Rect spriteRect=new Rect(x+3-(skillPulse*bossScale-1)*38,y-12-(skillPulse*bossScale-1)*38,78*skillPulse*bossScale,78*skillPulse*bossScale);if(sprite!=null)GUI.DrawTexture(spriteRect,sprite,ScaleMode.ScaleToFit,true);GUI.Label(new Rect(x+76,y+4,70,20),UnitName(f.unit.def),small);
-        DrawRect(new Rect(x+8,y+55,100,7),new Color(.12f,.08f,.08f));DrawRect(new Rect(x+8,y+55,100*Mathf.Clamp01(f.hp/f.maxHp),7),f.enemy?new Color(.9f,.22f,.18f):new Color(.35f,.9f,.42f));if(f.shield>0)DrawRect(new Rect(x+8,y+53,100*Mathf.Clamp01(f.shield/(f.maxHp*.5f)),2),new Color(.25f,.72f,1f));DrawRect(new Rect(x+8,y+64,100,5),new Color(.04f,.07f,.13f));DrawRect(new Rect(x+8,y+64,100*Mathf.Clamp01(f.mana/f.maxMana),5),new Color(.25f,.65f,1f));if(f.skillFlash>0)GUI.Label(new Rect(x-20,y-25,155,22),SkillName(f.unit.def),small);if(!f.enemy&&GUI.Button(r,GUIContent.none,GUIStyle.none)){if(selectedItem>=0)Equip(f.unit);else inspectedUnit=f.unit;}
-    }
+
+    private void DrawFighter(Fighter f){DrawPerspectiveFighter(f);}
     private void DrawCombatPopups()
     {
         foreach(CombatPopup popup in combatPopups){float progress=1-Mathf.Clamp01(popup.life/.72f),alpha=Mathf.Clamp01(popup.life*3f);Color old=GUI.color;GUI.color=new Color(popup.color.r,popup.color.g,popup.color.b,alpha);GUI.Label(new Rect(popup.pos.x-35,popup.pos.y-25-progress*34,90,26),popup.text,center);GUI.color=old;}
@@ -341,11 +304,7 @@ public sealed class NativeGame : MonoBehaviour
         scoutedRival=Mathf.Clamp(rivalIndex,0,RivalNames.Length-1);inspectedUnit=null;selectedBoard=selectedBench=selectedItem=-1;Array.Clear(scoutBoard,0,scoutBoard.Length);int stage=round<=3?1:2+(round-4)/7,count=Mathf.Clamp(stage+2,3,7),maxCost=Mathf.Clamp(stage,1,5);UnitDef[] choices=Roster.Where(d=>d.cost<=maxCost).ToArray();int[] slots={3,9,11,15,19,22,26};
         for(int i=0;i<count;i++){UnitDef definition=choices[(scoutedRival*7+round*3+i*5)%choices.Length];Unit unit=new Unit(definition);unit.star=stage>=5&&i<2?2:stage>=3&&i==0?2:1;scoutBoard[slots[i]]=unit;}
     }
-    private void DrawBench()
-    {
-        DrawRect(new Rect(282,738,1068,92),new Color(.018f,.043f,.065f,.96f));GUI.Label(new Rect(294,744,100,22),"BENCH",small);GUI.Label(new Rect(1195,744,140,22),$"{bench.Count(u=>u!=null)} / 9 보관",small);
-        for(int i=0;i<9;i++){Rect r=BenchRect(i);bool hovered=r.Contains(Event.current.mousePosition);if(Event.current.type==EventType.Repaint)benchHover[i]=Mathf.MoveTowards(benchHover[i],hovered?1f:0f,Time.unscaledDeltaTime*8f);float lift=benchHover[i]*4f;GUI.Box(r,GUIContent.none,i==selectedBench?selectedStyle:card);if(benchHover[i]>0)DrawRect(new Rect(r.x,r.y,r.width,3),new Color(draggingUnit?.25f:accent.r,draggingUnit?1f:accent.g,draggingUnit?.62f:accent.b,benchHover[i]));if(bench[i]!=null){Portrait(new Rect(r.x+4,r.y-2-lift,55+lift,52+lift),UnitSprite(bench[i].def));GUI.Label(new Rect(r.x+48,r.y+5,47,23),UnitName(bench[i].def),small);GUI.Label(new Rect(r.x+48,r.y+32,47,20),new string('★',bench[i].star),small);}else GUI.Label(new Rect(r.x,r.y+22,r.width,22),(i+1).ToString(),center);if(!showCarousel&&GUI.Button(r,GUIContent.none,GUIStyle.none))ClickBench(i);}
-    }
+    private void DrawBench(){DrawPerspectiveBench();}
     private void DrawSelectionGhost()
     {
         Unit held=draggingUnit?(dragFromBoard?board[dragSource]:bench[dragSource]):selectedBench>=0?bench[selectedBench]:selectedBoard>=0?board[selectedBoard]:null;if(held==null&&selectedItem<0)return;Vector2 p=Event.current.mousePosition;Rect hint=new Rect(Mathf.Clamp(p.x+22,290,1260),Mathf.Clamp(p.y-76,115,765),150,68);Color old=GUI.color;GUI.color=new Color(1,1,1,draggingUnit?.88f:.76f);GUI.Box(hint,GUIContent.none,selectedStyle);

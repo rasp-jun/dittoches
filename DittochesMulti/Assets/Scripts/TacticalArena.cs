@@ -1,0 +1,276 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>Shared, procedural perspective arena. All interaction uses the same camera as rendering.</summary>
+public sealed class TacticalArena : IDisposable
+{
+    public static readonly Rect SoloViewport = new Rect(282, 118, 1068, 710);
+    public static readonly Rect MultiViewport = new Rect(300, 125, 980, 660);
+    const int Layer = 30;
+    static int nextArenaId;
+    readonly GameObject root;
+    readonly Camera camera;
+    readonly RenderTexture target;
+    readonly List<UnityEngine.Object> resources = new List<UnityEngine.Object>();
+    readonly Dictionary<object, Actor> actors = new Dictionary<object, Actor>();
+    readonly Dictionary<Texture, Material> portraits = new Dictionary<Texture, Material>();
+    readonly List<object> expired = new List<object>();
+    readonly MeshRenderer[] tiles = new MeshRenderer[56], seats = new MeshRenderer[9];
+    readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
+    readonly Material stone, trim, grass, dark, glow, shadow;
+    readonly Mesh hex, cube, quad, disc;
+    Rect viewport;
+    int generation;
+    bool disposed;
+    sealed class Actor { public GameObject root; public MeshRenderer portrait; public int generation; }
+    public RenderTexture Texture { get { return target; } }
+    public int ActorCount { get { return actors.Count; } }
+
+    public TacticalArena(Rect viewport)
+    {
+        this.viewport = viewport;
+        root = new GameObject("Tactical Arena (runtime)") { hideFlags = HideFlags.HideAndDontSave };
+        // Isolate from scene lights/cameras without changing global render settings.
+        root.transform.position = new Vector3(200f * nextArenaId++, -1000, 0);
+        hex = Prism(6, 30); cube = Box(); quad = Billboard(); disc = Prism(32, 0);
+        stone = Material(new Color(.28f,.37f,.36f));
+        trim = Material(new Color(.57f,.43f,.22f));
+        grass = Material(new Color(.16f,.27f,.22f));
+        dark = Material(new Color(.055f,.10f,.13f));
+        glow = Material(new Color(.20f,.78f,.80f), true);
+        shadow = Material(new Color(.04f,.065f,.055f), true);
+        var cameraObject = new GameObject("Arena Camera") { hideFlags = HideFlags.HideAndDontSave };
+        cameraObject.transform.SetParent(root.transform, false);
+        camera = cameraObject.AddComponent<Camera>();
+        camera.enabled = false;
+        camera.transform.localPosition = new Vector3(0, 12.8f, -14.2f);
+        camera.transform.LookAt(root.transform.TransformPoint(new Vector3(0, 0, -.3f)));
+        camera.fieldOfView = 30;
+        camera.nearClipPlane = .1f; camera.farClipPlane = 65;
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = new Color(.028f,.055f,.075f);
+        camera.cullingMask = 1 << Layer;
+        camera.allowHDR = false; camera.allowMSAA = true;
+        target = new RenderTexture(1440, Mathf.RoundToInt(1440 * viewport.height / viewport.width), 24, RenderTextureFormat.ARGB32);
+        target.name = "Tactical arena view"; target.antiAliasing = 2; target.Create();
+        camera.targetTexture = target; camera.aspect = viewport.width / viewport.height;
+        BuildEnvironment();
+    }
+
+    Material Material(Color color, bool unlit = false, Texture texture = null)
+    {
+        Shader shader = Resources.Load<Shader>("ArenaSurface");
+        if (shader == null) throw new InvalidOperationException("Missing Resources/ArenaSurface.shader");
+        var material = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        material.color = color; material.SetFloat("_Unlit", unlit ? 1 : 0);
+        material.mainTexture = texture != null ? texture : Texture2D.whiteTexture;
+        resources.Add(material); return material;
+    }
+
+    MeshRenderer Shape(string name, Mesh mesh, Material material, Vector3 position, Vector3 scale, Transform parent = null)
+    {
+        var node = new GameObject(name) { layer = Layer, hideFlags = HideFlags.HideAndDontSave };
+        node.transform.SetParent(parent != null ? parent : root.transform, false);
+        node.transform.localPosition = position; node.transform.localScale = scale;
+        node.AddComponent<MeshFilter>().sharedMesh = mesh;
+        var renderer = node.AddComponent<MeshRenderer>(); renderer.sharedMaterial = material;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        return renderer;
+    }
+
+    void BuildEnvironment()
+    {
+        Shape("Floating foundation", cube, dark, new Vector3(0,-.65f,0), new Vector3(11.8f,1.15f,12.3f));
+        Shape("Gold foundation inlay", cube, trim, new Vector3(0,-.12f,0), new Vector3(11.9f,.14f,12.4f));
+        Shape("Arena stone terrace", cube, stone, new Vector3(0,-.015f,0), new Vector3(11.65f,.18f,12.15f));
+        Shape("Battlefield turf", cube, grass, new Vector3(0,.09f,.2f), new Vector3(10.3f,.09f,9.5f));
+        for (int row=0; row<8; row++) for (int col=0; col<7; col++)
+        {
+            Vector3 point = CellWorld(col,row);
+            tiles[row*7+col] = Shape("Hex " + row + ":" + col, hex, stone, point, new Vector3(.735f,.09f,.735f));
+            Shape("Inset " + row + ":" + col, hex, grass, point+Vector3.up*.051f, new Vector3(.693f,.014f,.693f));
+        }
+        for (int side=-1; side<=1; side+=2)
+        {
+            Shape("Raised stone rail",cube,stone,new Vector3(side*5.5f,.27f,.1f),new Vector3(.40f,.55f,10.9f));
+            Shape("Rail gold edge",cube,trim,new Vector3(side*5.5f,.56f,.1f),new Vector3(.43f,.06f,10.9f));
+            for (int i=0;i<4;i++)
+            {
+                float z=-4.25f+i*2.9f;
+                Shape("Pillar",cube,dark,new Vector3(side*5.5f,.69f,z),new Vector3(.70f,1.25f,.70f));
+                Shape("Pillar cap",cube,trim,new Vector3(side*5.5f,1.34f,z),new Vector3(.80f,.12f,.80f));
+                var crystal=Shape("Beacon crystal",hex,glow,new Vector3(side*5.5f,1.68f,z),new Vector3(.20f,.56f,.20f));
+                crystal.transform.localRotation=Quaternion.Euler(0,30,15);
+            }
+            for(int i=0;i<5;i++)
+            {
+                var rock=Shape("Floating outcrop",cube,dark,new Vector3(side*(6.4f+i*.28f),-1.5f-i*.32f,4.8f-i*2.6f),new Vector3(.65f,.7f,.85f));
+                rock.transform.localRotation=Quaternion.Euler(12*i,25*i,15);
+            }
+        }
+        Shape("Enemy gate",cube,dark,new Vector3(0,.6f,5.65f),new Vector3(4.8f,1.1f,.45f));
+        Shape("Gate crown",cube,trim,new Vector3(0,1.2f,5.65f),new Vector3(5.1f,.13f,.55f));
+        Shape("Gate light",cube,glow,new Vector3(0,.70f,5.39f),new Vector3(3.9f,.07f,.035f));
+        Shape("Front reserve terrace",cube,dark,new Vector3(0,.12f,-5.28f),new Vector3(10.6f,.28f,1.25f));
+        for(int i=0;i<9;i++)
+        {
+            seats[i]=Shape("Reserve pedestal "+i,hex,trim,BenchWorld(i),new Vector3(.54f,.14f,.54f));
+            Shape("Reserve inset "+i,hex,stone,BenchWorld(i)+Vector3.up*.08f,new Vector3(.48f,.025f,.48f));
+        }
+        Shape("Center crest",disc,trim,new Vector3(0,.15f,0),new Vector3(.34f,.015f,.34f));
+    }
+
+    public static Vector3 CellWorld(float col, float row)
+    {
+        int r0=Mathf.Clamp(Mathf.FloorToInt(row),0,7),r1=Mathf.Min(7,r0+1);
+        float offset=Mathf.Lerp((r0%2)*.65f,(r1%2)*.65f,Mathf.Clamp01(row-r0));
+        return new Vector3((col-3)*1.30f+offset-.325f,.19f,(3.5f-row)*1.125f);
+    }
+    public static Vector3 BenchWorld(int index) { return new Vector3((index-4)*1.13f,.36f,-5.28f); }
+    public Vector2 Project(Vector3 point)
+    {
+        Vector3 p=camera.WorldToViewportPoint(root.transform.TransformPoint(point));
+        return new Vector2(viewport.x+p.x*viewport.width,viewport.y+(1-p.y)*viewport.height);
+    }
+    public bool GroundPoint(Vector2 guiPoint, out Vector3 point)
+    {
+        point=Vector3.zero;if(!viewport.Contains(guiPoint))return false;
+        Ray ray=camera.ViewportPointToRay(new Vector3((guiPoint.x-viewport.x)/viewport.width,1-(guiPoint.y-viewport.y)/viewport.height,0));
+        var plane=new Plane(Vector3.up,root.transform.TransformPoint(new Vector3(0,.19f,0)));
+        float distance;if(!plane.Raycast(ray,out distance))return false;
+        point=root.transform.InverseTransformPoint(ray.GetPoint(distance));return true;
+    }
+    public int HitCell(Vector2 point)
+    {
+        Vector3 world;if(!GroundPoint(point,out world))return -1;
+        return HitWorld(world);
+    }
+    public static int HitWorld(Vector3 world)
+    {
+        for(int row=0;row<8;row++)for(int col=0;col<7;col++)
+        {
+            Vector3 delta=world-CellWorld(col,row);
+            float x=Mathf.Abs(delta.x),z=Mathf.Abs(delta.z);
+            if(x<=.6365f&&z<=.735f&&z+x*.5773503f<=.735f)return row*7+col;
+        }
+        return -1;
+    }
+    public int HitBench(Vector2 point)
+    {
+        if(!viewport.Contains(point))return -1;
+        Ray ray=camera.ViewportPointToRay(new Vector3((point.x-viewport.x)/viewport.width,1-(point.y-viewport.y)/viewport.height,0));
+        var plane=new Plane(Vector3.up,root.transform.TransformPoint(new Vector3(0,.36f,0)));
+        float distance;if(!plane.Raycast(ray,out distance))return -1;
+        Vector3 world=root.transform.InverseTransformPoint(ray.GetPoint(distance));
+        for(int i=0;i<9;i++)
+        {
+            Vector3 delta=world-BenchWorld(i);float x=Mathf.Abs(delta.x),z=Mathf.Abs(delta.z);
+            if(x<=.4677f&&z<=.54f&&z+x*.5773503f<=.54f)return i;
+        }
+        return -1;
+    }
+    public Rect CellRect(int row,int col) { return Bounds(CellWorld(col,row),.67f,.57f); }
+    public Rect BenchRect(int index) { return Bounds(BenchWorld(index),.54f,.46f); }
+    Rect Bounds(Vector3 center,float width,float depth)
+    {
+        Vector2 min=new Vector2(float.MaxValue,float.MaxValue),max=new Vector2(float.MinValue,float.MinValue);
+        for(int x=-1;x<=1;x+=2)for(int z=-1;z<=1;z+=2)
+        {
+            Vector2 p=Project(center+new Vector3(x*width,0,z*depth));min=Vector2.Min(min,p);max=Vector2.Max(max,p);
+        }
+        return Rect.MinMaxRect(min.x,min.y,max.x,max.y);
+    }
+
+    public Rect LabelRect(Vector3 point,float yOffset=0)
+    {
+        Vector2 p=Project(point);return new Rect(p.x-48,p.y+yOffset,96,20);
+    }
+    void Tint(MeshRenderer renderer,Color color)
+    {
+        properties.Clear();properties.SetColor("_Color",color);renderer.SetPropertyBlock(properties);
+    }
+    public void BeginFrame(int selectedCell,int hoveredCell,int selectedBench,bool placing)
+    {
+        generation++;
+        for(int i=0;i<tiles.Length;i++)
+        {
+            bool own=i>=28;
+            Color color=own?new Color(.33f,.46f,.39f):new Color(.42f,.34f,.30f);
+            if(placing&&own)color=new Color(.28f,.64f,.58f);
+            if(i==selectedCell)color=new Color(1,.76f,.24f);
+            if(i==hoveredCell&&own)color=new Color(.45f,1,.86f);
+            Tint(tiles[i],color);
+        }
+        for(int i=0;i<seats.Length;i++)Tint(seats[i],i==selectedBench?new Color(1,.8f,.3f):new Color(.57f,.43f,.22f));
+    }
+    public void SetActor(object key,Vector3 point,Texture texture,Color team,float scale=1,float flash=0)
+    {
+        Actor actor;
+        if(!actors.TryGetValue(key,out actor))
+        {
+            var node=new GameObject("Arena piece"){layer=Layer,hideFlags=HideFlags.HideAndDontSave};
+            node.transform.SetParent(root.transform,false);
+            actor=new Actor{root=node};
+            Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
+            var ring=Shape("Team base",disc,glow,new Vector3(0,.025f,0),new Vector3(.30f,.012f,.24f),node.transform);
+            Tint(ring,team);
+            actor.portrait=Shape("Character",quad,stone,new Vector3(0,.67f,0),Vector3.one,node.transform);
+            actor.portrait.transform.rotation=camera.transform.rotation;
+            actor.portrait.transform.localPosition=camera.transform.up*.65f;
+            actors.Add(key,actor);
+        }
+        actor.generation=generation;
+        actor.root.transform.localPosition=point;
+        actor.root.transform.localScale=Vector3.one*scale;
+        Material material;
+        if(texture!=null)
+        {
+            if(!portraits.TryGetValue(texture,out material)){material=Material(Color.white,true,texture);portraits.Add(texture,material);}
+            actor.portrait.sharedMaterial=material;
+        }
+        else actor.portrait.sharedMaterial=glow;
+        Tint(actor.portrait,texture==null?team:Color.Lerp(Color.white,new Color(1,.4f,.3f),Mathf.Clamp01(flash)));
+    }
+    public void Render()
+    {
+        expired.Clear();
+        foreach(var pair in actors)if(pair.Value.generation!=generation)expired.Add(pair.Key);
+        foreach(object key in expired){Release(actors[key].root);actors.Remove(key);}
+        camera.Render();
+    }
+    Mesh Own(Mesh mesh){mesh.RecalculateNormals();mesh.RecalculateBounds();resources.Add(mesh);return mesh;}
+    Mesh Prism(int sides,float angle)
+    {
+        var vertices=new List<Vector3>();var triangles=new List<int>();
+        for(int i=0;i<sides;i++)
+        {
+            float a=(angle+i*360f/sides)*Mathf.Deg2Rad,b=(angle+(i+1)*360f/sides)*Mathf.Deg2Rad;
+            Vector3 p=new Vector3(Mathf.Cos(a),.5f,Mathf.Sin(a)),q=new Vector3(Mathf.Cos(b),.5f,Mathf.Sin(b));
+            int n=vertices.Count;vertices.Add(Vector3.up*.5f);vertices.Add(q);vertices.Add(p);
+            triangles.Add(n);triangles.Add(n+1);triangles.Add(n+2);
+            n=vertices.Count;vertices.Add(p);vertices.Add(q);vertices.Add(q-Vector3.up);vertices.Add(p-Vector3.up);
+            triangles.Add(n);triangles.Add(n+1);triangles.Add(n+2);triangles.Add(n);triangles.Add(n+2);triangles.Add(n+3);
+        }
+        var mesh=new Mesh{name="Arena prism"};mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);return Own(mesh);
+    }
+    Mesh Box()
+    {
+        Vector3[] corners={new Vector3(-.5f,-.5f,-.5f),new Vector3(.5f,-.5f,-.5f),new Vector3(.5f,.5f,-.5f),new Vector3(-.5f,.5f,-.5f),new Vector3(-.5f,-.5f,.5f),new Vector3(.5f,-.5f,.5f),new Vector3(.5f,.5f,.5f),new Vector3(-.5f,.5f,.5f)};
+        int[] faces={0,3,2,1,5,6,7,4,4,7,3,0,1,2,6,5,3,7,6,2,4,0,1,5};
+        var vertices=new Vector3[24];var triangles=new int[36];
+        for(int f=0;f<6;f++){for(int i=0;i<4;i++)vertices[f*4+i]=corners[faces[f*4+i]];int n=f*4,t=f*6;triangles[t]=n;triangles[t+1]=n+1;triangles[t+2]=n+2;triangles[t+3]=n;triangles[t+4]=n+2;triangles[t+5]=n+3;}
+        return Own(new Mesh{name="Arena block",vertices=vertices,triangles=triangles});
+    }
+    Mesh Billboard()
+    {
+        return Own(new Mesh{name="Arena billboard",vertices=new[]{new Vector3(-.65f,-.65f,0),new Vector3(.65f,-.65f,0),new Vector3(.65f,.65f,0),new Vector3(-.65f,.65f,0)},uv=new[]{new Vector2(0,0),new Vector2(1,0),new Vector2(1,1),new Vector2(0,1)},triangles=new[]{0,2,1,0,3,2}});
+    }
+    static void Release(UnityEngine.Object value){if(value==null)return;GameObject node=value as GameObject;if(node!=null)node.SetActive(false);if(Application.isPlaying)UnityEngine.Object.Destroy(value);else UnityEngine.Object.DestroyImmediate(value);}
+    public void Dispose()
+    {
+        if(disposed)return;disposed=true;camera.targetTexture=null;target.Release();Release(target);Release(root);
+        foreach(var resource in resources)Release(resource);actors.Clear();portraits.Clear();
+    }
+}
