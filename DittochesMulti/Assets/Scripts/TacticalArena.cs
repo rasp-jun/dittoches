@@ -211,6 +211,12 @@ public sealed class TacticalArena : IDisposable
         }
         for(int i=0;i<seats.Length;i++)Tint(seats[i],i==selectedBench?new Color(1,.8f,.3f):new Color(.57f,.43f,.22f));
     }
+    public void HighlightDestination(int cell,int seat,bool valid)
+    {
+        Color color=valid?new Color(.35f,1f,.75f):new Color(1f,.25f,.18f);
+        if(cell>=0&&cell<tiles.Length)Tint(tiles[cell],color);
+        if(seat>=0&&seat<seats.Length)Tint(seats[seat],color);
+    }
     public void SetActor(object key,Vector3 point,Texture texture,Color team,float scale=1,float flash=0)
     {
         Actor actor;
@@ -229,6 +235,7 @@ public sealed class TacticalArena : IDisposable
             actors.Add(key,actor);
         }
         actor.generation=generation;
+        Tint(actor.teamBase,team);
         actor.root.transform.localPosition=point;
         actor.root.transform.localScale=Vector3.one*scale;
         Material material;

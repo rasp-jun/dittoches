@@ -10,11 +10,16 @@ public sealed partial class MultiLauncher
         bool combat=room.phase=="battle";
         Event e=Event.current;
         int hit=arena.HitCell(e.mousePosition),seat=arena.HitBench(e.mousePosition);
+        if(GUI.enabled&&((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)
+            ||(e.type==EventType.MouseDown&&e.button==1&&TacticalArena.MultiViewport.Contains(e.mousePosition))))
+        {selectedSlot=-1;selectedArea="";arenaPointer.Reset();e.Use();}
         arenaPointer.Update(seat>=0?56+seat:hit,e.type==EventType.MouseDown&&e.button==0,
             e.type==EventType.MouseUp&&e.button==0,false,!editable||busy||!GUI.enabled);
         if(Event.current.type==EventType.Repaint)
         {
             arena.BeginFrame(selectedArea=="board"&&selectedSlot>=0?selectedSlot+28:-1,editable?hit:-1,selectedArea=="bench"?selectedSlot:-1,editable&&selectedSlot>=0);
+            if(editable&&GUI.enabled&&!busy&&selectedSlot>=0)
+                arena.HighlightDestination(hit,seat,seat>=0||(hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<me.level)));
             if(combat&&room.frames!=null&&room.frames.Length>0)
             {
                 float progress=Mathf.Clamp01(1-remaining/8f)*(room.frames.Length-1);
@@ -41,6 +46,7 @@ public sealed partial class MultiLauncher
             arena.Render();
         }
         GUI.DrawTexture(TacticalArena.MultiViewport,arena.Texture,ScaleMode.StretchToFill,false);
+        if(!combat)GUI.Label(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":"유닛 선택 → 이동할 칸 선택  ·  ESC / 우클릭 취소",centered);
         if(combat)DrawCombat(room,remaining);
         else for(int row=0;row<8;row++)for(int col=0;col<7;col++)
         {

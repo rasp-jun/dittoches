@@ -200,7 +200,7 @@ public sealed partial class NativeGame : MonoBehaviour
         HandleArenaPointer();HandleUnitDrag();HandleHotkeys();
         bool previous=GUI.enabled;
         GUI.enabled=previous&&!modal;
-        DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();
+        DrawTop();DrawLeft();DrawBoard();DrawRight();DrawBench();DrawShop();DrawSelectionGhost();DrawReportToggle();
         GUI.enabled=previous;
         if(showCarousel)DrawCarousel();
         if(!modal&&!showCarousel)
@@ -213,20 +213,54 @@ public sealed partial class NativeGame : MonoBehaviour
     private Rect BenchRect(int index){EnsureArena();return arena.BenchRect(index);}
     private void HandleUnitDrag()
     {
-        Event e=Event.current;if(e==null||battling||showCarousel||hp<=0||scoutedRival>=0)return;Vector2 p=e.mousePosition;
-        if(e.type==EventType.MouseDown&&e.button==0){dragSource=-1;for(int i=0;i<board.Length;i++){int row=i/7+4,col=i%7;if(board[i]!=null&&arena.HitCell(p)==i+28){dragSource=i;dragFromBoard=true;break;}}if(dragSource<0)for(int i=0;i<bench.Length;i++)if(bench[i]!=null&&arena.HitBench(p)==i){dragSource=i;dragFromBoard=false;break;}dragStart=p;draggingUnit=false;if(dragSource>=0)e.Use();}
-        if(e.type==EventType.MouseDrag&&dragSource>=0&&Vector2.Distance(dragStart,p)>8f){draggingUnit=true;e.Use();}
-        if(e.type==EventType.MouseUp&&e.button==0){if(draggingUnit&&dragSource>=0){DropDraggedUnit(p);e.Use();}dragSource=-1;draggingUnit=false;}
+        Event e=Event.current;
+        if(e==null||battling||showCarousel||hp<=0||scoutedRival>=0)return;
+        Vector2 p=e.mousePosition;
+        if(e.type==EventType.MouseDown&&e.button==1&&TacticalArena.SoloViewport.Contains(p)&&!PointerOverGuide(p))
+        {
+            selectedBoard=selectedBench=selectedItem=-1;dragSource=-1;draggingUnit=false;
+            arenaPointer.Reset();e.Use();return;
+        }
+        if(e.type==EventType.MouseDown&&e.button==0&&!PointerOverGuide(p))
+        {
+            dragSource=-1;
+            int cell=arena.HitCell(p),seat=arena.HitBench(p);
+            if(seat>=0&&bench[seat]!=null){dragSource=seat;dragFromBoard=false;}
+            else if(cell>=28&&board[cell-28]!=null){dragSource=cell-28;dragFromBoard=true;}
+            dragStart=p;draggingUnit=false;
+            if(dragSource>=0)e.Use();
+        }
+        if(e.type==EventType.MouseDrag&&dragSource>=0&&Vector2.Distance(dragStart,p)>8f)
+        {draggingUnit=true;selectedItem=-1;e.Use();}
+        if(e.type==EventType.MouseUp&&e.button==0)
+        {
+            if(draggingUnit&&dragSource>=0){if(!PointerOverGuide(p))DropDraggedUnit(p);e.Use();}
+            dragSource=-1;draggingUnit=false;
+        }
     }
     private void DropDraggedUnit(Vector2 p)
     {
-        for(int i=0;i<board.Length;i++){if(arena.HitCell(p)!=i+28)continue;if(!dragFromBoard&&board[i]==null&&board.Count(u=>u!=null)>=level)return;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=board[i];board[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
-        for(int i=0;i<bench.Length;i++){if(arena.HitBench(p)!=i)continue;Unit moving=dragFromBoard?board[dragSource]:bench[dragSource],other=bench[i];bench[i]=moving;if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();return;}
+        Unit moving=dragFromBoard?board[dragSource]:bench[dragSource];
+        if(moving==null)return;
+        int seat=arena.HitBench(p),cell=arena.HitCell(p);
+        if(seat>=0)
+        {
+            Unit other=bench[seat];bench[seat]=moving;
+            if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;
+        }
+        else if(cell>=28)
+        {
+            if(!ValidBoardDestination(cell)){NotifyPlacement("배치 인원이 가득 찼습니다 · 유닛과 교환할 수 있습니다");return;}
+            int slot=cell-28;Unit other=board[slot];board[slot]=moving;
+            if(dragFromBoard)board[dragSource]=other;else bench[dragSource]=other;
+        }
+        else {NotifyPlacement("배치를 취소했습니다");return;}
+        selectedBoard=selectedBench=-1;inspectedUnit=moving;Save();
     }
     private void HandleHotkeys()
     {
         Event e=Event.current;if(e==null||e.type!=EventType.KeyDown||showCarousel||hp<=0)return;
-        if(e.keyCode==KeyCode.D&&gold>=2){gold-=2;RollShop();e.Use();return;}if(e.keyCode==KeyCode.F&&gold>=4&&level<9){gold-=4;AddXp(4);Save();e.Use();return;}if(e.keyCode==KeyCode.Space&&!battling&&(RoundType()=="초밥집"||board.Any(u=>u!=null))){StartRoundAction();e.Use();return;}if(e.keyCode==KeyCode.Escape){selectedBench=selectedBoard=selectedItem=-1;inspectedUnit=null;showRecipeGuide=false;traitFocus=null;e.Use();}
+        if(e.keyCode==KeyCode.D&&gold>=2){gold-=2;RollShop();e.Use();return;}if(e.keyCode==KeyCode.F&&gold>=4&&level<9){gold-=4;AddXp(4);Save();e.Use();return;}if(e.keyCode==KeyCode.Space&&!battling&&(RoundType()=="초밥집"||board.Any(u=>u!=null))){StartRoundAction();e.Use();return;}if(e.keyCode==KeyCode.Escape){selectedBench=selectedBoard=selectedItem=-1;dragSource=-1;draggingUnit=false;arenaPointer.Reset();inspectedUnit=null;showRecipeGuide=false;traitFocus=null;e.Use();}
     }
     private void StartRoundAction(){if(battling||showCarousel||hp<=0)return;if(RoundType()=="초밥집")OpenCarousel();else if(board.Any(u=>u!=null))StartCoroutine(Battle());}
     private void DrawGameOver()
@@ -239,7 +273,7 @@ public sealed partial class NativeGame : MonoBehaviour
         DrawRect(new Rect(0,0,1920,92),new Color(.012f,.027f,.052f,.98f));DrawRect(new Rect(0,88,1920,4),new Color(accent.r,accent.g,accent.b,.7f));
         float sweep=Mathf.Repeat(Time.unscaledTime*145f,2060f)-70f;DrawRect(new Rect(sweep,88,70,4),new Color(1f,.92f,.58f,.82f));
         GUI.Label(new Rect(28,12,360,26),"FILE ISLAND",small);GUI.Label(new Rect(28,34,360,42),"DIGITAL AUTO ARENA",header);
-        GUI.Box(new Rect(785,8,350,76),GUIContent.none,selectedStyle);GUI.Label(new Rect(815,12,290,24),RoundType().ToUpperInvariant(),center);GUI.Label(new Rect(815,34,290,42),RoundLabel(),title);
+        DrawRoundStatus();
         Stat(430,"HP",hp.ToString());Stat(600,"GOLD",gold+" G");Stat(1190,"LEVEL",level==9?"LV.9 MAX":$"LV.{level}");Stat(1360,"XP",level==9?"MAX":$"{xp} / {NeedXp()}");
         MiniBar(new Rect(430,77,130,4),Mathf.Clamp01(hp/100f),new Color(.32f,.92f,.48f));MiniBar(new Rect(1360,77,150,4),level==9?1f:Mathf.Clamp01((float)xp/NeedXp()),new Color(.30f,.66f,1f));
         if(Btn(new Rect(1640,20,110,48),"로비",!battling))lobby=true;if(Btn(new Rect(1765,20,120,48),"종료"))Application.Quit();
@@ -298,7 +332,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private bool TryMoveLegend(Vector2 point)
     {
         if(battling||lobby||showCarousel||hp<=0||scoutedRival>=0||selectedBoard>=0||selectedBench>=0||selectedItem>=0||draggingUnit)return false;
-        EnsureArena();Vector3 world;
+        if(PointerOverGuide(point))return false;EnsureArena();Vector3 world;
         if(!arena.GroundPoint(point,out world)||Mathf.Abs(world.x)>5||Mathf.Abs(world.z)>4.6f)return false;
         legendTarget=LegacyPoint(world);return true;
     }
@@ -313,6 +347,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private void DrawUnit(Rect r,Unit u,bool enemy){Color role=RoleColor(u.def.role);DrawRect(new Rect(r.x+22,r.y+57,72,3),new Color(role.r,role.g,role.b,.85f));Texture2D t=Tex(UnitSprite(u.def));if(t)GUI.DrawTexture(new Rect(r.x+22,r.y-16,72,72),t,ScaleMode.ScaleToFit,true);GUI.Label(new Rect(r.x+4,r.y+43,r.width-8,18),new string('★',u.star)+"  "+UnitName(u.def),center);if(u.items.Count>0)GUI.Label(new Rect(r.x+72,r.y+3,40,38),string.Concat(u.items.Select(i=>ItemIcons[i])),small);}
     private void DrawRight()
     {
+        if(DrawCombatReportPanel())return;
         DrawRect(new Rect(1368,108,532,620),new Color(panel.r,panel.g,panel.b,.96f));DrawRect(new Rect(1896,108,4,620),accent);if(inspectedUnit!=null)DrawUnitDetail();else{GUI.Label(new Rect(1390,125,480,30),"PLAYER SCOUT",header);string[] names=(new[]{"나의 테이머"}).Concat(RivalNames).ToArray();
         for(int i=0;i<8;i++){float y=170+i*55;Rect row=new Rect(1380,y,500,46);bool fighting=battling&&i>0&&names[i]==currentOpponent,viewing=!battling&&(i==0?scoutedRival<0:scoutedRival==i-1);int playerHp=i==0?hp:Mathf.Max(0,100-round*i);GUI.Box(row,GUIContent.none,viewing||fighting?selectedStyle:card);if(fighting)DrawRect(new Rect(1380,y,5,46),new Color(1f,.38f,.20f,.75f+Mathf.Sin(Time.unscaledTime*6f)*.2f));GUI.Label(new Rect(1395,y+7,35,25),(i+1).ToString(),label);GUI.Label(new Rect(1440,y+7,250,25),(fighting?"⚔ ":viewing?"◆ ":"")+names[i],label);GUI.Label(new Rect(1760,y+7,100,24),playerHp+" HP",small);MiniBar(new Rect(1440,y+35,420,4),playerHp/100f,i==0?new Color(.32f,.92f,.48f):new Color(.90f,.35f,.28f));if(!battling&&!showCarousel&&GUI.Button(row,GUIContent.none,GUIStyle.none)){if(i==0)scoutedRival=-1;else ShowRivalBoard(i-1);}}
         GUI.Label(new Rect(1390,635,480,48),battling?"상대 전력을 분석 중입니다.":scoutedRival>=0?"나의 테이머를 눌러 내 전장으로 복귀":"테이머를 눌러 배치 전장 관전",small);}
@@ -326,8 +361,27 @@ public sealed partial class NativeGame : MonoBehaviour
     private void DrawBench(){DrawPerspectiveBench();}
     private void DrawSelectionGhost()
     {
-        Unit held=draggingUnit?(dragFromBoard?board[dragSource]:bench[dragSource]):selectedBench>=0?bench[selectedBench]:selectedBoard>=0?board[selectedBoard]:null;if(held==null&&selectedItem<0)return;Vector2 p=Event.current.mousePosition;Rect hint=new Rect(Mathf.Clamp(p.x+22,290,1260),Mathf.Clamp(p.y-76,115,765),150,68);Color old=GUI.color;GUI.color=new Color(1,1,1,draggingUnit?.88f:.76f);GUI.Box(hint,GUIContent.none,selectedStyle);
-        if(held!=null){Portrait(new Rect(hint.x+5,hint.y-3,65,62),UnitSprite(held.def));GUI.Label(new Rect(hint.x+67,hint.y+7,78,22),UnitName(held.def),small);GUI.Label(new Rect(hint.x+67,hint.y+31,78,22),"배치할 칸 선택",small);}else if(selectedItem<inventory.Count){int item=inventory[selectedItem];GUI.Label(new Rect(hint.x+8,hint.y+7,40,40),ItemIcons[item],header);GUI.Label(new Rect(hint.x+45,hint.y+7,100,22),ItemNames[item],small);GUI.Label(new Rect(hint.x+45,hint.y+31,100,22),"유닛에 장착",small);}GUI.color=old;
+        if(showCarousel||hp<=0||scoutedRival>=0)return;
+        Unit held=HeldUnit();
+        if(held==null&&selectedItem<0)return;
+        if(draggingUnit)return;
+        Vector2 p=Event.current.mousePosition;
+        Rect hint=new Rect(Mathf.Clamp(p.x+22,290,1110),Mathf.Clamp(p.y-76,195,710),225,64);
+        Color old=GUI.color;GUI.color=new Color(1,1,1,.9f);GUI.Box(hint,GUIContent.none,selectedStyle);
+        if(held!=null)
+        {
+            Portrait(new Rect(hint.x+4,hint.y+2,60,58),UnitSprite(held.def));
+            GUI.Label(new Rect(hint.x+72,hint.y+8,145,25),UnitName(held.def),label);
+            GUI.Label(new Rect(hint.x+72,hint.y+34,145,23),battling?"대기석 선택 중":"이동할 칸 선택",small);
+        }
+        else if(selectedItem<inventory.Count)
+        {
+            int item=inventory[selectedItem];
+            GUI.Label(new Rect(hint.x+10,hint.y+10,42,42),ItemIcons[item],header);
+            GUI.Label(new Rect(hint.x+58,hint.y+6,157,25),ItemNames[item],label);
+            GUI.Label(new Rect(hint.x+58,hint.y+33,157,23),"유닛에 장착",small);
+        }
+        GUI.color=old;
     }
     private void SelectInventoryItem(int index)
     {
@@ -457,7 +511,7 @@ public sealed partial class NativeGame : MonoBehaviour
 
     private IEnumerator Battle()
     {
-        battling=true;battleProgress=0;battleStartedAt=Time.unscaledTime;battleTimeRemaining=28f;combatPopups.Clear();selectedBoard=-1;scoutedRival=-1;SetupBattle();battleText=RoundType()=="크립"?"악당 디지몬 토벌 중":currentOpponent+" 테이머와 전투 중";
+        battling=true;showCombatReport=true;inspectedUnit=null;healthTrails.Clear();battleProgress=0;battleStartedAt=Time.unscaledTime;battleTimeRemaining=28f;combatPopups.Clear();selectedBoard=-1;scoutedRival=-1;SetupBattle();battleText=RoundType()=="크립"?"악당 디지몬 토벌 중":currentOpponent+" 테이머와 전투 중";
         float elapsed=0,maxTime=28f;
         while(elapsed<maxTime&&fighters.Any(f=>!f.dead&&!f.enemy)&&fighters.Any(f=>!f.dead&&f.enemy)){
             float dt=Time.deltaTime;elapsed+=dt;battleTimeRemaining=Mathf.Max(0,maxTime-elapsed);battleProgress=Mathf.Clamp01(elapsed/maxTime);UpdateCombat(dt);yield return null;
@@ -467,7 +521,7 @@ public sealed partial class NativeGame : MonoBehaviour
         battleProgress=1;yield return new WaitForSeconds(.65f);
         int income=5+Mathf.Min(5,gold/10);AddXp(2);
         if(win){gold+=income;if(RoundType()=="크립")CreateLootOrbs();lastReward=RoundType()=="크립"?$"수입 {income}G · 전리품 구슬 {lootOrbs.Count}개 생성":$"수입 {income}G · 승리";}else{int stage=round<=3?1:2+(round-4)/7;int damage=RoundType()=="크립"?stage+1:Mathf.CeilToInt((2+Mathf.Max(0,stage-2)*2+fighters.Count(f=>f.enemy&&!f.dead))*(1+Mathf.Max(0,stage-2)*.1f));hp=Mathf.Max(0,hp-damage);gold+=income;lastReward=$"체력 -{damage} · 수입 {income}G";}
-        Fighter damageAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.damageDone).FirstOrDefault(),healAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.healingDone).FirstOrDefault(),shieldAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.shieldingDone).FirstOrDefault();lastCombatSummary=damageAce==null?"":$"전투 통계 · 피해 1위 {UnitName(damageAce.unit.def)} {damageAce.damageDone:0} · 스킬 {fighters.Where(f=>!f.enemy).Sum(f=>f.casts)}회"+(healAce!=null&&healAce.healingDone>0?$" · 회복 {healAce.healingDone:0}":"")+(shieldAce!=null&&shieldAce.shieldingDone>0?$" · 보호막 {shieldAce.shieldingDone:0}":"");battleText=(win?"승리 · ":"패배 · ")+lastReward;resultNoticeUntil=Time.unscaledTime+4.5f;round++;if(!shopLocked)RollShop();fighters.Clear();battling=false;Save();
+        Fighter damageAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.damageDone).FirstOrDefault(),healAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.healingDone).FirstOrDefault(),shieldAce=fighters.Where(f=>!f.enemy).OrderByDescending(f=>f.shieldingDone).FirstOrDefault();lastCombatSummary=damageAce==null?"":$"전투 통계 · 피해 1위 {UnitName(damageAce.unit.def)} {damageAce.damageDone:0} · 스킬 {fighters.Where(f=>!f.enemy).Sum(f=>f.casts)}회"+(healAce!=null&&healAce.healingDone>0?$" · 회복 {healAce.healingDone:0}":"")+(shieldAce!=null&&shieldAce.shieldingDone>0?$" · 보호막 {shieldAce.shieldingDone:0}":"");battleText=(win?"승리 · ":"패배 · ")+lastReward;resultNoticeUntil=Time.unscaledTime+4.5f;round++;if(!shopLocked)RollShop();lastBattleReport.Clear();lastBattleReport.AddRange(fighters.Where(f=>!f.enemy));fighters.Clear();battling=false;Save();
     }
     private void SetupBattle()
     {
@@ -551,7 +605,7 @@ public sealed partial class NativeGame : MonoBehaviour
         bool changed=true;while(changed){changed=false;for(int star=1;star<3;star++){List<UnitRef> refs=FindUnits(id,star).Take(3).ToList();if(refs.Count<3)continue;UnitRef keep=refs[0];List<int> items=refs.SelectMany(r=>r.unit.items).ToList();foreach(UnitRef r in refs)ClearRef(r);keep.unit.star++;keep.unit.items.Clear();keep.unit.items.AddRange(items.Take(2));inventory.AddRange(items.Skip(2));PutRef(keep,keep.unit);changed=true;break;}}
         if(HasThree(id))for(int i=0;i<5;i++)if(shop[i]!=null&&shop[i].id==id){pool[id]++;shop[i]=null;}
     }
-    private void ResetGame(){Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);Array.Clear(shop,0,shop.Length);inventory.Clear();lootOrbs.Clear();gold=0;hp=100;level=1;xp=0;round=1;selectedBench=selectedBoard=selectedItem=-1;shopLocked=false;showCarousel=false;inspectedUnit=null;legendPos=legendTarget=new Vector2(785,690);legendVelocity=Vector2.zero;InitPool();board[3]=new Unit(Roster[0]);RollShop();Save();}
+    private void ResetGame(){formationPositions.Clear();healthTrails.Clear();lastBattleReport.Clear();showCombatReport=true;placementNoticeUntil=0;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);Array.Clear(shop,0,shop.Length);inventory.Clear();lootOrbs.Clear();gold=0;hp=100;level=1;xp=0;round=1;selectedBench=selectedBoard=selectedItem=-1;shopLocked=false;showCarousel=false;inspectedUnit=null;legendPos=legendTarget=new Vector2(785,690);legendVelocity=Vector2.zero;InitPool();board[3]=new Unit(Roster[0]);RollShop();Save();}
 
     private static UnitSave SaveUnit(Unit unit){return unit==null?null:new UnitSave{id=unit.def.id,star=unit.star,items=unit.items.ToArray()};}
     private static Unit LoadUnit(UnitSave saved)

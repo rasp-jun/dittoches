@@ -235,7 +235,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Styles();
         Matrix4x4 old = GUI.matrix;
         float rawScale=Mathf.Min(Screen.width/1600f,Screen.height/1000f);
-        float scale=rawScale>=.85f?Mathf.Round(rawScale*20f)/20f:rawScale;
+        float scale=rawScale>=.85f?Mathf.Floor(rawScale*20f)/20f:rawScale;
         float offsetX=Mathf.Floor((Screen.width-1600*scale)/2f),offsetY=Mathf.Floor((Screen.height-1000*scale)/2f);
         GUI.matrix=Matrix4x4.TRS(new Vector3(offsetX,offsetY,0),Quaternion.identity,new Vector3(scale,scale,1));
         Color oldColor=GUI.color; Panel(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),Color.black); GUI.color=oldColor;
@@ -436,6 +436,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
     {
         if (selectedSlot >= 0)
         {
+            Player me=state.room.players[state.room.side];
+            if(area=="board"&&selectedArea=="bench"&&unit==null&&me.board.Length>=me.level)
+            {notice="배치 인원이 가득 찼습니다. 다른 유닛과 교환하세요.";return;}
             if (selectedArea != area || selectedSlot != slot)
                 Send("/action", new Command { action = "move", area = selectedArea, slot = selectedSlot, targetArea = area, targetSlot = slot });
             selectedSlot = -1; selectedArea = "";
@@ -531,8 +534,13 @@ public sealed partial class MultiLauncher : MonoBehaviour
             float x = Mathf.Lerp(f.x,to.x,progress-frame), y = Mathf.Lerp(f.y,to.y,progress-frame);
             if (room.side == 1) { x = 6-x; y = 7-y; }
             Vector2 head=arena.Project(TacticalArena.CellWorld(x,y)+Vector3.up*1.4f);
-            Panel(new Rect(head.x-30,head.y,60,5),Color.gray);
-            Panel(new Rect(head.x-30,head.y,60*Mathf.Clamp01(f.hp/f.maxHp),5),f.side==room.side ? Color.green : Color.red);
+            float width=Mathf.Clamp(arena.CellRect(Mathf.Clamp(Mathf.RoundToInt(y),0,7),3).width*.78f,52,88);
+            float health=Mathf.Lerp(f.hp,to.hp,progress-frame)/Mathf.Max(1,f.maxHp);
+            Panel(new Rect(head.x-width/2-2,head.y-2,width+4,11),new Color(.008f,.015f,.025f,.95f));
+            Panel(new Rect(head.x-width/2,head.y,width,7),new Color(.12f,.16f,.2f));
+            Panel(new Rect(head.x-width/2,head.y,width*Mathf.Clamp01(health),7),f.side==room.side?new Color(.32f,.94f,.57f):new Color(.96f,.3f,.27f));
+            int segments=Mathf.Clamp(Mathf.CeilToInt(f.maxHp/250f),1,12);
+            for(int i=1;i<segments;i++)Panel(new Rect(head.x-width/2+width*i/segments,head.y,1,7),new Color(.015f,.025f,.03f,.7f));
         }
     }
 }
