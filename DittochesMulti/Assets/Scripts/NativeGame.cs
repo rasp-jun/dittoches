@@ -91,6 +91,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private float recipeGuideUntil;
     private string activeTooltip="";
     private float tooltipUntil, guiScale=1f;
+    private GUIStyle tooltipText;
     private Vector2 guiOffset;
     private int scoutedRival=-1;
     private readonly Unit[] scoutBoard=new Unit[28];
@@ -172,7 +173,17 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private void DrawTransientTooltip()
     {
-        string current=GUI.tooltip??"";if(string.IsNullOrEmpty(current)){activeTooltip="";return;}if(current!=activeTooltip){activeTooltip=current;tooltipUntil=Time.unscaledTime+2.2f;}if(Time.unscaledTime>=tooltipUntil)return;float alpha=Mathf.Clamp01((tooltipUntil-Time.unscaledTime)*3f);Vector2 p=Event.current.mousePosition;Color old=GUI.color;GUI.color=new Color(1,1,1,alpha);GUI.Box(new Rect(Mathf.Min(p.x+18,1510),Mathf.Min(p.y+18,980),370,68),current,card);GUI.color=old;
+        if(Event.current.type!=EventType.Repaint)return;
+        string current=GUI.tooltip??"";
+        if(string.IsNullOrEmpty(current)){activeTooltip="";return;}
+        if(current!=activeTooltip){activeTooltip=current;tooltipUntil=Time.unscaledTime+.35f;}
+        if(Time.unscaledTime<tooltipUntil)return;
+        if(tooltipText==null)tooltipText=new GUIStyle(label){fontSize=13,wordWrap=true,alignment=TextAnchor.UpperLeft};
+        float height=Mathf.Clamp(tooltipText.CalcHeight(new GUIContent(current),346)+24,58,260);
+        Vector2 point=Event.current.mousePosition;
+        Rect boxRect=new Rect(Mathf.Clamp(point.x+18,12,1538),Mathf.Clamp(point.y+20,12,1068-height),370,height);
+        GUI.Box(boxRect,GUIContent.none,selectedStyle);
+        GUI.Label(new Rect(boxRect.x+12,boxRect.y+12,346,height-24),current,tooltipText);
     }
     private void DrawRect(Rect r,Color c){Color old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
     private bool Btn(Rect r,string text,bool enabled=true){bool previous=GUI.enabled;GUI.enabled=previous&&enabled;bool hit=GUI.Button(r,text,button);GUI.enabled=previous;return hit;}
@@ -282,11 +293,42 @@ public sealed partial class NativeGame : MonoBehaviour
     private void MiniBar(Rect r,float value,Color color){DrawRect(r,new Color(.08f,.11f,.14f));DrawRect(new Rect(r.x,r.y,r.width*Mathf.Clamp01(value),r.height),color);}
     private void DrawLeft()
     {
-        DrawRect(new Rect(16,108,248,620),new Color(panel.r,panel.g,panel.b,.94f));DrawRect(new Rect(16,108,4,620),accent);GUI.Label(new Rect(38,124,205,28),"TEAM TRAITS",header);
-        List<TraitEntry> traits=TeamTraits();for(int i=0;i<traits.Count&&i<7;i++)Trait(160+i*42,traits[i]);
-        GUI.Label(new Rect(38,477,205,25),"ITEM BENCH",header);
-        for(int i=0;i<inventory.Count&&i<12;i++){Rect ir=new Rect(38+(i%4)*50,512+(i/4)*48,43,41);int item=inventory[i];GUI.Box(ir,GUIContent.none,i==selectedItem?selectedStyle:card);Event e=Event.current;if(GUI.enabled&&e!=null&&e.type==EventType.MouseDown&&e.button==1&&ir.Contains(e.mousePosition)){traitFocus=null;recipeFocus=item;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+2.8f;e.Use();}else if(GUI.Button(ir,new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button))SelectInventoryItem(i);}
-        string itemHelp=selectedItem>=0&&selectedItem<inventory.Count?ItemNames[inventory[selectedItem]]+" 선택됨":"좌클릭 합성/장착 · 우클릭 조합법";GUI.Label(new Rect(35,660,215,42),itemHelp,small);
+        DrawRect(new Rect(16,108,248,720),new Color(panel.r,panel.g,panel.b,.94f));
+        DrawRect(new Rect(16,108,4,720),accent);
+        GUI.Label(new Rect(38,124,205,28),"팀 시너지",header);
+        List<TraitEntry> traits=TeamTraits();
+        int traitPages=Mathf.Max(1,(traits.Count+5)/6);
+        traitPage=Mathf.Clamp(traitPage,0,traitPages-1);
+        for(int row=0;row<6;row++)
+        {
+            int index=traitPage*6+row;
+            if(index<traits.Count)Trait(160+row*42,traits[index]);
+        }
+        if(traits.Count==0)GUI.Label(new Rect(38,170,204,68),"유닛을 배치하면\n팀 시너지가 표시됩니다",center);
+        if(Btn(new Rect(38,421,42,28),"‹",traitPage>0))traitPage--;
+        GUI.Label(new Rect(85,421,108,28),(traitPage+1)+" / "+traitPages,center);
+        if(Btn(new Rect(200,421,42,28),"›",traitPage+1<traitPages))traitPage++;
+        GUI.Label(new Rect(38,451,210,23),"중복 디지몬은 1명으로 계산",small);
+        GUI.Label(new Rect(38,487,210,28),"아이템 · "+inventory.Count,header);
+        int itemPages=Mathf.Max(1,(inventory.Count+11)/12);
+        inventoryPage=Mathf.Clamp(inventoryPage,0,itemPages-1);
+        for(int slot=0;slot<12;slot++)
+        {
+            Rect ir=new Rect(38+(slot%4)*50,529+(slot/4)*48,43,41);
+            int index=inventoryPage*12+slot;
+            GUI.Box(ir,GUIContent.none,index==selectedItem?selectedStyle:card);
+            if(index>=inventory.Count)continue;
+            int item=inventory[index];Event e=Event.current;
+            if(GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&ir.Contains(e.mousePosition))
+            {traitFocus=null;recipeFocus=item;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+2.8f;e.Use();}
+            else if(GUI.Button(ir,new GUIContent(ItemIcons[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button))SelectInventoryItem(index);
+        }
+        if(Btn(new Rect(38,686,42,28),"‹",inventoryPage>0))inventoryPage--;
+        GUI.Label(new Rect(85,686,108,28),(inventoryPage+1)+" / "+itemPages,center);
+        if(Btn(new Rect(200,686,42,28),"›",inventoryPage+1<itemPages))inventoryPage++;
+        string help=selectedItem>=0&&selectedItem<inventory.Count?ItemNames[inventory[selectedItem]]+" 선택됨":"아이템을 선택한 뒤 유닛에 장착";
+        GUI.Label(new Rect(35,733,220,27),help,small);
+        GUI.Label(new Rect(35,769,220,42),"재료끼리 선택하면 합성\n우클릭으로 조합법 확인",small);
     }
     private int RoleCount(string role){return board.Where(u=>u!=null&&u.def.role==role).Select(u=>u.def.id).Distinct().Count();}
     private List<TraitEntry> TeamTraits()
@@ -294,12 +336,28 @@ public sealed partial class NativeGame : MonoBehaviour
         Unit[] unique=board.Where(u=>u!=null).GroupBy(u=>u.def.id).Select(g=>g.First()).ToArray();List<TraitEntry> result=new List<TraitEntry>();
         foreach(var group in unique.GroupBy(u=>Meta(u.def.id).attr))result.Add(new TraitEntry("속성",group.Key,group.Count()));foreach(var group in unique.GroupBy(u=>Meta(u.def.id).family))result.Add(new TraitEntry("계열",group.Key,group.Count()));
         string[] roles={"전사","탱커","사수","마법사","지원"};foreach(string role in roles){int count=unique.Count(u=>u.def.role==role);if(count>0||result.Count<2)result.Add(new TraitEntry("역할",role,count));}
-        return result.OrderByDescending(t=>TraitTier(t.category,t.count)).ThenByDescending(t=>t.count).ThenBy(t=>t.name).Take(7).ToList();
+        return result.OrderByDescending(t=>TraitTier(t.category,t.count)).ThenByDescending(t=>t.count).ThenBy(t=>t.name).ToList();
     }
     private int TraitTier(string category,int count){int second=category=="계열"?3:4,third=category=="계열"?4:6;return count>=third?3:count>=second?2:count>=2?1:0;}
     private int TraitTarget(string category,int count){int[] values=category=="계열"?new[]{2,3,4}:new[]{2,4,6};foreach(int value in values)if(count<value)return value;return values[2];}
     private Color TraitColor(int tier){return tier>=3?new Color(1f,.72f,.18f):tier==2?new Color(.62f,.72f,.90f):tier==1?new Color(.72f,.43f,.22f):new Color(.18f,.25f,.32f);}
-    private void Trait(float y,TraitEntry entry){int tier=TraitTier(entry.category,entry.count);Rect r=new Rect(34,y,212,36);GUI.Box(r,GUIContent.none,tier>0?selectedStyle:card);DrawRect(new Rect(34,y,5,36),TraitColor(tier));GUI.Label(new Rect(48,y+3,135,29),entry.name,small);GUI.Label(new Rect(181,y+3,52,29),entry.count+" / "+TraitTarget(entry.category,entry.count),small);Event e=Event.current;if(GUI.enabled&&e!=null&&e.type==EventType.MouseDown&&e.button==1&&r.Contains(e.mousePosition)){showRecipeGuide=false;traitFocus=entry;traitGuideUntil=Time.unscaledTime+3.5f;e.Use();}}
+    private void Trait(float y,TraitEntry entry)
+    {
+        int tier=TraitTier(entry.category,entry.count);
+        Rect r=new Rect(34,y,212,36);
+        GUI.Box(r,GUIContent.none,tier>0?selectedStyle:card);
+        DrawRect(new Rect(34,y,5,36),TraitColor(tier));
+        GUI.Label(new Rect(48,y+1,130,23),entry.name,label);
+        GUI.Label(new Rect(180,y+1,60,23),entry.count+" / "+TraitTarget(entry.category,entry.count),small);
+        for(int i=0;i<3;i++)DrawRect(new Rect(49+i*13,y+28,9,3),i<tier?TraitColor(tier):new Color(.15f,.23f,.28f));
+        Event e=Event.current;
+        bool right=GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&r.Contains(e.mousePosition);
+        if(right||GUI.Button(r,new GUIContent("",TraitEffectText(entry.category,entry.key,tier)),GUIStyle.none))
+        {
+            showRecipeGuide=false;traitFocus=entry;traitGuideUntil=Time.unscaledTime+3.5f;
+            if(right)e.Use();
+        }
+    }
     private void DrawTraitGuide()
     {
         int tier=TraitTier(traitFocus.category,traitFocus.count);Rect r=new Rect(270,145,475,155);GUI.Box(r,GUIContent.none,card);DrawRect(new Rect(r.x,r.y,6,r.height),TraitColor(tier));GUI.Label(new Rect(r.x+22,r.y+12,430,30),traitFocus.name+"  ·  "+(tier==0?"비활성":""+tier+"단계 활성"),header);GUI.Label(new Rect(r.x+22,r.y+49,430,28),$"현재 {traitFocus.count}명  ·  구간 {TraitThresholdText(traitFocus.category)}",small);GUI.Label(new Rect(r.x+22,r.y+78,430,54),TraitEffectText(traitFocus.category,traitFocus.key,tier),small);GUI.Label(new Rect(r.x+335,r.y+131,115,18),"3.5초 후 닫힘",small);
@@ -320,7 +378,7 @@ public sealed partial class NativeGame : MonoBehaviour
     private void ClickBoard(int idx)
     {
         if(selectedItem>=0&&board[idx]!=null){Equip(board[idx]);return;}
-        if(selectedBench>=0){Unit temp=board[idx];if(temp==null&&board.Count(u=>u!=null)>=level)return;board[idx]=bench[selectedBench];bench[selectedBench]=temp;selectedBench=-1;selectedBoard=-1;Save();return;}
+        if(selectedBench>=0){Unit temp=board[idx];if(temp==null&&board.Count(u=>u!=null)>=level){NotifyPlacement("배치 인원이 가득 찼습니다 · 기존 유닛과 교환하세요");return;}board[idx]=bench[selectedBench];bench[selectedBench]=temp;selectedBench=-1;selectedBoard=-1;Save();return;}
         if(selectedBoard>=0){if(selectedBoard==idx){selectedBoard=-1;return;}Unit temp=board[idx];board[idx]=board[selectedBoard];board[selectedBoard]=temp;selectedBoard=-1;Save();return;}
         legendTarget=LegacyPoint(TacticalArena.CellWorld(idx%7,idx/7+4));if(board[idx]!=null){selectedBoard=idx;inspectedUnit=board[idx];}
     }
@@ -417,12 +475,20 @@ public sealed partial class NativeGame : MonoBehaviour
     {
         Unit u=inspectedUnit;UnitMeta m=Meta(u.def.id);SkillMeta skill=Skill(u.def.id);if(Btn(new Rect(1825,120,55,38),"×")){inspectedUnit=null;return;}Portrait(new Rect(1390,145,150,145),UnitSprite(u.def));GUI.Label(new Rect(1560,150,250,34),UnitName(u.def),header);GUI.Label(new Rect(1560,190,280,26),new string('★',u.star)+$"  ·  {u.def.cost}코스트",label);GUI.Label(new Rect(1560,225,280,25),$"{m.attr} · {m.family} · {u.def.role}",label);GUI.Label(new Rect(1560,255,300,25),$"마나 {skill.startMana:0}/{skill.maxMana:0} · 스킬 계수 {skill.power:0.00}",small);
         float mult=Mathf.Pow(1.8f,u.star-1);GUI.Label(new Rect(1390,305,470,28),"유닛 능력치",header);DetailStat(1390,342,"체력",Mathf.RoundToInt(m.hp*mult).ToString());DetailStat(1510,342,"공격력",Mathf.RoundToInt(m.atk*Mathf.Pow(1.5f,u.star-1)).ToString());DetailStat(1630,342,"공속",m.speed.ToString("0.00"));DetailStat(1750,342,"사거리",m.range.ToString());
-        GUI.Label(new Rect(1390,405,470,28),"기여 시너지",header);int attrCount=SynergyCount(m.attr),familyCount=SynergyCount(m.family),roleCount=RoleCount(u.def.role);SynergyLine(1390,442,m.attr,attrCount,2,"같은 속성 2명부터 속성 효과 활성화");SynergyLine(1390,493,m.family,familyCount,2,"같은 계열 2/3/4명에서 전투 보너스 강화");SynergyLine(1390,544,u.def.role,roleCount,2,RoleDescription(u.def.role));
+        GUI.Label(new Rect(1390,405,470,28),"기여 시너지",header);UnitTraitLine(442,"속성",m.attr);UnitTraitLine(493,"계열",m.family);UnitTraitLine(544,"역할",u.def.role);
         GUI.Label(new Rect(1390,595,120,24),"개별 스킬",small);GUI.Label(new Rect(1510,588,350,38),SkillDescription(u.def),label);GUI.Label(new Rect(1390,640,120,24),"장착 장비",small);for(int i=0;i<u.items.Count;i++){int item=u.items[i];GUI.Button(new Rect(1510+i*165,633,155,38),new GUIContent(ItemIcons[item]+" "+ItemNames[item],ItemNames[item]+"\n"+ItemDescriptions[item]),button);}
     }
     private void DetailStat(float x,float y,string key,string value){GUI.Box(new Rect(x,y,108,52),GUIContent.none,card);GUI.Label(new Rect(x+5,y+4,98,18),key,small);GUI.Label(new Rect(x+5,y+22,98,25),value,center);}
     private int SynergyCount(string trait){return board.Where(x=>x!=null).GroupBy(x=>x.def.id).Select(g=>Meta(g.First().def.id)).Count(m=>m.attr==trait||m.family==trait);}
-    private void SynergyLine(float x,float y,string name,int count,int need,string desc){GUI.Box(new Rect(x,y,470,44),GUIContent.none,count>=need?selectedStyle:card);GUI.Label(new Rect(x+12,y+4,120,20),$"{name}  {count}/{need}",label);GUI.Label(new Rect(x+142,y+5,315,32),desc,small);}
+    private void UnitTraitLine(float y,string category,string key)
+    {
+        int count=TraitCount(category,key),tier=TraitTier(category,count);
+        Rect r=new Rect(1390,y,470,44);
+        GUI.Box(r,GUIContent.none,tier>0?selectedStyle:card);
+        DrawRect(new Rect(r.x,r.y,4,r.height),TraitColor(tier));
+        GUI.Label(new Rect(r.x+12,y+3,130,24),key+" "+count+"/"+TraitTarget(category,count),label);
+        GUI.Label(new Rect(r.x+150,y+5,305,34),TraitEffectText(category,key,tier),small);
+    }
     private string RoleDescription(string role){if(role=="탱커")return "2명: 방어력과 생존력 증가";if(role=="전사")return "2명: 공격력과 흡혈 증가";if(role=="사수")return "2명: 공격 속도 증가";if(role=="마법사")return "2명: 스킬 피해 증가";return "2명: 아군 회복과 보호 효과 증가";}
     private string SkillDescription(UnitDef d){SkillMeta s=Skill(d.id);int count=SkillTargets(d.id);string prefix=SkillName(d)+$" · {s.maxMana:0} 마나 · ";if(d.role=="탱커")return prefix+$"자가 회복 + 보호막";if(d.role=="전사")return prefix+$"{count}명 강화 강타";if(d.role=="사수")return prefix+$"{count}명 연속 사격";if(d.role=="마법사")return prefix+$"반경 {SkillRadius(d.id):0.0} 폭발 + 기절";return prefix+$"아군 {count}명 회복 + 보호막";}
     private int SkillTargets(string id){switch(id){case "koromon":case "mochimon":case "agumon":case "tentomon":case "togemon":case "greymon":return 1;case "tsunomon":case "tanemon":case "pyocomon":case "tokomon":case "gabumon":case "palmon":case "piyomon":case "patamon":case "garurumon":case "kabuterimon":case "angemon":return 2;case "birdramon":case "metalgreymon":case "weregarurumon":case "lilimon":case "holyangemon":case "atlur":case "garudamon":return 3;default:return 4;}}
@@ -437,10 +503,28 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private void Equip(Unit unit)
     {
-        if(selectedItem<0||selectedItem>=inventory.Count)return;int item=inventory[selectedItem];
-        if(item==14){if(unit.items.Count==0)return;inventory.RemoveAt(selectedItem);inventory.AddRange(unit.items);unit.items.Clear();selectedItem=-1;lastReward="자석 제거기 사용 · 장비를 보관함으로 회수했습니다";Save();return;}
-        if(item<=3){int partner=unit.items.FindIndex(x=>x<=3);if(partner>=0){int completed=ItemRecipes[unit.items[partner],item];unit.items[partner]=completed;inventory.RemoveAt(selectedItem);selectedItem=-1;lastReward=ItemNames[completed]+" 자동 합성 완료";Save();return;}}
-        if(unit.items.Count>=2)return;unit.items.Add(item);inventory.RemoveAt(selectedItem);selectedItem=-1;Save();
+        if(selectedItem<0||selectedItem>=inventory.Count)return;
+        int item=inventory[selectedItem];
+        if(item==14)
+        {
+            if(unit.items.Count==0){NotifyPlacement("회수할 장비가 없는 유닛입니다");return;}
+            inventory.RemoveAt(selectedItem);inventory.AddRange(unit.items);unit.items.Clear();
+            selectedItem=-1;lastReward="자석 제거기 사용 · 장비를 보관함으로 회수했습니다";
+            NotifyPlacement(lastReward);Save();return;
+        }
+        if(item<=3)
+        {
+            int partner=unit.items.FindIndex(x=>x<=3);
+            if(partner>=0)
+            {
+                int completed=ItemRecipes[unit.items[partner],item];unit.items[partner]=completed;
+                inventory.RemoveAt(selectedItem);selectedItem=-1;
+                lastReward=ItemNames[completed]+" 자동 합성 완료";NotifyPlacement(lastReward);Save();return;
+            }
+        }
+        if(unit.items.Count>=2){NotifyPlacement("장비 슬롯이 가득 찼습니다 · 자석 제거기로 회수할 수 있습니다");return;}
+        unit.items.Add(item);inventory.RemoveAt(selectedItem);selectedItem=-1;
+        NotifyPlacement(UnitName(unit.def)+" · "+ItemNames[item]+" 장착");Save();
     }
     private void DrawShop()
     {
@@ -460,17 +544,20 @@ public sealed partial class NativeGame : MonoBehaviour
             GUI.Box(r,GUIContent.none,hovered?selectedStyle:card);
             UnitDef d=shop[i];
             if(d==null){GUI.Label(r,"모집 완료",center);continue;}
-            bool merges=FindUnits(d.id,1).Count>=2;
+            int singleCopies=FindUnits(d.id,1).Count,doubleCopies=FindUnits(d.id,2).Count;
+            bool merges=singleCopies>=2;
             bool room=bench.Any(u=>u==null)||merges;
             Color rarity=CostColor(d.cost);
             DrawRect(new Rect(r.x,r.y,r.width,4),rarity);
             Portrait(new Rect(r.x+8,r.y+12-shopHover[i]*4,92,98),UnitSprite(d));
             GUI.Label(new Rect(r.x+106,r.y+14,112,25),d.cost+" G",header);
             GUI.Label(new Rect(r.x+106,r.y+45,112,24),d.role,small);
-            GUI.Label(new Rect(r.x+106,r.y+72,112,24),merges?"합성 가능":"보유 "+FindUnits(d.id,1).Count,small);
+            GUI.Label(new Rect(r.x+106,r.y+72,112,24),merges?"합성 가능":"★ "+singleCopies+"  ★★ "+doubleCopies,small);
+            for(int dot=0;dot<3;dot++)DrawRect(new Rect(r.x+107+dot*14,r.y+99,10,3),dot<singleCopies?accent:new Color(.15f,.23f,.28f));
+            GUI.Label(new Rect(r.x,r.y,r.width,136),new GUIContent("",ShopUnitSummary(d,singleCopies,doubleCopies)),GUIStyle.none);
             GUI.Label(new Rect(r.x+12,r.y+108,201,28),UnitName(d),label);
             string status=gold<d.cost?"골드 부족":!room?"대기석 가득":merges?"구매 · 자동 합성":"구매";
-            if(Btn(new Rect(r.x+12,r.y+140,201,33),status,gold>=d.cost&&room)&&Buy(i))Save();
+            if(Btn(new Rect(r.x+12,r.y+140,201,33),status,gold>=d.cost&&room)&&Buy(i)){NotifyPlacement(UnitName(d)+(merges?" 구매 · 자동 합성 완료":" 모집 완료"));Save();}
         }
         bool carousel=RoundType()=="초밥집";
         GUI.Label(new Rect(1530,856,330,28),battling?"전투 진행 중":"준비 단계",center);
@@ -511,7 +598,7 @@ public sealed partial class NativeGame : MonoBehaviour
 
     private IEnumerator Battle()
     {
-        battling=true;showCombatReport=true;inspectedUnit=null;healthTrails.Clear();battleProgress=0;battleStartedAt=Time.unscaledTime;battleTimeRemaining=28f;combatPopups.Clear();selectedBoard=-1;scoutedRival=-1;SetupBattle();battleText=RoundType()=="크립"?"악당 디지몬 토벌 중":currentOpponent+" 테이머와 전투 중";
+        battling=true;lastReportRound=RoundLabel();showCombatReport=true;inspectedUnit=null;healthTrails.Clear();battleProgress=0;battleStartedAt=Time.unscaledTime;battleTimeRemaining=28f;combatPopups.Clear();selectedBoard=-1;scoutedRival=-1;SetupBattle();battleText=RoundType()=="크립"?"악당 디지몬 토벌 중":currentOpponent+" 테이머와 전투 중";
         float elapsed=0,maxTime=28f;
         while(elapsed<maxTime&&fighters.Any(f=>!f.dead&&!f.enemy)&&fighters.Any(f=>!f.dead&&f.enemy)){
             float dt=Time.deltaTime;elapsed+=dt;battleTimeRemaining=Mathf.Max(0,maxTime-elapsed);battleProgress=Mathf.Clamp01(elapsed/maxTime);UpdateCombat(dt);yield return null;
@@ -605,7 +692,7 @@ public sealed partial class NativeGame : MonoBehaviour
         bool changed=true;while(changed){changed=false;for(int star=1;star<3;star++){List<UnitRef> refs=FindUnits(id,star).Take(3).ToList();if(refs.Count<3)continue;UnitRef keep=refs[0];List<int> items=refs.SelectMany(r=>r.unit.items).ToList();foreach(UnitRef r in refs)ClearRef(r);keep.unit.star++;keep.unit.items.Clear();keep.unit.items.AddRange(items.Take(2));inventory.AddRange(items.Skip(2));PutRef(keep,keep.unit);changed=true;break;}}
         if(HasThree(id))for(int i=0;i<5;i++)if(shop[i]!=null&&shop[i].id==id){pool[id]++;shop[i]=null;}
     }
-    private void ResetGame(){formationPositions.Clear();healthTrails.Clear();lastBattleReport.Clear();showCombatReport=true;placementNoticeUntil=0;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);Array.Clear(shop,0,shop.Length);inventory.Clear();lootOrbs.Clear();gold=0;hp=100;level=1;xp=0;round=1;selectedBench=selectedBoard=selectedItem=-1;shopLocked=false;showCarousel=false;inspectedUnit=null;legendPos=legendTarget=new Vector2(785,690);legendVelocity=Vector2.zero;InitPool();board[3]=new Unit(Roster[0]);RollShop();Save();}
+    private void ResetGame(){traitPage=inventoryPage=0;formationPositions.Clear();healthTrails.Clear();lastBattleReport.Clear();showCombatReport=true;placementNoticeUntil=0;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);Array.Clear(shop,0,shop.Length);inventory.Clear();lootOrbs.Clear();gold=0;hp=100;level=1;xp=0;round=1;selectedBench=selectedBoard=selectedItem=-1;shopLocked=false;showCarousel=false;inspectedUnit=null;legendPos=legendTarget=new Vector2(785,690);legendVelocity=Vector2.zero;InitPool();board[3]=new Unit(Roster[0]);RollShop();Save();}
 
     private static UnitSave SaveUnit(Unit unit){return unit==null?null:new UnitSave{id=unit.def.id,star=unit.star,items=unit.items.ToArray()};}
     private static Unit LoadUnit(UnitSave saved)

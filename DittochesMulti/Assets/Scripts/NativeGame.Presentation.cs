@@ -9,9 +9,27 @@ public sealed partial class NativeGame
     private readonly List<Fighter> lastBattleReport=new List<Fighter>();
     private bool showCombatReport=true;
     private int reportMetric;
+    private string lastReportRound="";
     private string placementNotice="";
     private float placementNoticeUntil;
 
+    private int traitPage,inventoryPage;
+    private string ShopUnitSummary(UnitDef d,int singles,int doubles)
+    {
+        UnitMeta meta=Meta(d.id);
+        int triples=FindUnits(d.id,3).Count;
+        string owned="보유  ★ "+singles+"  /  ★★ "+doubles+"  /  ★★★ "+triples;
+        string[] categories={"속성","계열","역할"},keys={meta.attr,meta.family,d.role};
+        string summary=UnitName(d)+" · "+d.cost+"G\n"+owned;
+        bool distinct=!board.Any(u=>u!=null&&u.def.id==d.id);
+        for(int i=0;i<keys.Length;i++)
+        {
+            int count=TraitCount(categories[i],keys[i]);
+            bool activates=distinct&&TraitTier(categories[i],count+1)>TraitTier(categories[i],count);
+            summary+="\n"+keys[i]+"  "+count+"/"+TraitTarget(categories[i],count)+(activates?" · 추가 배치 시 다음 단계":"");
+        }
+        return summary;
+    }
     private bool PointerOverGuide(Vector2 point)
     {
         return (showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&new Rect(270,470,470,recipeFocus<=3?270:150).Contains(point))
@@ -96,7 +114,7 @@ public sealed partial class NativeGame
         Fighter[] rows=source.Where(f=>!f.enemy).OrderByDescending(ReportValue).ToArray();
         if(rows.Length==0)return false;
         DrawRect(new Rect(1368,108,532,620),new Color(panel.r,panel.g,panel.b,.96f));
-        GUI.Label(new Rect(1390,124,470,30),battling?"실시간 전투 기록":"지난 전투 기록",header);
+        GUI.Label(new Rect(1390,124,470,30),battling?"실시간 전투 기록 · "+lastReportRound:"지난 전투 기록 · "+lastReportRound,header);
         string[] tabs={"피해량","회복량","보호막"};
         for(int i=0;i<3;i++)
         {
