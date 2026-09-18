@@ -156,6 +156,7 @@ public sealed partial class NativeGame
         }
         else
         {
+            if(artPack==0)PrepareCombatLabels();
             foreach(Fighter f in fighters)if(!f.dead)DrawFighter(f);
             DrawAttackTraces();
             DrawCombatPopups();
@@ -191,6 +192,7 @@ public sealed partial class NativeGame
     }
     private void DrawPerspectiveFighter(Fighter f)
     {
+        if(artPack==0){DrawRefinedFighter(f);return;}
         Vector3 point=FighterWorld(f);Vector2 head=arena.Project(point+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star):1.42f));
         float width=Mathf.Clamp(arena.CellRect(Mathf.Clamp(Mathf.RoundToInt(f.renderPos.y),0,7),3).width*.78f,52,88);
         float health=Mathf.Clamp01(f.hp/Mathf.Max(1,f.maxHp));

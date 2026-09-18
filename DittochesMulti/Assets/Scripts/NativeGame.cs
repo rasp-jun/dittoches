@@ -224,6 +224,7 @@ public sealed partial class NativeGame : MonoBehaviour
     }
     private void DrawTransientTooltip()
     {
+        if(artPack==0){arenaInterface.Tooltip(new Rect(0,0,1920,1080),draggingUnit||showCarousel||skillDetailUnit!=null);return;}
         if(Event.current.type!=EventType.Repaint)return;
         string current=GUI.tooltip??"";
         if(string.IsNullOrEmpty(current)){activeTooltip="";return;}
@@ -807,7 +808,9 @@ public sealed partial class NativeGame : MonoBehaviour
     private string RoundLabel(){int stage=round<=3?1:2+(round-4)/7,step=round<=3?round:1+(round-4)%7;return stage+"-"+step;}
     private string RoundType(){if(round<=3)return "크립";int step=1+(round-4)%7;return step==4?"초밥집":step==7?"크립":"PvP";}
     private UnitDef EnemyForRound(){string id=round<=1?"Kuwagamon":round==2?"Shellmon":round<8?"Devimon":"Etemon";return new UnitDef(id.ToLower(),id,Mathf.Clamp(1+round/5,1,5),id,"적");}
-    private int NeedXp(){int[] need={0,2,2,6,10,20,36,60,68,0};return need[Mathf.Clamp(level,1,9)];}
+    internal static int ShopChance(int currentLevel,int cost){return ShopOdds[Mathf.Clamp(currentLevel,1,9)-1,Mathf.Clamp(cost,1,5)-1];}
+    internal static int XpToNextLevel(int currentLevel){int[] need={0,2,2,6,10,20,36,60,68,0};return need[Mathf.Clamp(currentLevel,1,9)];}
+    private int NeedXp(){return XpToNextLevel(level);}
     private void AddXp(int amount){xp+=amount;while(level<9&&xp>=NeedXp()){xp-=NeedXp();level++;}if(level==9)xp=0;}
     private bool HasThree(string id){return board.Concat(bench).Any(u=>u!=null&&u.def.id==id&&u.star==3);}
     private void RollShop(){foreach(UnitDef old in shop)if(old!=null)pool[old.id]++;for(int i=0;i<5;i++){int roll=UnityEngine.Random.Range(0,100),cost=1;for(int c=0;c<5;c++){roll-=ShopOdds[level-1,c];if(roll<0){cost=c+1;break;}}UnitDef[] eligible=Roster.Where(d=>d.cost==cost&&pool[d.id]>0&&!HasThree(d.id)).ToArray();if(eligible.Length==0){shop[i]=null;continue;}int total=eligible.Sum(d=>pool[d.id]),pick=UnityEngine.Random.Range(0,total);UnitDef chosen=eligible[0];foreach(UnitDef d in eligible){pick-=pool[d.id];if(pick<0){chosen=d;break;}}shop[i]=chosen;pool[chosen.id]--;}}

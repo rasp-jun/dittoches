@@ -56,6 +56,19 @@ public sealed partial class NativeGame
     void Require(bool condition,string message)
     {if(!condition){Application.Quit(2);throw new InvalidOperationException("ARENA SMOKE FAILED: "+message);}validationChecks++;}
     public void BeginArenaSmoke(){StartCoroutine(ArenaSmoke());}
+    void ValidateCombatLabels()
+    {
+        var layout=new CombatLabelLayout();var bounds=new Rect(312,205,956,524);
+        foreach(Vector2 anchor in new[]{bounds.center,bounds.min,bounds.max})
+        {
+            var rows=Enumerable.Range(0,18).Select(i=>new CombatLabelLayout.Entry{key=i,anchor=anchor,width=i%4==0?120:72,caption=i%4==0,priority=i==0}).ToList();
+            layout.Arrange(rows,bounds);var placed=rows.Select(r=>r.rect).ToArray();
+            Require(rows.All(r=>r.rect.xMin>=bounds.xMin&&r.rect.yMin>=bounds.yMin&&r.rect.xMax<=bounds.xMax&&r.rect.yMax<=bounds.yMax),"crowded combat labels stay inside field");
+            Require(rows.All(a=>rows.All(b=>a==b||!a.rect.Overlaps(b.rect))),"crowded combat labels do not overlap");
+            layout.Arrange(rows,bounds);
+            Require(rows.Select((r,i)=>r.rect==placed[i]).All(same=>same),"combat label placement is deterministic");
+        }
+    }
     void CaptureRuntime(string name)
     {
         string folder=Path.Combine(Application.dataPath,"../ArenaCaptures");Directory.CreateDirectory(folder);
@@ -77,6 +90,7 @@ public sealed partial class NativeGame
         ValidateTacticalRules();
         ValidateReportRules();
         ValidateFormationRules();
+        ValidateCombatLabels();
         artPack=0;lobby=false;round=12;level=6;gold=40;hp=100;showCombatReport=false;
         Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
         string[] team={"agumon","greymon","garurumon","gabumon","palmon","lilimon"};
@@ -120,6 +134,19 @@ public sealed partial class NativeGame
         yield return new WaitForEndOfFrame();CaptureRuntime("21-placement-blocked");selectedBench=-1;validationPointer=null;
         var previousOffer=shop[0];shop[0]=RosterById["wargreymon"];validationShopInputPending=true;
         yield return new WaitForEndOfFrame();CaptureRuntime("20-shop-skill");Require(!validationShopInputPending,"shop right click exercised in GUI");skillDetailUnit=null;shop[0]=previousOffer;
+        Unit held=bench[0],swapped=board[17];Vector3 destination=TacticalArena.CellWorld(3,6);
+        Vector2 left=arena.Project(destination+Vector3.left*.18f),right=arena.Project(destination+Vector3.right*.18f);
+        Require(arena.HitCell(left)==45&&arena.HitCell(right)==45,"drag fixture stays inside one hex");
+        dragFromBoard=false;dragSource=0;draggingUnit=true;validationPointer=left;
+        yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();Vector3 first=formationPositions[held];
+        validationPointer=right;yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();
+        Require(formationPositions[held].x-first.x>.2f,"held unit follows pointer continuously within one hex");
+        Require(bench[0]==held&&board[17]==swapped,"drag preview leaves formation unchanged");
+        CaptureRuntime("22-drag-follow");DropDraggedUnit(right);draggingUnit=false;dragSource=-1;validationPointer=null;
+        yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();
+        Require(board[17]==held&&bench[0]==swapped,"drop swaps board and bench units");
+        Require(Vector3.Distance(formationPositions[held],destination)<.05f,"dropped unit settles onto target hex");
+        CaptureRuntime("23-drop-settle");board[17]=swapped;bench[0]=held;inspectedUnit=null;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
         inspectedUnit=board[18];

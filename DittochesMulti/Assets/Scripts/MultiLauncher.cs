@@ -286,6 +286,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Panel(new Rect(30,965,8,8),busy ? gold : connectionError ? new Color(.9f,.3f,.25f) : cyan);
         GUI.Label(new Rect(50,951,1500,38), busy ? "서버 통신 중  ·  " + notice : notice, small);
         DrawOnlineSkillDetails();
+        if(artPack==0)onlineInterface.Tooltip(new Rect(0,0,1600,1000),confirmLeave||onlineItemGuide>=0||!string.IsNullOrEmpty(onlineSkillId));
         GUI.matrix = old;
     }
 
@@ -535,14 +536,14 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Card(new Rect(25,95,260,165),surface,new Color(gold.r,gold.g,gold.b,.5f));
         GUI.Label(new Rect(45,108,220,25),"MY TACTICIAN",eyebrow); GUI.Label(new Rect(45,136,220,34),me.name,text);
         Pill(new Rect(43,180,102,36),"HP "+me.hp,new Color(.30f,.78f,.52f)); Pill(new Rect(155,180,108,36),me.rating+" RP",gold);
-        GUI.Label(new Rect(45,225,220,25),$"{me.gold} G    ·    LV {me.level}    ·    XP {me.xp}",small);
+        GUI.Label(new Rect(45,225,220,25),artPack==0?$"{me.gold} G · 배치 {me.board.Length}/{me.level} · 대기 {me.bench.Length}/9":$"{me.gold} G    ·    LV {me.level}    ·    XP {me.xp}",small);
         Card(new Rect(1305,95,270,165),surface,new Color(.65f,.25f,.28f,.7f));
         GUI.Label(new Rect(1325,108,225,25),"OPPONENT",eyebrow); GUI.Label(new Rect(1325,136,225,34),enemy.name,text);
         Pill(new Rect(1323,180,102,36),"HP "+enemy.hp,new Color(.82f,.28f,.25f)); Pill(new Rect(1435,180,118,36),enemy.rating+" RP",gold);
         GUI.Label(new Rect(1325,225,225,25),$"LV {enemy.level}   ·   {(enemy.ready?"준비 완료":"준비 중")}",small);
         GUI.Label(new Rect(310,94,950,30),"상대 진영",eyebrow);
         DrawPerspectiveMatch(room,me,enemy,editable,remaining);
-        GUI.Label(new Rect(310,790,500,22),"RECRUIT SHOP",eyebrow);
+        GUI.Label(new Rect(310,790,500,22),artPack==0?"모집  ·  "+me.gold+" G":"RECRUIT SHOP",eyebrow);
         for (int i = 0; i < me.shop.Length; i++)
         {
             float x = 310 + i * 191; string id = me.shop[i]; UnitDef def = Def(id);
@@ -555,12 +556,16 @@ public sealed partial class MultiLauncher : MonoBehaviour
                     Send("/action", new Command { action = "buy", slot = i });
             }
         }
+        if(artPack==0)DrawOnlineEconomy(me,room,editable,fresh);
+        else
+        {
         GUI.Label(new Rect(30,286,250,24),"ECONOMY",eyebrow);
         if (Btn(new Rect(30,320,245,58),"새로고침     2 G",editable&&me.gold>=2)) Send("/action",new Command{action="reroll"});
         if (Btn(new Rect(30,390,245,58),"경험치 +4     4 G",editable&&me.gold>=4&&me.level<9)) Send("/action",new Command{action="xp"});
         if (Btn(new Rect(30,460,245,58),"선택 유닛 판매",editable&&selectedSlot>=0))
         { Send("/action", new Command { action = "sell", area = selectedArea, slot = selectedSlot }); selectedSlot = -1; selectedArea = ""; }
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
+        }
         DrawOnlineEquipment(me,editable);
         var formationPreview=OnlineFormationForecast(me,editable);
         if(formationPreview!=null){DrawOnlineUnitEquipment(me,room);FormationForecastUI.Draw(new Rect(1305,490,270,438),formationPreview);}
@@ -587,7 +592,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void DrawCombat(Room room, float remaining)
     {
-
+        if(artPack==0){DrawRefinedCombat(room,remaining);return;}
         if (room.frames == null || room.frames.Length == 0) return;
         float progress = CombatProgress(room,remaining);
         int frame = Mathf.FloorToInt(progress), next = Mathf.Min(frame + 1, room.frames.Length - 1);

@@ -1,6 +1,6 @@
 # 다른 컴퓨터에서 이어서 작업하기
 
-기준일: 2026-09-17. 작업 맥락은 [NEXT_SESSION.md](NEXT_SESSION.md), 전체 진행표는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 있습니다. 최신 기능은 상점 스킬 조회와 배치 시너지 미리보기이며, 최신 작업은 [GitHub develop](https://github.com/rasp-jun/dittoches/tree/develop)에 업로드했습니다. main은 이전 상태입니다.
+기준일: 2026-09-18. 작업 맥락은 [NEXT_SESSION.md](NEXT_SESSION.md), 전체 진행표는 [PROJECT_STATUS.md](PROJECT_STATUS.md)에 있습니다. 최신 기능은 연속 드래그·모션 전환·전투 체력바 배치와 온라인 경제 UI 개선이며, 최신 작업은 [GitHub develop](https://github.com/rasp-jun/dittoches/tree/develop)에 업로드했습니다. main은 이전 상태입니다.
 
 ## 가장 빠른 방법: USB 보존 폴더 전체 사용
 
@@ -101,7 +101,7 @@ python Tools/build_portable_preview.py
 python Tools/validate_online.py
 ```
 
-솔로 실제 실행 검사는 미리보기 폴더에서 `DittochesMulti.exe --arena-smoke`로 실행합니다. 이 검사는 별도 시험 저장 키를 사용합니다. 마지막 결과는 서버 65개, 이동/타이밍 894개, C#/서버 계산 비교 1,458개, 솔로 822개, 온라인 68개 통과입니다. 온라인 검사 수는 상점 추첨·폴링 등에 따라 조금 달라질 수 있습니다.
+솔로 실제 실행 검사는 미리보기 폴더에서 `DittochesMulti.exe --arena-smoke`로 실행합니다. 이 검사는 별도 시험 저장 키를 사용합니다. 마지막 결과는 서버 65개(서버 미변경), 이동/타이밍 894개, C#/서버 계산 비교 1,458개, 솔로 838개, 온라인 72개 통과입니다. 온라인 검사 수는 상점 추첨·폴링 등에 따라 조금 달라질 수 있습니다.
 
 화면과 로그는 `Builds/PortablePreview/ArenaCaptures`, `OnlineCaptures`, `BuildsSmoke.log`, `OnlineEquipmentSmoke.log`에 있습니다. 정식 Unity 셰이더, Android 실기기, 실제 두 PC의 입력·연결, 장시간 밸런스는 추가 검증이 필요합니다.
 

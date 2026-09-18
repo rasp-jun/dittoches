@@ -33,6 +33,7 @@ public sealed partial class TacticalArena : IDisposable
         public DigimonRig rig;
         public Vector3 facing;
         public bool hasFacing;
+        public float poseMove,poseLean,poseX=1,poseY=1,poseBob,poseTime=-1,posePhase;
         public int generation;
     }
     public RenderTexture Texture { get { return target; } }
@@ -236,7 +237,7 @@ public sealed partial class TacticalArena : IDisposable
         {
             var node=new GameObject("Arena piece"){layer=Layer,hideFlags=HideFlags.HideAndDontSave};
             node.transform.SetParent(root.transform,false);
-            actor=new Actor{root=node};
+            actor=new Actor{root=node,posePhase=actors.Count*.83f};
             actor.contactShadow=Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
             var ring=Shape("Team base",refined?ringMesh:disc,glow,new Vector3(0,.025f,0),new Vector3(.34f,.012f,.28f),node.transform);
             actor.teamBase=ring;

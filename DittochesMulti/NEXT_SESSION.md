@@ -1,12 +1,12 @@
 # 다음 PC·다음 세션 작업 메모
 
-저장일: 2026-09-17. 사용자는 현재까지의 진행 상황을 저장하고 다른 컴퓨터에서 바로 이어서 작업하기를 요청했습니다. 이 문서는 이전 대화 없이 작업 맥락을 복구하기 위한 기록입니다.
+저장일: 2026-09-18. 사용자가 진행 중인 UI 패치를 마무리하고 다른 작업으로 넘어가기를 요청했습니다. 현재 범위의 검증·저장까지 마쳤으며 새 기능이나 3D 작업을 자동으로 시작하지 않습니다. 이 문서는 이전 대화 없이 작업 맥락을 복구하기 위한 기록입니다.
 
 ## 시작할 위치
 
 - 현재 프로젝트: 이 파일이 있는 `DittochesMulti`. Git 루트는 한 단계 위입니다.
 - 저장소: [rasp-jun/dittoches](https://github.com/rasp-jun/dittoches/tree/develop), 브랜치 `develop`.
-- 최신 기능 커밋: `6a72aa5`. GitHub 인증·업로드 안내 갱신: `eb5048a`. 이 인수인계 문서는 그 뒤의 문서 커밋입니다. 정확한 최신 HEAD는 `git log -1`로 확인합니다.
+- 최신 기능: 9월 18일 배치·전투 UI 마무리. 이전 모집·배치 패치는 `6a72aa5`, 인수인계는 `dc080cb`입니다. 정확한 최신 HEAD는 `git log -1` 또는 보존 폴더의 `CURRENT_HANDOFF.json`으로 확인합니다.
 - 로컬 Git과 GitHub CLI 인증으로 업로드 성공, `develop` 원격 SHA 일치를 확인했습니다. 연결 앱의 코드 쓰기 403은 이 경로의 업로드에 영향을 주지 않습니다.
 - `main`은 이전 상태입니다. 새 PC의 복원·실행·로그인은 [HOME_HANDOFF.md](HOME_HANDOFF.md)를 따릅니다.
 
@@ -24,6 +24,7 @@
 4. 기본 공격/스킬 피해, 실제 받은 피해/보호막 흡수, 실제 회복/보호막 생성 기록과 현재 HP/마나/상태를 표시합니다. 온라인 완료 기록은 같은 방 재접속에도 남고, 솔로 과거 기록은 다음 준비 단계의 장비·성급 변경과 분리합니다.
 5. 상점 카드에 공격/마법/혼합 유형·사거리·스킬 아이콘을 추가했습니다. 우클릭 상세는 장비·시너지 없는 1성 기준이며 골드가 없어도 조회만 가능합니다.
 6. 배치할 칸을 가리키면 이동/교환 전후 시너지 인원과 활성·강화·약화·해제를 미리 봅니다. 교환으로 빠지는 유닛, 중복 종류와 인원 제한도 반영합니다. 실제 입력 전에는 배치를 바꾸지 않습니다.
+7. 솔로 연속 드래그와 별도 목적지 강조, 기존 이미지의 모션 전환 보간, 솔로·온라인 전투 체력바 겹침 회피를 적용했습니다. 온라인 모집 카드·경제 UI를 정리하고 F/D/Space 단축키, 공통 버튼 호버와 지연 툴팁을 추가했습니다.
 
 ## 주요 파일 안내
 
@@ -33,6 +34,7 @@
 | 시너지·장비 정의 | `Assets/Resources/DigimonBuilds.json`, `Assets/Scripts/DigimonBuildCatalog.cs`, `SYNERGIES_AND_EQUIPMENT.md` |
 | 모집 카드·배치 미리보기 | `Assets/Scripts/NativeGame.Recruitment.cs`, `MultiLauncher.Recruitment.cs`, `FormationForecast.cs`, `FormationForecastUI.cs` |
 | 전투 정보 | `Assets/Scripts/CombatReportUI.cs`, `NativeGame.CombatReport.cs`, `MultiLauncher.CombatReport.cs`, `*.SkillInspection.cs` |
+| UI 마무리 | `Assets/Scripts/ArenaInterface.cs`, `CombatLabelLayout.cs`, `NativeGame.InterfacePolish.cs`, `MultiLauncher.InterfacePolish.cs`, `NativeGame.Presentation.cs`, `TacticalArena.Skills.cs` |
 | 전장·모션·3D 시험본 | `Assets/Scripts/TacticalArena.cs`, `DigimonModelLibrary.cs`, `DigimonMeshBuilder.cs`, `DigimonRig.cs` |
 | 서버 | `Server/server.py`, `combat_skills.py`, `combat_builds.py`, `combat_stats.py` |
 | 검증 | `Tools/validate_code.py`, `validate_online.py`, `Assets/Scripts/NativeGame.*Validation.cs`, `MultiLauncher.RuntimeValidation.cs`, `Server/test*.py` |
@@ -44,10 +46,10 @@
 | 서버 단위/HTTP 검사 | 65개 통과 (직전 전투 기록 패치, 이후 서버 코드 변경 없음) |
 | C# 이동·기술 타이밍 검사 | 894개 통과 |
 | C# ↔ 서버 능력치·피해·거리 비교 | 1,458개 통과 |
-| 실제 솔로 Mono 플레이어 | 822개 통과 |
-| 실제 온라인 플레이어 + HTTP 시험 상대 | 68개 통과 |
+| 실제 솔로 Mono 플레이어 | 838개 통과 |
+| 실제 온라인 플레이어 + HTTP 시험 상대 | 72개 통과 |
 
-온라인 검사 수는 상점 추첨과 폴링 등에 따라 조금 달라질 수 있습니다. 두 PC의 실제 UI 조작을 검사한 것은 아닙니다. 최근 화면은 `Builds/PortablePreview/ArenaCaptures/19-synergy-swap.png`, `20-shop-skill.png`, `21-placement-blocked.png`, `OnlineCaptures/12-shop-skill.png`, `13-formation-preview.png`입니다. 마지막 솔로·온라인 로그에 런타임 예외가 없었습니다.
+온라인 검사 수는 상점 추첨과 폴링 등에 따라 조금 달라질 수 있습니다. 두 PC의 실제 UI 조작을 검사한 것은 아닙니다. 최근 화면은 `Builds/PortablePreview/ArenaCaptures/04-combat.png`, `22-drag-follow.png`, `23-drop-settle.png`, `OnlineCaptures/01-inventory.png`, `12-shop-skill.png`입니다. 밀집/경계 체력바 배치, 같은 칸 안의 연속 드래그와 실제 교환, 온라인 정보창/골드 부족 시 단축키 차단도 검사합니다.
 
 ## 다음에 할 일
 

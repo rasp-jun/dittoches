@@ -5,6 +5,7 @@ public sealed partial class NativeGame
 {
     Rect SoloArenaViewport { get { return artPack==0?TacticalArena.WideViewport:TacticalArena.SoloViewport; } }
     GUIStyle hudSmall,hudName,hudWrap,hudButton,hudNumber;
+    readonly ArenaInterface arenaInterface=new ArenaInterface();
     void HudStyles()
     {
         if(hudSmall!=null)return;
@@ -18,14 +19,7 @@ public sealed partial class NativeGame
     {return HudButton(rect,new GUIContent(text),enabled,selected);}
     bool HudButton(Rect rect,GUIContent content,bool enabled=true,bool selected=false)
     {
-        bool before=GUI.enabled,available=before&&enabled;
-        bool hover=available&&rect.Contains(Event.current.mousePosition);
-        Color edge=selected?accent:hover?new Color(.52f,.69f,.66f):new Color(.20f,.30f,.32f);
-        DrawRect(rect,edge);
-        DrawRect(new Rect(rect.x+1,rect.y+1,rect.width-2,rect.height-2),selected?new Color(.18f,.15f,.075f):hover?new Color(.085f,.16f,.17f):new Color(.035f,.07f,.085f));
-        hudButton.normal.textColor=available?(selected?new Color(1,.85f,.49f):new Color(.86f,.92f,.92f)):new Color(.36f,.43f,.44f);
-        hudButton.hover.textColor=hudButton.active.textColor=hudButton.normal.textColor;
-        GUI.enabled=available;bool clicked=GUI.Button(rect,content,hudButton);GUI.enabled=before;return clicked;
+        return arenaInterface.Button(rect,content,enabled,selected);
     }
     void HudPanel(Rect rect)
     {DrawRect(rect,new Color(.025f,.045f,.056f,.97f));DrawRect(new Rect(rect.x,rect.y,rect.width,1),new Color(.32f,.38f,.33f));}
@@ -176,7 +170,8 @@ public sealed partial class NativeGame
                 DrawRect(new Rect(r.x,r.y,2,r.height),edge);DrawRect(new Rect(r.xMax-2,r.y,2,r.height),edge);DrawRect(new Rect(r.x,r.yMax-2,r.width,2),edge);
             }
             bool enabled=GUI.enabled;GUI.enabled=enabled&&afford&&room;
-            if(GUI.Button(r,new GUIContent("",ShopUnitSummary(d,singles,doubles)),GUIStyle.none)&&Buy(i))
+            string tip=new Rect(r.x+141,r.y+7,30,30).Contains(Event.current.mousePosition)?skill.name+" · 우클릭으로 스킬 정보":ShopUnitSummary(d,singles,doubles);
+            if(GUI.Button(r,new GUIContent("",tip),GUIStyle.none)&&Buy(i))
             {NotifyPlacement(UnitName(d)+(merges?" · 자동 합성 완료":" 모집 완료"));Save();}
             GUI.enabled=enabled;
             if(!afford||!room)DrawRect(r,new Color(.012f,.018f,.026f,.22f));

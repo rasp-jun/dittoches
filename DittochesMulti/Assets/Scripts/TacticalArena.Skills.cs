@@ -60,7 +60,11 @@ public sealed partial class TacticalArena
         Actor actor;if(!actors.TryGetValue(key,out actor))return;
         var s=DigimonSkillCatalog.Find(id);if(s==null){PoseCombatActor(key,speed,direction,time,death);return;}
         if(PoseModel(actor,id,speed,time,s,castAge,attack,death,star))return;
-        float size=s.size*(1+.055f*(star-1)),move=Mathf.Clamp01(speed),phase=time*7f+id.Length*1.73f;
+        float dt=actor.poseTime<0?0:Mathf.Clamp(time-actor.poseTime,0,.1f);bool first=actor.poseTime<0;actor.poseTime=time;
+        float blend=first?1:1-Mathf.Exp(-dt*14);
+        actor.poseMove=Mathf.Lerp(actor.poseMove,Mathf.Clamp01(speed),blend);
+        actor.posePhase+=dt*(3.2f+actor.poseMove*4.8f);
+        float size=s.size*(1+.055f*(star-1)),move=actor.poseMove,phase=actor.posePhase;
         float bob=s.hover>0?s.hover+Mathf.Sin(phase*.65f)*.035f:Mathf.Abs(Mathf.Sin(phase))*move*.065f;
         float lean=Mathf.Sin(phase)*move*3f,sx=1,sy=1+Mathf.Sin(phase*.42f)*.013f;
         float facing=direction<-.05f?-1:1;
@@ -85,6 +89,10 @@ public sealed partial class TacticalArena
             }
         }
         else if(attack>0)lean+=Mathf.Sin((1-Mathf.Clamp01(attack/.35f))*Mathf.PI)*9*facing;
+        // Blend pose transitions so starting/stopping, a cast ending, or a target change cannot snap the body.
+        actor.poseLean=Mathf.LerpAngle(actor.poseLean,lean,blend);
+        actor.poseX=Mathf.Lerp(actor.poseX,sx,blend);actor.poseY=Mathf.Lerp(actor.poseY,sy,blend);actor.poseBob=Mathf.Lerp(actor.poseBob,bob,blend);
+        lean=actor.poseLean;sx=actor.poseX;sy=actor.poseY;bob=actor.poseBob;
         Texture texture=actor.portrait.sharedMaterial.mainTexture;
         float aspect=texture!=null?Mathf.Clamp((float)texture.width/texture.height,.68f,1.45f):1;
         actor.portrait.transform.localScale=new Vector3(size*sx*aspect,size*sy,1);

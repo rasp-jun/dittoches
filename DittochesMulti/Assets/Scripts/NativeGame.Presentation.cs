@@ -208,20 +208,22 @@ public sealed partial class NativeGame
             Vector2 mouse=Event.current.mousePosition;
             int seat=arena.HitBench(mouse),cell=arena.HitCell(mouse);
             bool valid=seat>=0||ValidBoardDestination(cell);
-            if(seat>=0)target=TacticalArena.BenchWorld(seat);
+            if(artPack==0)
+            {Vector3 ground;if(arena.GroundPoint(mouse,out ground)&&SoloArenaViewport.Contains(mouse))target=ground;}
+            else if(seat>=0)target=TacticalArena.BenchWorld(seat);
             else if(cell>=0)target=TacticalArena.CellWorld(cell%7,cell/7);
-            else {Vector3 ground;if(arena.GroundPoint(mouse,out ground)&&SoloArenaViewport.Contains(mouse))target=ground;}
             target+=Vector3.up*.35f;
             color=valid?new Color(.3f,1f,.75f):new Color(1f,.3f,.24f);
             arena.HighlightDestination(cell,seat,valid);
             scale=1.08f;
         }
-        displayed=Vector3.Lerp(displayed,target,1-Mathf.Exp(-Time.unscaledDeltaTime*(held?24f:15f)));
+        Vector3 previous=displayed;
+        displayed=Vector3.Lerp(displayed,target,1-Mathf.Exp(-Time.unscaledDeltaTime*(held?(artPack==0?38f:24f):15f)));
         formationPositions[unit]=displayed;
         float until;float promotion=promotions.TryGetValue(unit,out until)?Mathf.Clamp01((until-Time.unscaledTime)/1.25f):0;
         scale*=1+Mathf.Sin((1-promotion)*Mathf.PI)*.12f*promotion;
         arena.SetActor(unit,displayed,Tex(UnitSprite(unit.def)),color,scale);
-        if(artPack==0)arena.PoseDigimon(unit,unit.def.id,Vector3.Distance(displayed,target)*3f,0,Time.unscaledTime,-1,0,0,unit.star);
+        if(artPack==0)arena.PoseDigimon(unit,unit.def.id,held?0:(displayed-previous).magnitude/Mathf.Max(.001f,Time.unscaledDeltaTime),displayed.x-previous.x,Time.unscaledTime,-1,0,0,unit.star);
         bool selected=held||(!battling&&(selectedBoard>=0&&board[selectedBoard]==unit||selectedBench>=0&&bench[selectedBench]==unit));
         bool gearTarget=selectedItem>=0&&scoutedRival<0&&(board.Contains(unit)||bench.Contains(unit));
         arena.DecorateActor(unit,selected||gearTarget,promotion,invalid:gearTarget&&!CanEquipSelected(unit));

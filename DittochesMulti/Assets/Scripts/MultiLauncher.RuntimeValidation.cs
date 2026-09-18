@@ -24,6 +24,15 @@ public sealed partial class MultiLauncher
             DrawOnlineRecruitCard(new Rect(310,814,181,108),offer,0,me,true);
             OnlineRequire(onlineSkillId==offer&&onlineSkillArea=="shop","online shop icon opens while purchase is unavailable");
             OnlineRequire(!busy&&me.gold==0&&me.shop[0]==offer&&me.bench.Length==count,"shop inspection never sends a purchase");
+            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space})
+            {
+                me.gold=50;GUI.enabled=false;Event.current=new Event{type=EventType.KeyDown,keyCode=key};
+                DrawOnlineEconomy(me,state.room,true,true);
+                OnlineRequire(!busy&&me.gold==50&&me.shop[0]==offer,"modal blocks online economy shortcut "+key);
+            }
+            me.gold=0;GUI.enabled=true;Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.D};
+            DrawOnlineEconomy(me,state.room,true,true);
+            OnlineRequire(!busy&&me.gold==0&&me.shop[0]==offer,"insufficient gold blocks reroll shortcut");
         }
         finally{me.gold=savedGold;Event.current=saved;GUI.enabled=enabled;}
     }
