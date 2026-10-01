@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>Blended skeletal locomotion and combat poses. Animation never scales a portrait.</summary>
-public sealed class DigimonRig
+public sealed partial class DigimonRig
 {
     public readonly GameObject root;
     public readonly SkinnedMeshRenderer renderer;
@@ -14,7 +14,7 @@ public sealed class DigimonRig
     float lastTime=-1,phase,moveBlend,yaw,desiredYaw=155;
     bool facingSet;
     public int BoneCount { get { return bones.Length; } }
-    public Vector3 Mouth { get { return bones[index["Jaw"]].TransformPoint(new Vector3(0,.005f,.39f)); } }
+    public Vector3 Mouth { get { return bones[index["Jaw"]].TransformPoint(model.authored==null?new Vector3(0,.005f,.39f):model.id=="agumon"?new Vector3(0,.027f,.80f):new Vector3(0,.025f,.27f)); } }
     public DigimonRig(DigimonModelLibrary.Model model,Transform parent,Material material,int layer)
     {
         this.model=model;
@@ -30,7 +30,7 @@ public sealed class DigimonRig
             bone.transform.localPosition=rest[i];bones[i]=bone.transform;index.Add(definition.names[i],i);
         }
         renderer=root.AddComponent<SkinnedMeshRenderer>();renderer.sharedMesh=model.mesh;renderer.sharedMaterial=material;
-        renderer.bones=bones;renderer.rootBone=bones[0];renderer.quality=SkinQuality.Bone2;
+        renderer.bones=bones;renderer.rootBone=bones[0];renderer.quality=model.authored==null?SkinQuality.Bone2:SkinQuality.Bone4;
         renderer.localBounds=new Bounds(Vector3.up*.8f,new Vector3(3,3,3));
         renderer.updateWhenOffscreen=false;renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
         yaw=desiredYaw;
@@ -40,6 +40,8 @@ public sealed class DigimonRig
         worldDirection.y=0;if(worldDirection.sqrMagnitude<.0001f)return;
         desiredYaw=Mathf.Atan2(worldDirection.x,worldDirection.z)*Mathf.Rad2Deg;facingSet=true;
     }
+    /// <summary>Discard playback history after an explicit seek or model-review mode change.</summary>
+    public void ResetPose(){lastTime=-1;phase=0;moveBlend=0;}
     void Rotate(string name,float x,float y=0,float z=0)
     {int i;if(index.TryGetValue(name,out i))bones[i].localRotation=Quaternion.Euler(x,y,z);}
     static float Ease(float value){value=Mathf.Clamp01(value);return value*value*(3-2*value);}
@@ -64,6 +66,7 @@ public sealed class DigimonRig
     }
     public void Pose(Vector3 position,float speed,float time,DigimonSkillCatalog.Entry skill,float castAge,float attack,float death,int star)
     {
+        if(model.authored!=null){PoseAuthored(position,speed,time,skill,castAge,attack,death,star);return;}
         float dt=lastTime<0?0:Mathf.Clamp(time-lastTime,0,.1f);
         Vector3 delta=lastTime<0?Vector3.zero:position-previousPosition;delta.y=0;
         if(time<lastTime){phase=0;moveBlend=0;}

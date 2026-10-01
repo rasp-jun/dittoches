@@ -15,7 +15,6 @@ public static class PortablePreview
         displayCamera.clearFlags=CameraClearFlags.SolidColor;displayCamera.backgroundColor=new Color(.012f,.022f,.04f);
         foreach(string name in new[]{"Sprites/Default","UI/Default","Unlit/Texture","Unlit/Color","Standard","Hidden/Internal-Colored"})
         {var shader=Shader.Find(name);Debug.Log("PREVIEW SHADER "+name+": "+(shader!=null?shader.isSupported.ToString():"missing"));}
-        if(HasArgument("--model-gallery")){new GameObject("3D Model Preview").AddComponent<PortableModelGallery>();return true;}
         if(HasArgument("--arena-smoke")){new GameObject("Arena Runtime Validation").AddComponent<NativeGame>().BeginArenaSmoke();return true;}
         if(HasArgument("--online-smoke")){new GameObject("Online Runtime Validation").AddComponent<MultiLauncher>().BeginOnlineSmoke();return true;}
         if(!HasArgument("--skill-gallery"))return false;

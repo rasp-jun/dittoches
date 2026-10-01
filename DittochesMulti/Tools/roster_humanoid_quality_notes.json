@@ -1,0 +1,88 @@
+{
+  "revision": "2026-10-01-humanoid-reference-rebuild",
+  "scope": "10 humanoid roster characters; new native mesh geometry with the existing named 25-bone contract",
+  "reference_method": "Viewed the official individual character illustrations, including the corrected weregarrumon spelling. Compared local generated renders against those illustrations and revised visible errors. Illustrations were used as visual references, not mapped onto models.",
+  "reference_warning": "Do not infer a variant solely from detailed official line art. The earlier suggestion that angemon.jpg was an X variant was withdrawn after checking the official basic-form detail page. Root authoring now records the verified page image URLs in ArtSource/Roster/ReferencesV2/sources.json.",
+  "global_changes": [
+    "Individual humanoid skeleton proportions; narrowed head and neck with longer legs and differentiated shoulder widths",
+    "Elliptical torso cross sections with defined waist and pelvis, tapered limbs and smaller joints",
+    "Separate fingers and opposed thumbs, articulated clothing, belt construction, engraved armour and weapons",
+    "Flattened almond eyes and face planes instead of large spherical cartoon eyeballs",
+    "Curved layered feather meshes, opaque fitted botanical clothing, continuous bat wing membrane panels"
+  ],
+  "render_review_corrections": [
+    "Covered Lilimon torso and pelvis with opaque green clothing and raised leaf bodice panels after the first render exposed that ornaments were embedded in the skin",
+    "Widened angel feathers, increased overlap, reduced exposed wing supports and split the helmet visor into fitted halves",
+    "Replaced WereGarurumon's rounded bear-like muzzle, nose and eyes with angular wolf meshes and narrow eye plates",
+    "Added missing neck connections to WereGarurumon, Garudamon and Etemon",
+    "Flattened large pectoral bulges to preserve the torso silhouette"
+  ],
+  "characters": {
+    "angemon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=angemon",
+      "observed": "Six white wings, eye-covering silver helmet, white garment with blue hanging strips, gold trim, staff and long hair.",
+      "implemented": "Three distinct wing pairs with overlapping primary and covert feathers; fitted split visor; white torso panels; gold seam; blue hanging strips with raised stitch motifs; fitted boots, bracers, staff and hair.",
+      "remaining": "Cloth, hairstyle and visor topology are stylized. Engraved symbols are decorative approximations, not transcriptions. Separate wing groups use the existing generic wing animation."
+    },
+    "holyangemon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=holyangemon",
+      "observed": "Eight wings, tall violet helmet centre, feathered white collar, purple cloth, gold ornament and long violet energy sword.",
+      "implemented": "Four wing pairs, fitted helmet with violet crest, layered collar feathers, purple tunic, gold collar, shoulder plates and faceted Excalibur blade.",
+      "remaining": "Shoulder ornament and layered cloth are simplified. Sword is opaque coloured geometry without a custom luminous shader."
+    },
+    "seraphimon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=seraphimon",
+      "observed": "Ten gold wings, silver and blue fitted full armour, high helmet crest, gold trim and long central glyph tabard.",
+      "implemented": "Five wing pairs; blue inset pauldrons; articulated silver breastplate ribs, fauld and knee crests; angular helmet; fitted boots and gold tabard with raised decorative markings.",
+      "remaining": "Original engravings and small armour filigree are approximated, and the wing rig does not independently articulate all ten wings."
+    },
+    "wargreymon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=wargreymon",
+      "observed": "Orange dragon anatomy, silver angular dragon mask, green narrow eyes, red mane, gold angular shoulders, large steel claws, paired Brave Shield halves and layered shin armour.",
+      "implemented": "Broad muscular proportions, extended faceted snout, recessed eye slits, red swept mane, bevelled pauldrons with spikes, three long Dramon blades per arm, paired back shield panels, mechanical ribs, knees and shin plates.",
+      "remaining": "Some silver armour seams, vents and the original shield emblem need dedicated sculpting. Shield geometry is a simplified static pair, and hand/arm motions reuse the current roster clip contract."
+    },
+    "weregarurumon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=weregarrumon",
+      "image": "https://digimon.net/cimages/digimon/weregarrumon.jpg",
+      "observed": "Angular wolf head and pointed ears, pale blue fur, dark stripes, white chest and cheek ruffs, torn denim, asymmetric left sleeve and shoulder armour, dog tag, brown knee pads and magenta talons.",
+      "implemented": "Angular muzzle and jaw, narrow amber eyes, sculpted fur tufts, white chest patch, dark markings, torn denim hems, left sleeve/pauldron, leather straps, dog tag chain, asymmetric spiked knee guard, brass knuckles and magenta talons.",
+      "remaining": "The fur silhouette is stylized and the reference's dense sculpted fur and tattoo-like denim markings are not fully reproduced."
+    },
+    "lilimon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=lilimon",
+      "observed": "Large pink lily crown, green leaf bodice, pink petal skirt, four green leaf wings, yellow wrist flowers and green flowered shoes.",
+      "implemented": "Slender female proportions, three large crown petals, fitted opaque green bodice with leaf overlays, overlapping pink skirt, four veined wings, floral wrist cuffs, leaf boots and slippers.",
+      "remaining": "Hair and small costume vines remain simplified; the face uses the local procedural face topology and is not a final likeness sculpt."
+    },
+    "rosemon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=rosemon",
+      "observed": "Layered red rose crown, high green collar, red fitted bodice, black legs/boots, long split white petals, gold vines and thorn whip.",
+      "implemented": "Rose crown layers, green collar with veins, fitted red panels with gold trim, black boots, red skirt, large split white cape petals, wrist gold bands and shaped thorn whip.",
+      "remaining": "Rose petal crown, cape folds and gold filigree are stylized. Cape petals are bone-bound surfaces without cloth simulation."
+    },
+    "garudamon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=garudamon",
+      "observed": "Large orange-red bird warrior, hooked beak, white throat feathers, wide red wings with yellow tips, tribal bands, golden scaled shins and oversized hooked talons.",
+      "implemented": "Broad anatomy, beaked head with crest, connected feathered neck, dense throat feathers, layered wide wing fans, yellow feather tips, triangular tribal band markings, scaled shin rings and individually hooked toes.",
+      "remaining": "Tattoo patterns and complex arm feather layering are reduced. Full bird-specific arm/wing coupling is not yet re-authored."
+    },
+    "devimon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=devimon",
+      "observed": "Thin black demon, long pointed horns and arms, skeletal face, red chest marking, tattered bat wings, wrapped wrists and long curved fingers.",
+      "implemented": "Narrow torso and extended arms, swept horns, red chest sigil, continuous scalloped wing panels and exposed wing fingers, wrist straps, belt skull, knee straps and elongated claws.",
+      "remaining": "Face still needs a more faithful skeletal sculpt; membrane tears and the original skull motifs are simplified."
+    },
+    "etemon": {
+      "reference": "https://digimon.net/reference/detail.php?directory_name=etemon",
+      "observed": "Orange monkey costume, broad cream muzzle with toothy grin, black sunglasses, tuft, visible stitching, cream chest patch, belt ring, monkey charm and long tail.",
+      "implemented": "Shorter ape proportions, ears and angular muzzle, individual grin teeth, thick sunglass frames with inset lens highlights, hair tuft, stitch/zipper details, belly patch, pendant and curved tail with pale tip.",
+      "remaining": "The costume's fur texture and expression need further sculpting. Tail-tip weight assignment follows the existing three-tail-bone contract."
+    }
+  },
+  "verification": {
+    "syntax": "python -m py_compile Tools/roster_humanoid_quality.py",
+    "geometry": "Standalone Blender build and render pass is run by tmp/check_humanoid_quality.py; root additionally runs the integrated skeleton/export/engine tests.",
+    "quality_scope": "Material-coloured native meshes, no UV textures or photogrammetry. These are a substantial shape and costume revision, not production-final recreations. No claim of DMO motion comparison for these ten characters."
+  }
+}

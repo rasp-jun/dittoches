@@ -48,6 +48,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void Boot()
     {
+        if(PortableModelGallery.TryBoot())return;
 #if DITTOCHES_PORTABLE_PREVIEW
         if(PortablePreview.TryBoot())return;
 #endif

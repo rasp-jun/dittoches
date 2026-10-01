@@ -35,6 +35,13 @@ def main():
     streaming.mkdir(exist_ok=True)
     for catalog in ('DigimonSkills.json','DigimonBuilds.json'):
         shutil.copy2(root/'Assets/Resources'/catalog,streaming/catalog)
+    model=root/'Assets/Resources/Models/Agumon/Agumon.bytes'
+    if model.is_file():
+        (streaming/'Models').mkdir(exist_ok=True)
+        shutil.copy2(model,streaming/'Models/Agumon.bytes')
+    for model in (root/'Assets/Resources/Models/Roster').glob('*.bytes'):
+        (streaming/'Models').mkdir(exist_ok=True)
+        shutil.copy2(model,streaming/'Models'/model.name)
     art=root/'Assets/Resources/ArtVariants/LicensedFanArt'
     for source in art.glob('*.png'):
         target=streaming/'PreviewArt/ArtVariants/LicensedFanArt'/source.name
