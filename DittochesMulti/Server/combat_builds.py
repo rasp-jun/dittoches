@@ -29,7 +29,7 @@ def resolve(unit_id, team_ids, equipment=()):
         active = trait['tiers'][tier-1]['bonus']
         if unit_id in trait['members']:
             add(active)
-        add({'startShield': active.get('teamShield', 0)})
+        add({'startShield': active.get('teamShield', 0), 'armor': active.get('teamResist', 0), 'magicResist': active.get('teamResist', 0)})
     for item in equipment:
         if type(item) is int and 0 <= item < 14:
             add(ITEMS[item]['bonus'])
@@ -69,7 +69,7 @@ def initialize(fighters):
         f['build'] = resolve(f['id'], [u['id'] for u in fighters if u['side'] == f['side']], f.get('items', []))
         f['maxHp'] = (f['maxHp']+value(f, 'health')*1.8**(f['star']-1))*(1+value(f, 'hp'))
         f['hp'] = f['maxHp']
-        f.update(attacks=0, casts=0, lowShieldUsed=False, regenClock=0, shield=0, damageDone=0,
+        f.update(attacks=0, casts=0, lowShieldUsed=False, crisisAt=-1, friendshipActive=value(f,'rampSpeed')>0, regenClock=0, combatAge=0, shield=0, damageDone=0,
                  basicDamageDone=0, skillDamageDone=0, damageTaken=0, shieldAbsorbed=0, healingDone=0, shieldingDone=0)
         f['mana'] = min(f['maxMana'], f['mana']+value(f, 'startMana'))
         shield(f, f, f['maxHp']*value(f, 'startShield'))
@@ -78,6 +78,7 @@ def initialize(fighters):
 def tick(f, dt):
     if f['hp'] <= 0:
         return
+    f['combatAge'] = f.get('combatAge', 0)+dt
     f['mana'] = min(f['maxMana'], f['mana']+value(f, 'manaRegen')*dt)
     f['regenClock'] = f.get('regenClock', 0)+dt
     while f['regenClock']+1e-8 >= 1:
@@ -113,9 +114,11 @@ def damage(source, target, amount, basic=False, damage_type='physical'):
     source[kind] = source.get(kind, 0)+actual
     target['damageTaken'] = target.get('damageTaken', 0)+actual
     target['shieldAbsorbed'] = target.get('shieldAbsorbed', 0)+absorbed
-    if 0 < target['hp'] <= target['maxHp']*.35 and not target.get('lowShieldUsed', False) and value(target, 'lowShield'):
+    if 0 < target['hp'] <= target['maxHp']*(.35+1e-7) and not target.get('lowShieldUsed', False) and (value(target, 'lowShield') or value(target, 'lowHeal')):
         target['lowShieldUsed'] = True
+        target['crisisAt'] = target.get('combatAge',0)
         shield(target, target, target['maxHp']*value(target, 'lowShield'))
+        heal(target, target, target['maxHp']*value(target, 'lowHeal'))
     if basic:
         if source['hp'] > 0 and value(source, 'lifesteal'):
             heal(source, source, actual*value(source, 'lifesteal'))

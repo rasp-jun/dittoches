@@ -5,6 +5,7 @@ Tools/animate_faithful_models.py -- --ids agumon,wargreymon
 Outputs go to AnimatedReview first; the inspected gallery is never overwritten.
 """
 import sys,math,json,hashlib,argparse,shutil
+from datetime import date
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import numpy as np
@@ -12,10 +13,10 @@ from mathutils import Euler,Quaternion,Vector,Matrix
 from faithful_rig_common import *
 from faithful_rig_profiles import PROFILES,skeleton
 from faithful_skin_topology import refine
-from faithful_sculpt import refine_agumon
+from faithful_sculpt import refine_agumon,repair_agumon_face_weights
 
-CLIPS=[('Idle',2.8,True),('Walk',1.0,True),('Run',.70,True),
-       ('Attack',1.1,False),('Hit',.6,False),('Victory',2.8,False)]
+from faithful_motion_catalog import CLIPS,BASELINE,clips_for
+from faithful_combat_poses import combat_pose
 
 
 def smooth(a,b,x):
@@ -112,9 +113,9 @@ def skin(ident,meshes,rig,p,defs):
         kind=p['kind']
         if kind=='baby':
             replace(np.ones(len(x),dtype=bool),['Head'])
-            if ident=='koromon':
+            if 'ears' in p:
                 for side,s in [(-1,'L'),(1,'R')]:
-                    mask=(x*side>.22)&(z>1.28)
+                    mask=(x*side>.15)&(z>p.get('ear_cut',1.28))
                     replace(mask,['Head','Ear'+s,'EarTip'+s])
             if 'flower' in p:replace(z>1.16,['Head','Flower','Petals'])
             if 'arms' in p:
@@ -131,7 +132,7 @@ def skin(ident,meshes,rig,p,defs):
         else:
             replace(z>p['head_cut'],['Head'])
             for side,s in [(-1,'L'),(1,'R')]:
-                mask=(x*side>.08)&(z<p['leg_cut'])
+                mask=(x*side>p.get('leg_min_x',.08))&(z<p['leg_cut'])
                 replace(mask,['Hips','Thigh'+s,'Shin'+s,'Foot'+s])
                 replace(mask&(z<.23),['Foot'+s])
                 arm=(x*side>p['arm_cut'])&(z>.29)
@@ -142,10 +143,11 @@ def skin(ident,meshes,rig,p,defs):
                     # them anatomically instead of cutting every outer knee
                     # into the arm region.
                     arm &= (z>p['leg_cut']+.15)|(dist[:,arm_ids].min(axis=1)<dist[:,leg_ids].min(axis=1))
-                if ident=='agumon':arm=((x*side>.37)&(z>.80))|((x*side>.50)&(z>.32))
+                if ident=='agumon':arm=(((x*side>.37)&(z>.80))|((x*side>.50)&(z>.32)))&(z<1.49)
                 if ident=='greymon':
                     arm=((x<-.50)&(z>1.08))|((x<-.68)&(y<-.12)&(z>.68)) if side<0 else (x>.28)&(z>1.20)
-                if kind=='insect':arm&=(z>.63)
+                if kind=='insect' and not p.get('expanded'):arm&=(z>.63)
+                if 'arm_top' in p:arm&=(z<p['arm_top'])
                 replace(arm,['Spine','UpperArm'+s,'Forearm'+s,'Hand'+s])
                 if 'extra_arms' in p:
                     permit(arm,['LowerArm'+s,'LowerForearm'+s,'LowerHand'+s])
@@ -154,14 +156,24 @@ def skin(ident,meshes,rig,p,defs):
                     # on the forward plane and follows the shoulder/hand rig.
                     wing=(x*side>.10)&(y>p['wing_root'][1]-.02)&(z>.92)
                     replace(wing,['Wing'+s])
-                if kind=='insect':
+                if kind=='insect' and not p.get('expanded'):
                     wing=(y>.31)&(z>1.06)
                     replace(wing&(x*side>=0),['Wing'+s])
+                if p.get('expanded') and 'wing_root' in p:
+                    wing=(y>p['wing_y'])&(z>p['wing_z'])&(x*side>p.get('wing_x',.10))
+                    replace(wing,['Wing'+s])
+                    if 'extra_wings' in p:
+                        lower=(y>p['wing_y'])&(z>.68)&(z<p['wing_z'])&(x*side>.51)
+                        replace(lower,['LowerWing'+s])
             if p.get('shield'):replace((y>.13)&(z>.77)&(ax<.63),['Spine'])
             if kind=='angel':replace((ax<.10)&(z<1.1)&(y<-.08),['Hips'])
         if 'tail' in p:
             cutoff=p['tail'][0][1]+.06
-            replace((y>cutoff)&(z>.47)&(ax<(.65 if ident!='greymon' else 1.2)),['Hips','Tail','TailTip'])
+            replace((y>cutoff)&(z>(.2 if p.get('expanded') else .47))&(ax<p.get('tail_width',.65 if ident!='greymon' else 1.2)),['Hips','Tail','TailTip'])
+        if p.get('expanded') and 'flower' in p:replace(z>p['flower_cut'],['Head','Flower','Petals'])
+        if kind=='shell':
+            replace(y>p['head_y'],['Hips'])
+            replace((y<p['head_y'])&(z>p['head_cut']),['Head'])
         if 'jaw' in p:
             if ident=='agumon':jaw=(z>1.47)&(z<1.72)&(y<-.16)&(ax<.52)
             else:jaw=(z>1.39)&(z<1.82)&(y<-.44)&(np.abs(x+.28)<.36)
@@ -214,15 +226,15 @@ def envelope(t,keys):
 def ik(rig,upper,lower,foot,target,bend_sign=-1,use_rest_bend=False):
     bpy.context.view_layer.update();a=rig.pose.bones[upper];b=rig.pose.bones[lower];f=rig.pose.bones[foot]
     start=a.head.copy();target=Vector(target);v=target-start;d=v.normalized()
-    l1=a.bone.length;l2=b.bone.length;distance=max(.001,min(v.length,l1+l2-.0001))
+    l1=(b.head-a.head).length;l2=(f.head-b.head).length;distance=max(.001,min(v.length,l1+l2-.0001))
     along=(l1*l1-l2*l2+distance*distance)/(2*distance)
     bend=(b.head-start) if use_rest_bend else Vector((0,bend_sign,0))
     bend=bend-d*bend.dot(d)
     if bend.length<.0001:bend=Vector((0,bend_sign,0));bend-=d*bend.dot(d)
     bend.normalize()
     knee=start+d*along+bend*math.sqrt(max(0,l1*l1-along*along))
-    for bone,end in [(a,knee),(b,target)]:
-        bpy.context.view_layer.update();q=(bone.tail-bone.head).normalized().rotation_difference((end-bone.head).normalized())@bone.matrix.to_quaternion()
+    for bone,child,end in [(a,b,knee),(b,f,target)]:
+        bpy.context.view_layer.update();q=(child.head-bone.head).normalized().rotation_difference((end-bone.head).normalized())@bone.matrix.to_quaternion()
         bone.matrix=Matrix.Translation(bone.head)@q.to_matrix().to_4x4()
     bpy.context.view_layer.update();f.matrix=Matrix.Translation(f.head)@f.bone.matrix_local.to_quaternion().to_matrix().to_4x4()
 
@@ -248,6 +260,19 @@ def foot_roll(u,run):
 
 
 def pose(ident,rig,p,mode,t,duration):
+    if mode in ('Skill','Guard','Dodge','Down'):
+        combat_pose(ident,rig,p,mode,t,duration,pose,rotate,translate,envelope)
+        if ident=='rosemon' and mode in ('Guard','Skill'):
+            u=t/duration
+            strength=envelope(u,[(0,0),(.22,1),(.68,1),(1,0)]) if mode=='Guard' else envelope(u,[(0,0),(.40,0),(.57,1),(.68,.85),(1,0)])
+            # Native arm axes differ from the generated skeletons. Aim the
+            # preserved hand joints so guarding clearly raises the forearms.
+            for side,s in [(-1,'L'),(1,'R')]:
+                bpy.context.view_layer.update()
+                start=rig.pose.bones['Hand'+s].head.copy()
+                target=Vector((side*.17,-.40,1.91)) if mode=='Guard' else Vector((side*.25,-.70 if side<0 else -.52,1.82))
+                ik(rig,'UpperArm'+s,'Forearm'+s,'Hand'+s,start.lerp(target,strength),use_rest_bend=True)
+        return
     reset(rig);phase=t/duration*math.tau;kind=p['kind'];walk=mode in ('Walk','Run');run=mode=='Run'
     beat=math.sin(phase);breath=math.sin(phase)*.45
     attack=envelope(t,[(0,0),(.24,-.35),(.42,1),(.56,.85),(.82,.12),(duration,0)]) if mode=='Attack' else 0
@@ -255,12 +280,13 @@ def pose(ident,rig,p,mode,t,duration):
     win=math.sin(math.pi*t/duration)**2 if mode=='Victory' else 0
     if kind=='baby':
         hop=max(0,math.sin(phase))**2 if walk else 0
-        translate(rig,'Hips',(0,0,hop*(.22 if run else .12)))
+        celebrate=win*max(0,math.sin(phase*2))**2
+        translate(rig,'Hips',(0,-attack*.08+hit*.05,hop*(.22 if run else .12)+celebrate*.16))
         squash=(-.025*math.cos(phase*2) if walk else .008*beat)-.07*max(0,-attack)
         rig.pose.bones['Hips'].scale=(1-squash*.4,1-squash*.4,1+squash)
-        rotate(rig,'Head',x=breath+attack*12-hit*13,y=hit*5,z=beat*(1.6 if walk else .7))
+        rotate(rig,'Head',x=breath+attack*12-hit*13-win*4,y=hit*5,z=beat*(1.6 if walk else .7)+win*math.sin(phase*2)*3)
         for side,s in [(-1,'L'),(1,'R')]:
-            rotate(rig,'Ear'+s,x=math.sin(phase-.35)*4+attack*14,z=side*math.sin(phase)*3)
+            rotate(rig,'Ear'+s,x=math.sin(phase-.35)*4+attack*14,z=side*(math.sin(phase)*3+win*7)*p.get('ear_flap',1))
             rotate(rig,'EarTip'+s,x=math.sin(phase-.7)*6-attack*10)
             rotate(rig,'UpperArm'+s,x=attack*-25+side*beat*(13 if walk else 3),y=-side*win*30)
             rotate(rig,'Forearm'+s,x=-win*20)
@@ -269,29 +295,40 @@ def pose(ident,rig,p,mode,t,duration):
         return
     sway=math.sin(phase)*(.8 if walk else .3)
     ready=-.025 if ident=='wargreymon' else 0
-    translate(rig,'Hips',(-math.sin(phase)*(.018 if walk else .003),0,ready+(math.cos(phase*2)*(.012 if run else .008) if walk else .003*beat)))
+    translate(rig,'Hips',(-math.sin(phase)*(.018 if walk else .003),-attack*.055+hit*.045,ready+(math.cos(phase*2)*(.012 if run else .008) if walk else .003*beat)+win*.025))
     rotate(rig,'Hips',z=beat*1.5 if walk else 0)
-    rotate(rig,'Spine',x=breath+attack*8-hit*10+(3 if ident=='wargreymon' else 0),y=attack*9,z=-sway)
-    rotate(rig,'Head',x=-breath*.5-attack*3+hit*5,z=-sway*.45)
+    rotate(rig,'Spine',x=breath+attack*8-hit*10-win*3+(3 if ident=='wargreymon' else 0),y=attack*9,z=-sway+win*math.sin(phase*2)*1.5)
+    rotate(rig,'Head',x=-breath*.5-attack*3+hit*5-win*4,z=-sway*.45+(.65*math.sin(phase) if mode=='Idle' else 0))
     if 'jaw' in p:rotate(rig,'Jaw',x=(-14 if ident=='greymon' else 0)+max(0,attack)*13)
     for side,s in [(-1,'L'),(1,'R')]:
-        swing=side*beat*(13 if walk else 1.2)
-        base_arm=-20 if ident=='agumon' else (-6 if kind=='human' else 0)
-        base_fore=-50 if ident=='agumon' else (-15 if kind=='human' else 0)
+        swing=side*beat*(19 if run else 13 if walk else 1.2)
+        base_arm=p.get('base_arm',-27 if ident=='agumon' else (-6 if kind=='human' else 0))
+        base_fore=p.get('base_fore',-54 if ident=='agumon' else (-15 if kind=='human' else 0))
         # Lower the source T pose around the shoulder, retaining rigid weapons.
-        lower=side*53 if kind=='angel' else 0
-        rotate(rig,'UpperArm'+s,x=base_arm+swing-attack*(35 if side<0 else 12)-hit*10,
+        lower=side*p.get('arm_lower',53 if kind=='angel' else 10 if ident=='agumon' else 0)
+        rotate(rig,'UpperArm'+s,x=base_arm+swing-attack*(p.get('attack_arm',35) if side<0 else 12)-hit*10,
                y=lower+side*win*20,z=attack*side*9)
         rotate(rig,'Forearm'+s,x=base_fore-max(0,attack)*15-win*10)
-        rotate(rig,'Hand'+s,x=10 if ident=='agumon' else 0)
+        rotate(rig,'Hand'+s,x=10 if ident=='agumon' else 0,z=-side*18 if ident=='agumon' else 0)
         rotate(rig,'LowerArm'+s,x=-swing*.55-attack*22,z=side*win*8)
         rotate(rig,'LowerForearm'+s,x=-attack*13)
         rotate(rig,'Wing'+s,x=math.sin(phase-.2)*1.4,y=side*(math.sin(phase)*2+max(0,attack)*7+win*8),
                z=-side*62 if ident=='holyangemon' else 0)
         rotate(rig,'FrontUpperWing'+s,y=side*(45+beat*2+win*8),z=side*30)
         rotate(rig,'FrontLowerWing'+s,y=-side*(45+beat*2+win*8),z=side*30)
+        if p.get('expanded') and 'wing_root' in p:
+            flap=p.get('wing_flap',1)
+            rotate(rig,'Wing'+s,y=side*(beat*2*flap+max(0,attack)*5+win*7))
+            rotate(rig,'LowerWing'+s,y=side*(math.sin(phase-.5)*4+win*9))
     rotate(rig,'Tail',x=breath,y=math.sin(phase-.3)*(4 if walk else 2)-attack*5,z=math.sin(phase-.3)*(3 if walk else 1.5))
     rotate(rig,'TailTip',x=math.sin(phase-.8)*2,z=math.sin(phase-.65)*(5 if walk else 2)-attack*6)
+    rotate(rig,'Flower',x=math.sin(phase-.3)*3+attack*8,z=math.sin(phase)*2)
+    rotate(rig,'Petals',x=math.sin(phase-.65)*4,z=-math.sin(phase)*2)
+    if ident=='rosemon':
+        for i in range(3):rotate(rig,['Hair0','Hair01','Hair02'][i],x=math.sin(phase-i*.35)*1.8+attack*2)
+        for suffix in ['L','R']:
+            rotate(rig,'Cape0_'+suffix,x=math.sin(phase-.4)*1.1+attack*2)
+            rotate(rig,'Cape1_'+suffix,x=math.sin(phase-.7)*1.5+attack*3)
     if kind=='quadruped':
         for side,s in [(-1,'L'),(1,'R')]:
             for prefix,key,offset,bend in [('Front','front',0,1),('Rear','rear',.5,-1)]:
@@ -306,6 +343,7 @@ def pose(ident,rig,p,mode,t,duration):
             if 'Thigh'+s not in rig.pose.bones:continue
             u=(t/duration+(.5 if side>0 else 0))%1
             forward,lift=gait(u,run) if walk else (0,0)
+            forward*=p.get('step_scale',1);lift*=p.get('step_scale',1)
             rest=rig.data.bones['Foot'+s].head_local
             rolling=walk and (ident=='agumon' or kind in ('human','angel'))
             pitch=math.radians(foot_roll(u,run)) if rolling else 0
@@ -331,9 +369,27 @@ def evaluated_bounds(meshes):
     return lo,hi
 
 
-def author(ident,render_images=True,reuse=False):
+def author(ident,render_images=True,reuse=False,reuse_current=False):
+    if reuse_current and BASELINE=='ArtSource/TechniqueMotionBackup-20261002':
+        from author_technique_motion import author as author_techniques
+        return author_techniques(ident)
     p=PROFILES[ident];defs=skeleton(p)
-    if reuse:
+    if reuse_current:
+        saved=ROOT/BASELINE/'review'/ident
+        bpy.ops.wm.open_mainfile(filepath=str(saved/(ident+'.blend')))
+        rig=next(o for o in bpy.context.scene.objects if o.type=='ARMATURE')
+        meshes=[o for o in bpy.context.scene.objects if o.type=='MESH']
+        previous=json.loads((saved/'animation-report.json').read_text(encoding='utf-8'))
+        binding=previous['binding'];changes=previous['shape_changes'][:]
+        rig.animation_data_clear()
+        for action in list(bpy.data.actions):bpy.data.actions.remove(action)
+        for obj in list(bpy.context.scene.objects):
+            if obj!=rig and obj not in meshes:bpy.data.objects.remove(obj,do_unlink=True)
+        reset(rig)
+    elif p.get('native'):
+        from faithful_native_binding import load_rosemon
+        rig,meshes,binding,changes=load_rosemon()
+    elif reuse:
         saved=ROOT/'ArtSource/NaturalPassBackup-20261001/review'/ident
         bpy.ops.wm.open_mainfile(filepath=str(saved/(ident+'.blend')))
         rig=next(o for o in bpy.context.scene.objects if o.type=='ARMATURE')
@@ -349,9 +405,25 @@ def author(ident,render_images=True,reuse=False):
     else:
         meshes=import_static(ident);meshes,changes=prepare_shape(ident,meshes)
         rig=make_rig(ident,defs);binding=skin(ident,meshes,rig,p,defs)
-    changes.append('Removed the extra leading frame from all six exported clips so each loop starts at zero.')
+    if ident=='agumon':
+        corrected=repair_agumon_face_weights(meshes)
+        binding['upper_face_weights_corrected']=corrected
+        binding['rigid_vertices']=sum(sum(g.weight>1e-6 for g in v.groups)==1 for obj in meshes for v in obj.data.vertices)
+        changes.append('Reassigned upper-face vertices to Head so shoulder and hand motion cannot pull the eye sockets or cheeks.')
+    if ident=='greymon':
+        from faithful_greymon_rebuild import rebuild
+        stance=rebuild(rig,meshes)
+        changes.append('Rebuilt Greymon neck articulation and neck skin, aligned the eye axis and shoulder/pelvis pivots, and rebaked its neutral posture.')
+    from faithful_motion_binding import repair as repair_motion_binding
+    corrected=repair_motion_binding(ident,meshes)
+    if corrected:
+        binding['motion_anatomy_vertices_corrected']=corrected
+        changes.append('Repaired fur/arm/leg and central armour cross-binding exposed by larger motion; original mesh topology and texture coordinates retained.')
+    changes.append('Added Skill, Guard, Dodge and Down as distinct authored skeletal clips; retained the inspected source mesh and skin.')
+    changes.append('Added attack weight shift and recoil, stronger running arm swing, hit recovery, and a distinct victory gesture; sampled ground support in every clip.')
     if p['kind']!='baby':changes.append('Continuous foot trajectories, weight transfer and torso counter-rotation.')
     if ident in ('agumon','wargreymon'):changes.append('Bent arms into a relaxed forward stance.')
+    if ident=='agumon':changes.append('Brought the elbows closer to the torso and turned the hands inward into a cupped forward stance.')
     if ident=='agumon' or p['kind'] in ('human','angel'):changes.append('Added heel contact and toe-off with ankle support measured from the original foot surface.')
     p['_foot_surface']={}
     for foot_name in ['FootL','FootR']:
@@ -363,16 +435,20 @@ def author(ident,render_images=True,reuse=False):
                 vertices.extend(tuple(v.co-rig.data.bones[foot_name].head_local) for v in obj.data.vertices if any(g.group==group.index and g.weight>.5 for g in v.groups))
         if vertices:p['_foot_surface'][foot_name]=np.array(vertices)
     folder=OUT/ident;folder.mkdir(parents=True,exist_ok=True)
+    if ident=='greymon':(folder/'stance-report.json').write_text(json.dumps(stance,indent=2),encoding='utf-8')
+    from faithful_natural_motion import setup as setup_natural,pose as natural_pose
+    setup_natural(ident,rig,p,pose)
+    changes.append('Reauthored all ten clips with species-specific timing, pole-guided contact IK, staggered steps, anticipation, follow-through and neutral recovery.')
     scene=bpy.context.scene;scene.render.fps=30;clips=[];samples=[]
-    for name,duration,loop in CLIPS:
+    for name,duration,loop in clips_for(ident):
         rig.animation_data_create();action=bpy.data.actions.new(name);action.use_fake_user=True;rig.animation_data.action=action
         frames=round(duration*30)
         for i in range(frames+1):
-            scene.frame_set(i+1);pose(ident,rig,p,name,i/30,duration)
-            if p['kind']=='baby' or ident in ('agumon','greymon','wargreymon','holyangemon','seraphimon'):
-                bpy.context.view_layer.update();ground,_=evaluated_bounds(meshes)
-                if ground[2]<0:
-                    translate(rig,'Root',(0,0,-float(ground[2])))
+            scene.frame_set(i+1);natural_pose(ident,rig,p,name,i/30,duration)
+            bpy.context.view_layer.update();ground,_=evaluated_bounds(meshes)
+            if ground[2]<0 or name=='Down' and i/frames>.35:
+                root=rig.pose.bones['Root']
+                root.location+=root.bone.matrix_local.to_quaternion().inverted()@Vector((0,0,-float(ground[2])))
             if i==0 or i%max(1,frames//8)==0 or i==frames:
                 bpy.context.view_layer.update();lo,hi=evaluated_bounds(meshes)
                 samples.append({'clip':name,'frame':i,'min':lo.tolist(),'max':hi.tolist()})
@@ -395,29 +471,30 @@ def author(ident,render_images=True,reuse=False):
     camera=studio(meshes)
     bpy.ops.wm.save_as_mainfile(filepath=str(folder/(ident+'.blend')))
     if render_images:
-        for mode,time in [('Idle',0),('Walk',.27),('Attack',.44)]:
+        for mode,time in [('Idle',0),('Walk',.27),('Attack',.44),('Skill',.9),('Guard',.7),('Down',1.5)]:
             clip=next(c for c in clips if c[0]==mode);rig.animation_data.action=clip[3];scene.frame_set(round(time*30)+1)
             render(folder/(mode+'.png'),camera)
         shutil.copy2(folder/'Idle.png',folder/'preview.png')
-    source_path=BACKUP/ident/'model.glb'
-    if ident=='greymon':source_path=Path(json.loads((BACKUP/ident/'source.json').read_text(encoding='utf-8-sig'))['original_mesh_file'])
+    source_path=static_source(ident)
     report={'id':ident,'source':str(source_path.relative_to(ROOT)),
         'source_sha256':hashlib.sha256(source_path.read_bytes()).hexdigest(),
         'output_sha256':hashlib.sha256((folder/'model.glb').read_bytes()).hexdigest(),
-        'bones':len(defs),'binding':binding,'shape_changes':changes,
-        'refinement_pass':2,
+        'bones':len(rig.data.bones),'binding':binding,'shape_changes':changes,
+        'refinement_pass':previous.get('refinement_pass',1)+1 if reuse_current else 1 if p.get('expanded') else 4,
+        'comparison_source':BASELINE+'/gallery/'+ident+'/model.glb' if reuse_current else None,
         'clips':[{'name':n,'duration':d,'loop':l,'frames':f+1} for n,d,l,a,f in clips],
+        'motion_style':p['_natural']['style'],'motion_revision':'Expressive choreography and Greymon neck rebuild',
         'pose_bounds':samples,'motion_provenance':'New local animation studies; not extracted Digimon Masters motion',
         'status':'requires actual render and deformation review before gallery promotion'}
     (folder/'animation-report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
-    source=json.loads((BACKUP/ident/'source.json').read_text(encoding='utf-8-sig'))
-    source['local_modifications']={'date':'2026-10-01','changes':changes,'rig':'anatomical skeletal binding','motions':[c[0] for c in clips],
+    source=json.loads((source_folder(ident)/'source.json').read_text(encoding='utf-8-sig'))
+    source['local_modifications']={'date':date.today().isoformat(),'changes':changes,'rig':'anatomical skeletal binding','motions':[c[0] for c in clips],
         'model_sha256':report['output_sha256'],'motion_provenance':report['motion_provenance'],'canonical_front':True}
     (folder/'source.json').write_text(json.dumps(source,ensure_ascii=False,indent=2),encoding='utf-8')
-    print('RIGGED REVIEW READY',ident,len(defs),'bones',len(clips),'clips',flush=True)
+    print('RIGGED REVIEW READY',ident,len(rig.data.bones),'bones',len(clips),'clips',flush=True)
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--ids',default=','.join(PROFILES));parser.add_argument('--no-render',action='store_true');parser.add_argument('--reuse-bind',action='store_true')
+    parser=argparse.ArgumentParser();parser.add_argument('--ids',default=','.join(PROFILES));parser.add_argument('--no-render',action='store_true');parser.add_argument('--reuse-bind',action='store_true');parser.add_argument('--reuse-current',action='store_true')
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
-    for ident in args.ids.split(','):author(ident,not args.no_render,args.reuse_bind)
+    for ident in args.ids.split(','):author(ident,not args.no_render,args.reuse_bind,args.reuse_current)

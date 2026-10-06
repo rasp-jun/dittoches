@@ -6,12 +6,21 @@ public sealed class CombatLabelLayout
 {
     public sealed class Entry
     {
-        public object key;public Vector2 anchor;public float width;public bool priority,caption;public Rect rect;public string text;
+        public object key;public Vector2 anchor;public float width;public bool priority,caption;public Rect rect;public string text;public Color captionColor;
     }
     readonly List<Rect> occupied=new List<Rect>();
+    readonly List<Entry> pool=new List<Entry>();
+    public Entry Borrow(int index)
+    {while(pool.Count<=index)pool.Add(new Entry());return pool[index];}
+#if DITTOCHES_PORTABLE_PREVIEW
+    public int OverlapChecks { get;private set; }
+#endif
     public void Arrange(List<Entry> entries,Rect bounds)
     {
         occupied.Clear();
+#if DITTOCHES_PORTABLE_PREVIEW
+        OverlapChecks=0;
+#endif
         // Stable combat identity preserves priority when units pass each other.
         for(int priority=1;priority>=0;priority--)foreach(var entry in entries)
         {
@@ -23,14 +32,20 @@ public sealed class CombatLabelLayout
                 float dy=row==0?0:((row+1)/2)*23*(row%2==1?-1:1);
                 Rect candidate=new Rect(Mathf.Clamp(entry.anchor.x-entry.width*.5f+dx,bounds.x,bounds.xMax-entry.width),
                     Mathf.Clamp(entry.anchor.y-(entry.caption?20:0)+dy,bounds.y,bounds.yMax-height),entry.width,height);
+                float distance=(candidate.center-new Vector2(entry.anchor.x,entry.anchor.y+(entry.caption?-1:9))).sqrMagnitude;
+                // Overlap penalties are nonnegative: distance is a safe lower bound.
+                if(distance>=best)continue;
                 float overlap=0;
                 foreach(var other in occupied)
                 {
+#if DITTOCHES_PORTABLE_PREVIEW
+                    OverlapChecks++;
+#endif
                     float w=Mathf.Min(candidate.xMax+3,other.xMax+3)-Mathf.Max(candidate.x-3,other.x-3);
                     float h=Mathf.Min(candidate.yMax+2,other.yMax+2)-Mathf.Max(candidate.y-2,other.y-2);
                     if(w>0&&h>0)overlap+=w*h;
+                    if(overlap*100000+distance>=best)break;
                 }
-                float distance=(candidate.center-new Vector2(entry.anchor.x,entry.anchor.y+(entry.caption?-1:9))).sqrMagnitude;
                 float score=overlap*100000+distance;
                 if(score<best){best=score;chosen=candidate;}
             }
@@ -52,6 +67,7 @@ public sealed class CombatLabelLayout
         {
             if(captionStyle==null){captionStyle=new GUIStyle(GUI.skin.label){fontSize=12,alignment=TextAnchor.MiddleCenter};captionStyle.normal.textColor=new Color(.9f,.96f,.96f);}
             ArenaInterface.Fill(new Rect(r.x,r.y,r.width,19),new Color(.018f,.035f,.045f,.94f));
+            captionStyle.normal.textColor=entry.captionColor.a>0?entry.captionColor:new Color(.9f,.96f,.96f);
             GUI.Label(new Rect(r.x+3,r.y,r.width-6,19),entry.text,captionStyle);
         }
         ArenaInterface.Fill(new Rect(r.x,y,r.width,18),entry.priority?new Color(.49f,.64f,.57f):new Color(.008f,.018f,.025f,.96f));

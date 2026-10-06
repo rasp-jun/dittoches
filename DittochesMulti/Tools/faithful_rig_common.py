@@ -8,6 +8,33 @@ ROOT=Path(__file__).resolve().parent.parent
 BACKUP=ROOT/'ArtSource/AnimationBackup-20261001'
 OUT=ROOT/'ArtSource/AnimatedReview'
 
+def relocated_source(value):
+    """Resolve records created on the previous drive without changing provenance."""
+    path=Path(value)
+    if not path.is_absolute():path=ROOT/path
+    if path.is_file():return path
+    normalized=str(value).replace('\\','/')
+    marker='/DittochesMulti/'
+    assert marker in normalized,('Missing source',value)
+    path=(ROOT/normalized.split(marker,1)[1]).resolve()
+    assert path.is_relative_to(ROOT.resolve()) and path.is_file(),value
+    return path
+
+def source_folder(ident):
+    from faithful_expanded_profiles import EXPANDED
+    return (ROOT/'ArtSource/ExpandedSources-20261002' if ident in EXPANDED else BACKUP)/ident
+
+def static_source(ident):
+    import json
+    folder=source_folder(ident)
+    if ident=='greymon':
+        record=json.loads((folder/'source.json').read_text(encoding='utf-8-sig'))
+        source=relocated_source(record['original_mesh_file'])
+        import hashlib
+        assert hashlib.sha256(source.read_bytes()).hexdigest()==record['original_mesh_sha256']
+        return source
+    return folder/'model.glb'
+
 
 def bounds(objects):
     points=[o.matrix_world@Vector(p) for o in objects for p in o.bound_box]
@@ -17,10 +44,7 @@ def bounds(objects):
 
 def import_static(ident):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    source=BACKUP/ident/'model.glb'
-    if ident=='greymon':
-        import json
-        source=Path(json.loads((BACKUP/ident/'source.json').read_text(encoding='utf-8-sig'))['original_mesh_file'])
+    source=static_source(ident)
     bpy.ops.import_scene.gltf(filepath=str(source))
     meshes=[o for o in bpy.context.scene.objects if o.type=='MESH']
     assert not any(o.type=='ARMATURE' for o in bpy.context.scene.objects),'Keep existing source rigs intact'
@@ -46,6 +70,9 @@ def import_static(ident):
     center=(lo+hi)*.5;center.z=lo.z
     for obj in meshes:
         for v in obj.data.vertices:v.co=(v.co-center)*scale
+        from faithful_rig_profiles import PROFILES
+        if 'anatomy_offset' in PROFILES[ident]:
+            for v in obj.data.vertices:v.co-=Vector(PROFILES[ident]['anatomy_offset'])
         if ident=='holyangemon':
             # The sword shifts the bounds centre sideways; wings shift it
             # backwards. Anatomical placement uses the torso centre instead.

@@ -7,6 +7,7 @@ public static class DigimonEquipmentPreview
     public sealed class Projection
     {
         public DigimonBuildCatalog.EquipmentChange change;
+        public int incoming;
         public DigimonSkillCatalog.Stats before,after;
         public float damageBefore,damageAfter;
     }
@@ -15,7 +16,7 @@ public static class DigimonEquipmentPreview
         var skill=DigimonSkillCatalog.Find(id);var change=DigimonBuildCatalog.PreviewEquipment(items,incoming);
         var before=new DigimonSkillCatalog.Stats(skill,star,DigimonBuildCatalog.Resolve(id,team,items));
         var after=new DigimonSkillCatalog.Stats(skill,star,DigimonBuildCatalog.Resolve(id,team,change.items));
-        return new Projection{change=change,before=before,after=after,
+        return new Projection{incoming=incoming,change=change,before=before,after=after,
             damageBefore=skill.Damage(star,before.attack,before.abilityPower),damageAfter=skill.Damage(star,after.attack,after.abilityPower)};
     }
     static void Fill(Rect r,Color color){Color old=GUI.color;GUI.color=color;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
@@ -29,7 +30,8 @@ public static class DigimonEquipmentPreview
         GUI.Label(new Rect(x,y+34,w,42),name,heading);
         bool allowed=p.change.allowed&&string.IsNullOrEmpty(blocked);
         var status=new GUIStyle(body);status.normal.textColor=allowed?new Color(.44f,.9f,.72f):new Color(1,.57f,.4f);
-        GUI.Label(new Rect(x,y+84,w,65),string.IsNullOrEmpty(blocked)?p.change.message:blocked,status);
+        DigimonEquipmentArt.Draw(new Rect(x,y+85,40,40),p.change.result>=0?p.change.result:p.incoming);
+        GUI.Label(new Rect(x+48,y+84,w-48,65),string.IsNullOrEmpty(blocked)?p.change.message:blocked,status);
         if(!allowed){GUI.Label(new Rect(x,y+164,w,70),"능력치와 장비는 변경되지 않습니다.",body);return;}
         GUI.Label(new Rect(x,y+155,w,43),context+"\n현재 → 장착 후",body);
         y+=206;

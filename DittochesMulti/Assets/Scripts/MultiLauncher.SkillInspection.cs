@@ -12,7 +12,10 @@ public sealed partial class MultiLauncher
     {
         var me=OnlineMe;var ids=me!=null&&area=="board"?me.board.Select(u=>u.id):Enumerable.Empty<string>();
         var bonus=DigimonBuildCatalog.Resolve(unit.id,ids,unit.items??new int[0]);
-        return new DigimonSkillCatalog.Stats(DigimonSkillCatalog.Find(unit.id),unit.star,bonus);
+        var stats=new DigimonSkillCatalog.Stats(DigimonSkillCatalog.Find(unit.id),unit.star,bonus);
+        var live=OnlineLiveFighter(unit,area);
+        if(live!=null)stats.speed=DigimonCombatMath.AttackSpeed(DigimonSkillCatalog.Find(unit.id).attackSpeed,bonus.speed,bonus.rampSpeed,live.combatAge);
+        return stats;
     }
     void DrawOnlineSkillStats(Unit unit)
     {
@@ -28,10 +31,13 @@ public sealed partial class MultiLauncher
             GUI.Label(new Rect(1320,638,240,57),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸",new GUIStyle(small){fontSize=13});
         }
         else GUI.Label(new Rect(1320,543,240,139),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n최대 체력 "+stats.health.ToString("0")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n시작 마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),small);
-        if(DigimonSkillUI.DrawIcon(new Rect(1320,709,64,64),skill))OpenOnlineSkill(unit,selectedArea);
-        GUI.Label(new Rect(1395,708,158,54),skill.name,small);
-        GUI.Label(new Rect(1395,763,158,27),"우클릭 → 스킬 정보",new GUIStyle(small){fontSize=12});
-        GUI.Label(new Rect(1320,794,240,96),"현재 스킬 "+skill.Damage(unit.star,stats.attack,stats.abilityPower).ToString("0.#")+" 피해\n"+DigimonSkillUI.Formula(skill,unit.star)+"\n"+(selectedArea=="board"?"장비 + 전장 시너지 적용":"대기석 · 장비만 적용"),small);
+        var me=OnlineMe;var ids=me!=null&&selectedArea=="board"?me.board.Select(u=>u.id):Enumerable.Empty<string>();
+        var bonus=DigimonBuildCatalog.Resolve(unit.id,ids,unit.items??new int[0]);
+        CombatStatusUI.Draw(new Rect(1320,700,240,84),CombatStatusUI.Describe(bonus,live!=null?live.combatAge:0,live!=null?live.attacks:0,live!=null&&live.lowShieldUsed,live!=null,live!=null&&live.hp<=0));
+        if(DigimonSkillUI.DrawIcon(new Rect(1320,795,54,54),skill))OpenOnlineSkill(unit,selectedArea);
+        GUI.Label(new Rect(1385,793,170,38),skill.name,small);
+        GUI.Label(new Rect(1385,831,170,22),"우클릭 → 스킬 정보",new GUIStyle(small){fontSize=12});
+        GUI.Label(new Rect(1320,863,240,50),"계산 "+skill.Damage(unit.star,stats.attack,stats.abilityPower).ToString("0.#")+" 피해 · "+skill.DamageLabel+"\n"+(selectedArea=="board"?"장비 + 전장 시너지":"대기석 · 장비만 적용"),small);
     }
     void DrawOnlineSkillDetails()
     {

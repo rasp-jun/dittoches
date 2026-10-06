@@ -89,11 +89,29 @@ class ReportPersistenceTests(unittest.TestCase):
         self.assertGreater(sum(f['damageDone'] for f in report), 0)
         for f in report:
             self.assertTrue(set(f).isdisjoint({'items','inventory','bench','build','cooldown'}))
+            self.assertIsInstance(f['lowShieldUsed'],bool)
+            self.assertGreater(f['combatAge'],0)
         self.room['players'][0]['board'][3] = None
         reconnected = self.game.request('/login', {'key':self.keys[0], 'name':'returned'})['room']
         self.assertEqual(reconnected['lastCombat'], report)
         self.game.fight(self.room)
         self.assertEqual(self.snapshot()['lastCombat'], report)
+
+    def test_historical_stats_are_frozen_after_unit_changes(self):
+        self.room['players'][0]['board'][3]['items']=[12]
+        self.game.fight(self.room)
+        last=copy.deepcopy(self.room['frames'][-1]['units'])
+        self.game.settle(self.room)
+        report=copy.deepcopy(self.snapshot()['lastCombat'])
+        for f in report:
+            original=next(u for u in last if u['key']==f['key'])
+            for field in ('attackDamage','abilityPower','armor','magicResist','attackRange','attackSpeed','combatStatsVersion'):
+                self.assertEqual(f[field],original[field])
+            self.assertEqual(f['combatStatsVersion'],2)
+        own=next(f for f in report if f['side']==0)
+        self.assertEqual(own['abilityPower'],145)
+        self.room['players'][0]['board'][3].update(star=3,items=[])
+        self.assertEqual(self.snapshot()['lastCombat'],report)
 
     def test_final_round_keeps_report_and_repeated_settlement_does_not_change_it(self):
         self.room['round'] = 10

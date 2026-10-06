@@ -1,10 +1,10 @@
 """Check exported animation timing, skin weights and preserved render geometry."""
-import json,struct,hashlib
+import json,struct,hashlib,argparse
 from pathlib import Path
 from faithful_rig_profiles import PROFILES
+from faithful_motion_catalog import DURATIONS,BASELINE,clips_for
 
 ROOT=Path(__file__).resolve().parent.parent
-DURATIONS={'Idle':2.8,'Walk':1.0,'Run':.7,'Attack':1.1,'Hit':.6,'Victory':2.8}
 
 
 def read(path):
@@ -29,21 +29,46 @@ def triangles(doc):
 
 
 def main():
+    parser=argparse.ArgumentParser();parser.add_argument('--ids',default=','.join(list(PROFILES)+['birdramon','kuwagamon']));args=parser.parse_args()
     results=[]
-    for ident in PROFILES:
+    for ident in args.ids.split(','):
         path=ROOT/'ArtSource/AnimatedReview'/ident/'model.glb'
         doc,accessor,digest=read(path)
-        previous,_,_=read(ROOT/'ArtSource/NaturalPassBackup-20261001/gallery'/ident/'model.glb')
+        report=json.loads((path.parent/'animation-report.json').read_text(encoding='utf-8'))
+        baseline=ROOT/report.get('comparison_source',BASELINE+'/gallery/'+ident+'/model.glb')
+        previous,_,_=read(baseline)
+        native=report.get('native_extension',False)
+        durations={name:duration for name,duration,_ in clips_for(ident)}
+        assert {c['name']:c['duration'] for c in report['clips']}==durations,(ident,'stale authored timing report')
         assert triangles(doc)==triangles(previous),(ident,'render topology changed')
         assert len(doc.get('images',[]))==len(previous.get('images',[])),(ident,'embedded texture loss')
-        assert {a['name'] for a in doc['animations']}==set(DURATIONS),(ident,'missing clips')
+        originals=[a for a in previous['animations'] if a['name'] not in durations] if native else []
+        source_clips={a['name'] for a in originals}
+        assert {a['name'] for a in doc['animations']}==set(durations)|source_clips,(ident,'missing clips')
+        if report.get('preserved_noncombat_clips'):
+            from merge_technique_clips import chunks
+            old_doc,old_binary=chunks(baseline);new_doc,new_binary=chunks(path)
+            assert new_binary[:len(old_binary)]==old_binary,(ident,'original binary bytes changed')
+            for key in ('meshes','skins','materials','images','nodes'):assert doc.get(key)==previous.get(key),(ident,key+' changed')
+            old_actions={a['name']:a for a in previous['animations']}
+            for action in doc['animations']:
+                if action['name'] not in ('Attack','Skill'):assert action==old_actions[action['name']],(ident,action['name'],'preserved clip changed')
+        if native:
+            assert doc['animations'][:len(originals)]==originals,(ident,'source animation definitions changed')
+            original=baseline.read_bytes();updated=path.read_bytes()
+            old_start=28+struct.unpack_from('<I',original,12)[0];new_start=28+struct.unpack_from('<I',updated,12)[0]
+            assert updated[new_start:new_start+len(original)-old_start]==original[old_start:],(ident,'source binary changed')
+            for key in ('meshes','skins','materials','images','nodes'):assert doc.get(key)==previous.get(key),(ident,key+' source data changed')
         for mesh in doc['meshes']:
             for primitive in mesh['primitives']:
                 weights=accessor(primitive['attributes']['WEIGHTS_0'])
                 assert all(abs(sum(v)-1)<.001 and min(v)>=0 for v in weights),(ident,'invalid skin weights')
         checked=[]
         for animation in doc['animations']:
-            name=animation['name'];duration=DURATIONS[name]
+            name=animation['name']
+            if name not in durations:
+                checked.append({'clip':name,'original_source':True});continue
+            duration=durations[name]
             for sampler in animation['samplers']:
                 times=[v[0] for v in accessor(sampler['input'])]
                 assert abs(times[0])<1e-7,(ident,name,'extra leading frame')
@@ -59,7 +84,7 @@ def main():
             checked.append({'clip':name,'start':0,'duration':duration})
         results.append({'id':ident,'sha256':digest,'triangles':triangles(doc),'clips':checked})
     out=ROOT/'Builds/FaithfulNaturalValidation';out.mkdir(exist_ok=True)
-    (out/'glb-report.json').write_text(json.dumps({'passed':True,'models':results,'checks':['zero leading frame','exact authored clip duration','exported loop endpoints','normalized skin weights','original triangle and texture counts retained']},indent=2),encoding='utf-8')
+    (out/'glb-report.json').write_text(json.dumps({'passed':True,'models':results,'checks':['zero leading frame','exact common clip duration','exported loop endpoints','normalized skin weights','original triangle and texture counts retained','native source animations and binary bytes preserved']},indent=2),encoding='utf-8')
     print('NATURAL GLB PASS',len(results),'models',sum(len(r['clips']) for r in results),'clips')
 
 if __name__=='__main__':main()

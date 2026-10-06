@@ -10,7 +10,7 @@ public static class DigimonBuildCatalog
     {
         public float health, hp, attack, speed, abilityPower, armor, magicResist, manaRegen, startMana, manaOnAttack, regen,
             lifesteal, reduction, startShield, lowShield, castHeal, healPower, thirdHit,
-            highHealthDamage, castShield, thirdStun, teamShield;
+            highHealthDamage, castShield, thirdStun, teamShield, rampSpeed, lowHeal, teamResist;
         public void Add(Bonus b)
         {
             if(b==null)return;
@@ -19,17 +19,18 @@ public static class DigimonBuildCatalog
             lifesteal+=b.lifesteal;reduction+=b.reduction;startShield+=b.startShield;lowShield+=b.lowShield;
             castHeal+=b.castHeal;healPower+=b.healPower;thirdHit+=b.thirdHit;highHealthDamage+=b.highHealthDamage;
             castShield+=b.castShield;thirdStun+=b.thirdStun;teamShield+=b.teamShield;
+            rampSpeed+=b.rampSpeed;lowHeal+=b.lowHeal;teamResist+=b.teamResist;
         }
     }
     [Serializable] public sealed class Tier { public int count; public string text; public Bonus bonus; }
     [Serializable] public sealed class Trait
     {
-        public string id,name,category,description;public Tier[] tiers;public string[] members;
+        public string id,name,category,description,identity,usage;public Tier[] tiers;public string[] members;
         public int Level(int count){return tiers.Count(t=>count>=t.count);}
         public int Target(int count){var next=tiers.FirstOrDefault(t=>count<t.count);return (next??tiers[tiers.Length-1]).count;}
     }
     [Serializable] public sealed class Item
-    {public int id;public string name,icon,kind,description,source,role,flavor;public int[] recipe;public Bonus bonus;}
+    {public int id;public string name,icon,kind,description,source,role,flavor,passive,usage;public int[] recipe;public Bonus bonus;}
     [Serializable] public sealed class Document { public int version;public Trait[] traits;public Item[] items; }
     static Document data;
     public static Document Data
@@ -39,7 +40,8 @@ public static class DigimonBuildCatalog
             if(data!=null)return data;
             var asset=Resources.Load<TextAsset>("DigimonBuilds");
 #if DITTOCHES_PORTABLE_PREVIEW
-            string json=asset!=null?asset.text:System.IO.File.ReadAllText(System.IO.Path.Combine(Application.streamingAssetsPath,"DigimonBuilds.json"));
+            string path=System.IO.Path.Combine(Application.streamingAssetsPath,"DigimonBuilds.json");
+            string json=System.IO.File.Exists(path)?System.IO.File.ReadAllText(path):asset.text;
 #else
             if(asset==null)throw new InvalidOperationException("Missing Resources/DigimonBuilds.json");
             string json=asset.text;
@@ -59,7 +61,7 @@ public static class DigimonBuildCatalog
             Bonus active=trait.tiers[level-1].bonus;
             if(trait.members.Contains(id))bonus.Add(active);
             // A team aura is applied once, never once per contributing unit.
-            bonus.startShield+=active.teamShield;
+            bonus.startShield+=active.teamShield;bonus.armor+=active.teamResist;bonus.magicResist+=active.teamResist;
         }
         foreach(int item in equipment)if(item>=0&&item<14)bonus.Add(Data.items[item].bonus);
         return bonus;

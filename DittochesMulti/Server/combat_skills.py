@@ -111,7 +111,7 @@ def simulate(fighters, definitions):
         f.update(mana=skill['startMana'], maxMana=skill['maxMana'], stun=0, castUntil=0, attackAt=-10, hitAt=-10, target=-1)
     builds.initialize(fighters)
     for f in fighters:
-        f.update(attackDamage=stats.attack(f),abilityPower=stats.ability_power(f),armor=builds.value(f,'armor'),magicResist=builds.value(f,'magicResist'),attackRange=SKILLS[f['id']]['attackRange'])
+        f.update(combatStatsVersion=2,attackDamage=stats.attack(f),abilityPower=stats.ability_power(f),armor=builds.value(f,'armor'),magicResist=builds.value(f,'magicResist'),attackRange=SKILLS[f['id']]['attackRange'])
     for step in range(481):
         now = step*step_time
         if step:
@@ -155,7 +155,7 @@ def simulate(fighters, definitions):
                     f['attackAt'] = now
                     mana_gain=5 if role=='탱커' else 7 if role=='마법사' else 8 if role=='지원' else 10
                     f['mana'] = min(f['maxMana'], f['mana']+mana_gain+builds.value(f, 'manaOnAttack'))
-                    f['cooldown'] = 1/(skill['attackSpeed']*(1+builds.value(f, 'speed')))
+                    f['cooldown'] = 1/stats.attack_speed(f)
             for source, target, damage in hits:
                 builds.damage(source, target, damage, basic=True)
                 target['hitAt'] = now
@@ -165,7 +165,8 @@ def simulate(fighters, definitions):
         projectiles = any(c['released'] and not c['cancelled'] and c['hits'] < SKILLS[c['id']]['shots'] for c in casts)
         finished = len(living_sides) < 2 and not projectiles
         if step % 4 == 0 or finished or step == 480:
-            frames.append(dict(time=now, units=[{k: v for k, v in f.items() if k not in ('cooldown', 'castUntil', 'build', 'regenClock', 'lowShieldUsed', 'items')} for f in fighters]))
+            for f in fighters:f['attackSpeed']=stats.attack_speed(f)
+            frames.append(dict(time=now, units=[{k: v for k, v in f.items() if k not in ('cooldown', 'castUntil', 'build', 'regenClock', 'items')} for f in fighters]))
         if finished:
             break
     events = [{k: v for k, v in c.items() if k not in ('damage', 'hits')} for c in casts if not c['cancelled']]

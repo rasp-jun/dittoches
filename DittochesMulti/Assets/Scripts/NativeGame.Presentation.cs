@@ -110,7 +110,11 @@ public sealed partial class NativeGame
         DrawRect(nameplate,new Color(.008f,.022f,.038f,.93f));
         DrawRect(new Rect(nameplate.x,nameplate.y,nameplate.width,2),CostColor(unit.def.cost));
         GUI.Label(new Rect(nameplate.x+4,nameplate.y+2,172,23),UnitName(unit.def),center);
-        if(unit.items.Count>0)GUI.Label(new Rect(nameplate.x+4,nameplate.y+24,172,20),string.Join("  ",unit.items.Select(i=>ItemIcons[i]).ToArray()),center);
+        if(unit.items.Count>0)
+        {
+            if(artPack==0)for(int i=0;i<unit.items.Count&&i<2;i++)DigimonEquipmentArt.Draw(new Rect(nameplate.center.x-unit.items.Count*11+i*22,nameplate.y+24,20,20),unit.items[i]);
+            else GUI.Label(new Rect(nameplate.x+4,nameplate.y+24,172,20),string.Join("  ",unit.items.Select(i=>ItemIcons[i]).ToArray()),center);
+        }
     }
     private int PickFormationTarget(Vector2 point)
     {

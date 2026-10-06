@@ -6,6 +6,10 @@ public static class DigimonCombatMath
     public static int StarIndex(int star){return Math.Max(0,Math.Min(2,star-1));}
     public static float Attack(float baseAttack,int star,float percent)
     {return baseAttack*(float)Math.Pow(1.5,StarIndex(star))*Math.Max(0,1+percent);}
+    public static float RampSpeed(float increment,float age)
+    {return Math.Max(0,increment)*Math.Min(5,Math.Max(0,(int)Math.Floor((age+.0001f)/3f)));}
+    public static float AttackSpeed(float baseSpeed,float bonus,float increment,float age)
+    {return baseSpeed*Math.Max(.01f,1+bonus+RampSpeed(increment,age));}
     public static float AbilityPower(float bonus){return Math.Max(0,100+bonus);}
     public static float Skill(float attack,float abilityPower,float adRatio,float apRatio)
     {return Math.Max(0,attack*adRatio+abilityPower*apRatio);}

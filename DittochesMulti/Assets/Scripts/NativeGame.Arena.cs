@@ -34,10 +34,11 @@ public sealed partial class NativeGame
     {
         if(arena!=null&&arenaArtPack!=artPack){arena.Dispose();arena=null;}
         if(arena==null){arena=new TacticalArena(SoloArenaViewport,artPack==0);arenaArtPack=artPack;}
+        if(artPack==0){if(tamerLoadout==null)ApplyEquippedLoadout();arena.SetField(tamerLoadout.field);}
     }
-    private void OnDisable() { if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear();skillCasts.Clear(); }
+    private void OnDisable() { if(tamerStudio!=null){tamerStudio.Dispose();tamerStudio=null;} if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear();skillCasts.Clear(); }
     private void OnApplicationFocus(bool focused){if(!focused){dragSource=-1;draggingUnit=false;arenaPointer.Reset();}}
-    private void OnDestroy() { if(arena!=null){arena.Dispose();arena=null;} }
+    private void OnDestroy() { if(tamerStudio!=null)tamerStudio.Dispose(); if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
     {
         return new Vector3(Mathf.Lerp(-5,5,Mathf.InverseLerp(345,1290,p.x)),.23f,Mathf.Lerp(4.6f,-4.6f,Mathf.InverseLerp(175,665,p.y)));
@@ -49,7 +50,7 @@ public sealed partial class NativeGame
     private Vector3 FighterWorld(Fighter fighter)
     {
         Vector3 p=TacticalArena.CellWorld(fighter.renderPos.x,fighter.renderPos.y);
-        if(fighter.attackFlash>0&&fighter.skillCast==null&&!(artPack==0&&DigimonModelLibrary.HasModel(fighter.unit.def.id)))
+        if(fighter.attackFlash>0&&fighter.skillCast==null&&!(artPack==0&&(DigimonModelLibrary.HasModel(fighter.unit.def.id)||FaithfulModelData.Available(fighter.unit.def.id))))
         {
             Vector3 direction=(TacticalArena.CellWorld(fighter.attackTarget.x,fighter.attackTarget.y)-p).normalized;
             p+=direction*Mathf.Sin((1-Mathf.Clamp01(fighter.attackFlash/.35f))*Mathf.PI)*.22f;
@@ -92,23 +93,7 @@ public sealed partial class NativeGame
             }
             if(battling)
             {
-                foreach(Fighter f in fighters)if(!f.dead||Time.unscaledTime-f.diedAt<.45f)
-                {
-                    float death=f.dead?Mathf.Clamp01((Time.unscaledTime-f.diedAt)/.45f):0;
-                    bool skeletal=artPack==0&&DigimonModelLibrary.HasModel(f.unit.def.id);
-                    arena.SetActor(f,FighterWorld(f)-Vector3.up*(skeletal?0:death*.15f),Tex(f.unit.def.id=="apocalymon"&&(f.attackFlash>0||f.skillFlash>0)?"Apocalymon_Attack":UnitSprite(f.unit.def)),f.enemy?new Color(1,.35f,.28f):new Color(.25f,1,.62f),(1+(artPack==0?0:f.skillFlash*.16f))*(skeletal?1:1-death*.88f),f.hitFlash*2);
-                    if(skeletal)
-                    {
-                        Vector3 facing=f.renderVelocity.sqrMagnitude>.01f?new Vector3(f.renderVelocity.x,0,-f.renderVelocity.y):
-                            f.target!=null?TacticalArena.CellWorld(f.target.renderPos.x,f.target.renderPos.y)-FighterWorld(f):new Vector3(0,0,f.enemy?-1:1);
-                        arena.FaceActor(f,facing);
-                    }
-                    bool gearTarget=!f.dead&&!f.enemy&&selectedItem>=0;
-                    arena.DecorateActor(f,!f.dead&&inspectedUnit==f.unit||gearTarget,0,f.hitFlash/.18f,f.healFlash/.28f,f.shieldFlash/.35f,gearTarget&&!CanEquipSelected(f.unit));
-                    if(artPack==0)arena.PoseDigimon(f,f.unit.def.id,f.renderVelocity.magnitude,f.attackTarget.x-f.renderPos.x,Time.unscaledTime,
-                        f.skillCast!=null?f.skillCast.age:-1,f.attackFlash,death,f.unit.star);
-                    else arena.PoseCombatActor(f,f.renderVelocity.magnitude,f.renderVelocity.x,Time.unscaledTime,death);
-                }
+                foreach(Fighter f in fighters)RenderArenaFighter(f);
             }
             else for(int i=0;i<visible.Length;i++)if(visible[i]!=null)
                 RenderFormationPiece(visible[i],TacticalArena.CellWorld(i%7,i/7+4),scouting?new Color(1,.5f,.28f):new Color(.25f,1,.62f));
@@ -118,15 +103,17 @@ public sealed partial class NativeGame
             foreach(Unit stale in promotions.Keys.Where(u=>promotions[u]<=Time.unscaledTime||(!board.Contains(u)&&!bench.Contains(u))).ToArray())promotions.Remove(stale);
             float celebration=Mathf.Clamp01((legendCelebrateUntil-Time.unscaledTime)/.8f);
             if(win&&!battling&&Time.unscaledTime<resultNoticeUntil)celebration=Mathf.Max(celebration,.65f);
-            arena.SetTactician(this,LegacyWorld(legendPos),LegacyWorld(legendTarget),Tex(LegendSprites[legend]),LegendColor(),
+            if(artPack==0)arena.SetTamer(this,legend,LegacyWorld(legendPos),LegacyWorld(legendTarget),legendVelocity.magnitude/550f,Time.unscaledTime,celebration);
+            else arena.SetTactician(this,LegacyWorld(legendPos),LegacyWorld(legendTarget),Tex(LegendPortrait(legend)),LegendColor(),
                 legendVelocity.magnitude/550f,legendVelocity.x,Time.unscaledTime,celebration);
-            if(battling&&artPack==0)DrawDigimonSkills();
+            if(battling&&artPack==0){DrawDigimonSkills();foreach(var f in fighters)if(!f.dead)arena.DrawCombatSignal(FighterWorld(f),NativeCombatSignal(f),TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star));}
+            if(artPack==0)DrawNativeFinisher();
             arena.Render();
         }
         GUI.DrawTexture(SoloArenaViewport,arena.Texture,ScaleMode.StretchToFill,false);
         string heading=battling?battleText:scouting?RivalNames[scoutedRival]+" / SCOUT":RoundType()+" / "+board.Count(u=>u!=null)+" / "+level;
         if(artPack!=0)GUI.Label(new Rect(295,96,1040,26),heading,center);
-        GUI.Label(new Rect(SoloArenaViewport.x+20,SoloArenaViewport.y+12,300,22),scouting?heading:"FILE ISLAND / ARENA",small);
+        GUI.Label(new Rect(SoloArenaViewport.x+20,SoloArenaViewport.y+12,300,22),scouting?heading:artPack==0?TamerLoadout.Fields[tamerLoadout.field]+" / ARENA":"FILE ISLAND / ARENA",small);
         GUI.Label(new Rect(SoloArenaViewport.xMax-260,SoloArenaViewport.y+12,245,22),battling?Mathf.CeilToInt(battleTimeRemaining)+"s":"7 x 4  /  HEX FORMATION",small);
         GUI.Label(new Rect(550,132,500,22),battling?"아군 "+fighters.Count(f=>!f.enemy&&!f.dead)+" / "+fighters.Count(f=>!f.enemy)+"   ·   상대 "+fighters.Count(f=>f.enemy&&!f.dead)+" / "+fighters.Count(f=>f.enemy):"",center);
         if(artPack==0&&!scouting&&!blocked)

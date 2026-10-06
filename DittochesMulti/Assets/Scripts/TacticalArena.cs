@@ -31,6 +31,11 @@ public sealed partial class TacticalArena : IDisposable
         public MeshRenderer portrait, contactShadow, teamBase, halo, destination, selection;
         public MeshRenderer[] sparkles;
         public DigimonRig rig;
+        public FaithfulModelActor faithful;
+        public int faithfulGeneration=-1;
+        public int attackSerial=-1;
+        public float attackCooldown=-1,hitAmount,hitTime=float.NaN;
+        public bool attackInRange;
         public Vector3 facing;
         public bool hasFacing;
         public float poseMove,poseLean,poseX=1,poseY=1,poseBob,poseTime=-1,posePhase;
@@ -39,20 +44,21 @@ public sealed partial class TacticalArena : IDisposable
     public RenderTexture Texture { get { return target; } }
     public int ActorCount { get { return actors.Count; } }
 
-    public TacticalArena(Rect viewport,bool refined=true)
+    public TacticalArena(Rect viewport,bool refined=true,bool quality=true)
     {
         this.viewport = viewport;
-        this.refined=refined;
+        this.refined=refined;presentationQuality=refined&&quality;
         root = new GameObject("Tactical Arena (runtime)") { hideFlags = HideFlags.HideAndDontSave };
         // Isolate from scene lights/cameras without changing global render settings.
         root.transform.position = new Vector3(200f * nextArenaId++, -1000, 0);
-        hex = Prism(6, 30); cube = Box(); quad = Billboard(); disc = Prism(32, 0); ringMesh = Ring();
+        hex = presentationQuality?BeveledHex():Prism(6, 30); cube = Box(); quad = Billboard(); disc = Prism(32, 0); ringMesh = Ring();
         stone = Material(new Color(.28f,.37f,.36f));
         trim = Material(new Color(.57f,.43f,.22f));
         grass = Material(new Color(.16f,.27f,.22f));
         dark = Material(new Color(.055f,.10f,.13f));
         glow = Material(new Color(.20f,.78f,.80f), true);
         shadow = Material(new Color(.04f,.065f,.055f), true);
+        CreateContactResources();
         var cameraObject = new GameObject("Arena Camera") { hideFlags = HideFlags.HideAndDontSave };
         cameraObject.transform.SetParent(root.transform, false);
         camera = cameraObject.AddComponent<Camera>();
@@ -66,9 +72,12 @@ public sealed partial class TacticalArena : IDisposable
         camera.cullingMask = 1 << Layer;
         camera.allowHDR = false; camera.allowMSAA = true;
         target = new RenderTexture(1440, Mathf.RoundToInt(1440 * viewport.height / viewport.width), 24, RenderTextureFormat.ARGB32);
-        target.name = "Tactical arena view"; target.antiAliasing = 2; target.Create();
+        target.name = "Tactical arena view";
+        var descriptor=target.descriptor;descriptor.msaaSamples=presentationQuality?4:2;
+        target.antiAliasing=Mathf.Max(1,SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor));target.Create();
         camera.targetTexture = target; camera.aspect = viewport.width / viewport.height;
         if(refined)BuildIsland();else BuildEnvironment();
+        CaptureField();
     }
 
     Material Material(Color color, bool unlit = false, Texture texture = null)
@@ -216,7 +225,7 @@ public sealed partial class TacticalArena : IDisposable
         for(int i=0;i<tiles.Length;i++)
         {
             bool own=i>=28;
-            Color color=refined?new Color(.19f,.30f,.26f):own?new Color(.33f,.46f,.39f):new Color(.42f,.34f,.30f);
+            Color color=refined?(FieldId==1?new Color(.28f,.42f,.51f):FieldId==2?new Color(.25f,.18f,.36f):new Color(.19f,.30f,.26f)):own?new Color(.33f,.46f,.39f):new Color(.42f,.34f,.30f);
             if(placing&&own)color=new Color(.31f,.55f,.48f);
             if(i==selectedCell)color=new Color(1,.76f,.24f);
             if(i==hoveredCell&&own)color=new Color(.45f,1,.86f);
@@ -238,7 +247,7 @@ public sealed partial class TacticalArena : IDisposable
             var node=new GameObject("Arena piece"){layer=Layer,hideFlags=HideFlags.HideAndDontSave};
             node.transform.SetParent(root.transform,false);
             actor=new Actor{root=node,posePhase=actors.Count*.83f};
-            actor.contactShadow=Shape("Contact shadow",disc,shadow,new Vector3(0,.012f,0),new Vector3(.43f,.01f,.30f),node.transform);
+            actor.contactShadow=ContactShadow(node.transform);
             var ring=Shape("Team base",refined?ringMesh:disc,glow,new Vector3(0,.025f,0),new Vector3(.34f,.012f,.28f),node.transform);
             actor.teamBase=ring;
             Tint(ring,team);
@@ -311,6 +320,12 @@ public sealed partial class TacticalArena : IDisposable
         properties.SetFloat("_OutlineWidth",visible?2f:0f);
         actor.portrait.SetPropertyBlock(properties);
         if(actor.rig!=null)actor.rig.renderer.SetPropertyBlock(properties);
+        if(actor.faithful!=null)
+        {
+            properties.SetFloat("_OutlineWidth",0);
+            foreach(var surface in actor.faithful.Renderers){properties.SetColor("_Color",tint*surface.sharedMaterial.color);surface.SetPropertyBlock(properties);}
+        }
+        actor.hitAmount=hit*.18f;
     }
     public void SetTactician(object key, Vector3 point, Vector3 destination, Texture texture,
         Color color, float movement, float horizontalSpeed, float time, float celebration)
@@ -360,6 +375,11 @@ public sealed partial class TacticalArena : IDisposable
     }
     public void Render()
     {
+        foreach(Actor actor in actors.Values)if(actor.faithful!=null)
+        {
+            bool visible=actor.faithfulGeneration==generation;
+            if(actor.faithful.gameObject.activeSelf!=visible)actor.faithful.gameObject.SetActive(visible);
+        }
         expired.Clear();
         foreach(var pair in actors)if(pair.Value.generation!=generation)expired.Add(pair.Key);
         foreach(object key in expired){Release(actors[key].root);actors.Remove(key);}

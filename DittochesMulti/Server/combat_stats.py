@@ -1,5 +1,6 @@
 """Shared per-unit stats and explicit AD/AP coefficients; no hidden skill multiplier."""
 import json
+import math
 from pathlib import Path
 
 SKILLS={s['id']:s for s in json.loads((Path(__file__).resolve().parent.parent/'Assets/Resources/DigimonSkills.json').read_text(encoding='utf-8'))['skills']}
@@ -11,6 +12,15 @@ def star_index(star):
 
 def attack(f):
     return SKILLS[f['id']]['baseAttack']*1.5**star_index(f['star'])*max(0,1+f.get('build',{}).get('attack',0))
+
+
+def ramp_speed(increment, age):
+    return max(0, increment)*min(5, max(0, math.floor((age+.0001)/3)))
+
+
+def attack_speed(f):
+    b=f.get("build", {})
+    return SKILLS[f["id"]]["attackSpeed"]*max(.01, 1+b.get("speed", 0)+ramp_speed(b.get("rampSpeed", 0), f.get("combatAge", 0)))
 
 
 def ability_power(f):

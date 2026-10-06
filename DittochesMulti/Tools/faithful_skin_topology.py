@@ -56,6 +56,17 @@ def refine(ident, obj, xyz, weights, names, starts, ends):
             bone=names.index('HandR' if center[0]>0 else 'HandL');fixed=True
         if ident=='greymon' and pts[:,2].min()>1.80:
             bone=names.index('Head');fixed=True
+        if ident=='angemon' and span[2]>1.95 and span[0]<.65 and center[0]<-.18:
+            # The staff is one long disconnected surface, held in the left hand.
+            bone=names.index('HandL');fixed=True
+        if ident=='angemon':
+            staff_line=np.array([-.514+.181*center[2],-.691+.179*center[2]])
+            if np.linalg.norm(center[:2]-staff_line)<.09 and center[1]<-.24:
+                bone=names.index('HandL');fixed=True
+            if len(ids)==145 and center[1]>.10 and abs(center[0])>.25:
+                bone=names.index('WingR' if center[0]>0 else 'WingL');fixed=True
+        if ident=='etemon' and center[0]<-.28 and center[1]<-.48 and span[2]<.6:
+            bone=names.index('HandL');fixed=True
         if ident == 'wargreymon' and len(ids) < 3000 and abs(center[0]) > .39:
             suffix = 'R' if center[0] > 0 else 'L'
             candidates = [names.index(n + suffix) for n in ['UpperArm', 'Forearm', 'Hand']]

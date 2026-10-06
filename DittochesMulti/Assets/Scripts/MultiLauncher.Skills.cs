@@ -36,7 +36,7 @@ public sealed partial class MultiLauncher
             if(s==null||age<0||age>=s.Duration)continue;
             float sx=cast.sx,sy=cast.sy,tx=cast.tx,ty=cast.ty;
             if(room.side==1){sx=6-sx;sy=7-sy;tx=6-tx;ty=7-ty;}
-            arena.DrawSkill(s,TacticalArena.CellWorld(sx,sy),TacticalArena.CellWorld(tx,ty),age);
+            arena.DrawSkill(s,TacticalArena.CellWorld(sx,sy),TacticalArena.CellWorld(tx,ty),age,cast.serial);
         }
     }
 }

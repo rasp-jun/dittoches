@@ -19,6 +19,12 @@ def validate(root,compiler):
                 check(f'DigimonCombatMath.Attack({number(skill["baseAttack"])},{star},{number(f["build"].get("attack",0))})',ad)
                 check(f'DigimonCombatMath.AbilityPower({number(f["build"].get("abilityPower",0))})',ap)
                 check(f'DigimonCombatMath.Skill({number(ad)},{number(ap)},{number(skill["adRatio"][i])},{number(skill["apRatio"][i])})',s.skill_damage(f))
+    for increment in (0,.04,.07,.11):
+        for age in (-1,0,2.99,3,5.99,6,9,12,14.99,15,18,30):
+            check(f'DigimonCombatMath.RampSpeed({number(increment)},{number(age)})',s.ramp_speed(increment,age))
+            for speed in (0,.08,.4):
+                f=dict(id='gabumon',build=dict(speed=speed,rampSpeed=increment),combatAge=age)
+                check(f'DigimonCombatMath.AttackSpeed({number(s.SKILLS["gabumon"]["attackSpeed"])},{number(speed)},{number(increment)},{number(age)})',s.attack_speed(f))
     for sx,sy in [(0,0),(3,2),(2.3,4.4),(6,7)]:
         for x in range(7):
             for y in range(8):check(f'DigimonCombatMath.HexDistance({number(sx)},{number(sy)},{x}f,{y}f)',s.hex_distance(sx,sy,x,y))

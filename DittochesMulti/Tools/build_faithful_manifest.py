@@ -45,8 +45,10 @@ def main():
         notes='공개 외부 모델 · 원작 외형 비교 중'
         animation_report=folder/'animation-report.json'
         authored=json.loads(animation_report.read_text(encoding='utf-8')) if animation_report.exists() else None
-        if authored:notes+=' · 대기·걷기·달리기·공격·피격·승리 6개 동작 추가'
+        if authored:notes+=' · 공통 동작 '+str(len(authored['clips']))+'개 · 체형별 공격·도약·반동 보완'
+        if (folder/'material-report.json').exists():notes+=' · 재질 보완 · 기존 모션 보존'
         if id=='agumon':notes+=' · 머리 비율과 팔 자세 조정'
+        if id=='greymon':notes+=' · 목·머리 정렬 보완'
         if not info['animations']:notes+=' · 모션 준비 중'
         entry=dict(id=id,name=name,model=id+'/model.glb',preview=id+'/preview.png',
                             reference='../Roster/ReferencesV2/'+id+'.jpg',
@@ -56,7 +58,8 @@ def main():
         camera={'tsunomon':([3,.9,1],90),'pyocomon':([-3,.9,1.3],-90)}
         if authored:
             entry['motionClips']=authored['clips']
-            entry['motionOrigin']='새로 제작한 동작 · 원본 게임 모션과 다를 수 있음'
+            if authored.get('techniques'):entry['techniques']=authored['techniques']
+            entry['motionOrigin']='원본 동작을 조정한 공통 모션' if id=='birdramon' else '새로 제작한 동작 · 원본 게임 모션과 다를 수 있음'
         if (OUT/'previous'/(id+'.glb')).exists():entry['previousModel']='previous/'+id+'.glb'
         if id in camera and not authored:
             entry['cameraDirection'],entry['frontAngle']=camera[id]
@@ -68,6 +71,8 @@ def main():
             'entries':entries,'pending':pending,'scope':len(DESIGNS),'prepared':len(entries)}
     OUT.mkdir(parents=True,exist_ok=True)
     (OUT/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    techniques={e['id']:e['techniques'] for e in entries if e.get('techniques')}
+    if techniques:(OUT/'techniques.json').write_text(json.dumps(techniques,ensure_ascii=False,indent=2),encoding='utf-8')
     (OUT/'validation.json').write_text(json.dumps({'status':'passed','models':len(entries),'remaining':len(pending),
         'checks':['GLB header and length','Embedded buffers and textures','Attribution record present'],
         'limitations':['Structure checks do not certify original likeness or motion quality.'],

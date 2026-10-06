@@ -128,6 +128,14 @@ public sealed partial class NativeGame
     void ValidateBuildRules()
     {
         artPack=0;round=12;
+        var equipmentImages=new System.Collections.Generic.HashSet<string>();
+        foreach(var item in DigimonBuildCatalog.Data.items)
+        {
+            var icon=DigimonEquipmentArt.Icon(item.id);
+            Require(icon.width==160&&ReferenceEquals(icon,DigimonEquipmentArt.Icon(item.id)),"equipment art cached "+item.id);
+            Require(equipmentImages.Add(Convert.ToBase64String(icon.EncodeToPNG())),"equipment silhouette is unique "+item.id);
+            Require(!string.IsNullOrEmpty(item.usage)&&!string.IsNullOrEmpty(DigimonEquipmentUI.Stats(item.id)),"runtime equipment presentation catalog loaded "+item.id);
+        }
         Require(DigimonBuildCatalog.Data.traits.Length==11,"eleven new traits");
         foreach(var unit in Roster)Require(DigimonBuildCatalog.ForUnit(unit.id).Count()==2,"two tags "+unit.id);
         foreach(var trait in DigimonBuildCatalog.Data.traits)
@@ -146,6 +154,10 @@ public sealed partial class NativeGame
         for(int a=0;a<4;a++)for(int b=0;b<4;b++)
         {
             int result=DigimonBuildCatalog.Combine(a,b);
+            int[] materials={a,b};
+            Require(DigimonEquipmentUI.CanCraft(result,materials),"recipe guide accepts two actual ingredients "+a+":"+b);
+            Require(!DigimonEquipmentUI.CanCraft(result,new[]{a}),"recipe guide rejects a missing second ingredient "+a+":"+b);
+            Require(materials.SequenceEqual(new[]{a,b}),"recipe forecast never consumes inventory");
             Require(result==ItemRecipes[a,b]&&result==DigimonBuildCatalog.Combine(b,a),"recipe parity "+a+":"+b);
             inventory.Clear();inventory.Add(a);inventory.Add(b);selectedItem=-1;
             SelectInventoryItem(0);SelectInventoryItem(1);
@@ -163,7 +175,7 @@ public sealed partial class NativeGame
         Array.Clear(board,0,board.Length);board[0]=new Unit(RosterById["agumon"]);board[1]=new Unit(RosterById["koromon"]);
         fighters.Clear();var attacker=CreateFighter(board[0],false,new Vector2(3,4));var target=CreateFighter(new Unit(RosterById["gabumon"]),true,new Vector2(3,3));
         fighters.Add(attacker);fighters.Add(CreateFighter(board[1],false,new Vector2(2,4)));fighters.Add(target);InitializeBuildBonuses();
-        Require(Mathf.Abs(attacker.build.attack-.22f)<.0001f&&target.build.attack==0,"side independent courage and fighter effects");
+        Require(Mathf.Abs(attacker.build.attack-.10f)<.0001f&&attacker.build.hp==.08f&&attacker.build.lifesteal==.10f&&target.build.attack==0,"side independent courage and fighter effects");
         attacker.build=new DigimonBuildCatalog.Bonus{lifesteal=.5f};attacker.hp=attacker.maxHp*.5f;attacker.attacks=1;
         float before=attacker.hp;target.hp=20;target.shield=100;target.build=new DigimonBuildCatalog.Bonus();
         DealDamage(attacker,target,100);Require(attacker.hp==before,"no lifesteal from shields");

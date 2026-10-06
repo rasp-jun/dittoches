@@ -6,6 +6,8 @@ public sealed partial class NativeGame
     readonly CombatLabelLayout combatLabelLayout=new CombatLabelLayout();
     readonly List<CombatLabelLayout.Entry> combatLabels=new List<CombatLabelLayout.Entry>();
     readonly Dictionary<Fighter,CombatLabelLayout.Entry> fighterLabels=new Dictionary<Fighter,CombatLabelLayout.Entry>();
+    CombatSignals.Signal NativeCombatSignal(Fighter f)
+    {return CombatSignals.Evaluate(f.combatAge,f.lowShieldUsed,f.crisisAt,f.build.rampSpeed>0,!f.dead);}
     void PrepareCombatLabels()
     {
         combatLabels.Clear();fighterLabels.Clear();
@@ -14,10 +16,12 @@ public sealed partial class NativeGame
             if(f.dead)continue;
             bool focused=inspectedUnit==f.unit;
             string caption=f.stun>0?"기절 "+f.stun.ToString("0.0")+"초":focused?(f.skillCast!=null?SkillName(f.unit.def):UnitName(f.unit.def)):"";
+            var signal=NativeCombatSignal(f);if(f.stun<=0&&signal.kind>0)caption=signal.Caption;
             float width=Mathf.Clamp(arena.CellRect(Mathf.Clamp(Mathf.RoundToInt(f.renderPos.y),0,7),3).width*.78f,56,88);
             if(caption.Length>0)width=Mathf.Max(width,Mathf.Min(146,caption.Length*12+12));
-            var row=new CombatLabelLayout.Entry{key=f,anchor=arena.Project(FighterWorld(f)+Vector3.up*TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star)),
-                width=width,priority=focused,caption=caption.Length>0,text=caption};
+            var row=combatLabelLayout.Borrow(combatLabels.Count);
+            row.key=f;row.anchor=arena.Project(FighterWorld(f)+Vector3.up*TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star));
+            row.width=width;row.priority=focused||signal.kind>0;row.caption=caption.Length>0;row.text=caption;row.captionColor=signal.kind>0&&f.stun<=0?signal.Color:Color.clear;
             combatLabels.Add(row);fighterLabels.Add(f,row);
         }
         combatLabelLayout.Arrange(combatLabels,new Rect(SoloArenaViewport.x+12,SoloArenaViewport.y+85,SoloArenaViewport.width-24,SoloArenaViewport.height-130));

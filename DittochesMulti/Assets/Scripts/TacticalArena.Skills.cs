@@ -8,17 +8,27 @@ public sealed partial class TacticalArena
     readonly List<MeshRenderer> effectPool=new List<MeshRenderer>();
     int effectCursor;
     Mesh effectSphere;
+    sealed class Emission {public Vector3 point;public int generation;public bool anchored;}
+    readonly Dictionary<int,Emission> emissions=new Dictionary<int,Emission>();
+    readonly List<int> expiredEmissions=new List<int>();
+    public bool SkillLaunch(int castId,out Vector3 point)
+    {Emission emission;bool found=emissions.TryGetValue(castId,out emission);point=found?emission.point:Vector3.zero;return found;}
     void BeginEffects(){effectCursor=0;}
-    void EndEffects(){for(int i=effectCursor;i<effectPool.Count;i++)effectPool[i].enabled=false;}
+    void EndEffects()
+    {
+        for(int i=effectCursor;i<effectPool.Count;i++)effectPool[i].enabled=false;
+        expiredEmissions.Clear();foreach(var pair in emissions)if(pair.Value.generation<generation-1)expiredEmissions.Add(pair.Key);
+        foreach(int key in expiredEmissions)emissions.Remove(key);
+    }
     public int EffectCount { get { return effectCursor; } }
-    void Effect(Mesh mesh,Vector3 position,Vector3 scale,Color tint,Quaternion rotation)
+    void Effect(Mesh mesh,Vector3 position,Vector3 scale,Color tint,Quaternion rotation,Material surface=null)
     {
         if(effectCursor>=EffectBudget||scale.sqrMagnitude<.000001f)return;
         MeshRenderer renderer;
         if(effectCursor==effectPool.Count)
         {renderer=Shape("Skill effect",mesh,glow,position,scale);effectPool.Add(renderer);}
         else renderer=effectPool[effectCursor];
-        effectCursor++;renderer.enabled=true;
+        effectCursor++;renderer.enabled=true;renderer.sharedMaterial=surface??glow;
         renderer.GetComponent<MeshFilter>().sharedMesh=mesh;
         renderer.transform.localPosition=position;renderer.transform.localScale=scale;
         renderer.transform.localRotation=rotation;Tint(renderer,tint);
@@ -32,13 +42,20 @@ public sealed partial class TacticalArena
             float a=y*Mathf.PI/lat,b=x*Mathf.PI*2/lon;
             vertices[y*(lon+1)+x]=new Vector3(Mathf.Sin(a)*Mathf.Cos(b),Mathf.Cos(a),Mathf.Sin(a)*Mathf.Sin(b));
             if(y==lat||x==lon)continue;int n=y*(lon+1)+x;
-            triangles.Add(n);triangles.Add(n+lon+1);triangles.Add(n+1);
-            triangles.Add(n+1);triangles.Add(n+lon+1);triangles.Add(n+lon+2);
+            triangles.Add(n);triangles.Add(n+1);triangles.Add(n+lon+1);
+            triangles.Add(n+1);triangles.Add(n+lon+2);triangles.Add(n+lon+1);
         }
         effectSphere=Own(new Mesh{name="Skill sphere",vertices=vertices,triangles=triangles.ToArray()});return effectSphere;
     }
     void Orb(Vector3 p,float size,Color c)
     {
+        if(EnsureSkillFinish())
+        {
+            SoftSkillGlow(p,size*2.1f,c,.4f);
+            Effect(EffectSphere(),p,Vector3.one*(size*.78f),c,Quaternion.identity,roundedSkillMaterial);
+            SoftSkillGlow(p-camera.transform.forward*size*.68f,size*.45f,Color.Lerp(c,Color.white,.85f),.8f);
+            return;
+        }
         Effect(EffectSphere(),p,Vector3.one*size,c,Quaternion.identity);
         Effect(EffectSphere(),p-camera.transform.forward*size*.8f,Vector3.one*size*.42f,Color.Lerp(c,Color.white,.78f),Quaternion.identity);
     }
@@ -48,11 +65,14 @@ public sealed partial class TacticalArena
         Effect(cube,(a+b)*.5f,new Vector3(width,width,delta.magnitude),color,Quaternion.LookRotation(delta));
     }
     void Halo(Vector3 p,float radius,Color c,bool vertical=false)
-    {Effect(ringMesh,p,Vector3.one*radius,c,vertical?camera.transform.rotation*Quaternion.Euler(90,0,0):Quaternion.identity);}
+    {
+        bool soft=EnsureSkillFinish();if(soft)c.a*=.72f;
+        Effect(ringMesh,p,Vector3.one*radius,c,vertical?camera.transform.rotation*Quaternion.Euler(90,0,0):Quaternion.identity,soft?transparentSkillMaterial:null);
+    }
     static Vector3 Side(Vector3 direction)
     {Vector3 side=Vector3.Cross(Vector3.up,direction);return side.sqrMagnitude<.001f?Vector3.right:side.normalized;}
     public static float DigimonHeadHeight(string id,int star=1)
-    {var s=DigimonSkillCatalog.Find(id);return s==null?1.42f:1.3f*s.size*(1+.055f*(star-1))+s.hover+.15f;}
+    {var s=DigimonSkillCatalog.Find(id);if(!DigimonModelLibrary.PreviewEnabled&&FaithfulModelData.Available(id))return DigimonVisualScale.Height(id,star)+.15f;return s==null?1.42f:1.3f*s.size*(1+.055f*(star-1))+s.hover+.15f;}
 
     /// <summary>Use an authored skeletal model where available; legacy units retain their existing art.</summary>
     public void PoseDigimon(object key,string id,float speed,float direction,float time,float castAge=-1,float attack=0,float death=0,int star=1)
@@ -105,19 +125,31 @@ public sealed partial class TacticalArena
         actor.portrait.transform.rotation=camera.transform.rotation*Quaternion.Euler(0,0,death>0?-55*death:lean);
         actor.contactShadow.transform.localScale=new Vector3(.43f*size,.01f,.30f*size)*(1-Mathf.Clamp(bob,0,.5f)*.45f);
     }
-    public void DrawSkill(DigimonSkillCatalog.Entry s,Vector3 origin,Vector3 target,float age)
+    public void DrawSkill(DigimonSkillCatalog.Entry s,Vector3 origin,Vector3 target,float age,int castId=-1)
     {
         if(s==null||age<0||age>=s.Duration)return;
         Color color=s.Tint;Vector3 delta=target-origin,side=Side(delta);
         Vector3 start=origin+Vector3.up*(.75f*s.size+s.hover),end=target+Vector3.up*.65f;
         start=ModelMuzzle(s.id,origin,start);
+        bool projectile=s.visual=="sun"||s.visual=="seven"||s.visual=="missiles"||s.visual=="fire"||s.visual=="bluefire"||s.visual=="flower"||s.visual=="electricorb"||s.visual=="darkorb"||s.visual=="meteors"||s.visual=="phoenix"||s.visual=="bubble"||s.visual=="air";
+        Vector3 emitter;bool anchored;Emission emission=null;
+        if(projectile&&age>=s.windup&&castId>=0&&emissions.TryGetValue(castId,out emission))
+        {
+            emission.generation=generation;start=emission.point;anchored=emission.anchored;
+        }
+        else
+        {
+            anchored=ModelSkillEmitter(s.id,origin,projectile&&age>=s.windup,out emitter);
+            if(anchored)start=emitter;
+            if(projectile&&age>=s.windup&&castId>=0)emissions.Add(castId,new Emission{point=start,anchored=anchored,generation=generation});
+        }
         float charge=Mathf.Clamp01(age/s.windup);
         if(age<s.windup)
         {
             Halo(origin+Vector3.up*.07f,.3f+charge*.25f,color);
             if(s.visual=="seven")for(int i=0;i<7;i++)
             {float a=i*Mathf.PI*2/7;Orb(start+camera.transform.right*Mathf.Cos(a)*.75f+Vector3.up*(.55f+Mathf.Sin(a)*.65f),.13f*charge,color);}
-            else if(s.visual=="sun")Orb(start+Vector3.up*1.1f,.65f*charge,color);
+            else if(s.visual=="sun")Orb(start+(anchored?Vector3.zero:Vector3.up*1.1f),.65f*charge,color);
             else if(s.visual=="flower")for(int i=0;i<5;i++)
             {float a=i*Mathf.PI*2/5;Orb(start+side*Mathf.Cos(a)*.24f+Vector3.up*Mathf.Sin(a)*.24f,.09f*charge,color);}
             else if(s.visual!="gate"&&s.visual!="needles")Orb(start,.08f+charge*.12f,color);
@@ -147,7 +179,7 @@ public sealed partial class TacticalArena
             if(t>=0&&t<1)
             {
                 Vector3 launch=start;
-                if(s.visual=="sun")launch+=Vector3.up*1.1f;
+                if(s.visual=="sun"&&!anchored)launch+=Vector3.up*1.1f;
                 if(s.visual=="missiles")launch+=side*(shot%2==0?-.28f:.28f);
                 if(s.visual=="seven")
                 {float a=shot*Mathf.PI*2/7;launch+=camera.transform.right*Mathf.Cos(a)*.75f+Vector3.up*(.55f+Mathf.Sin(a)*.65f);}
@@ -160,7 +192,9 @@ public sealed partial class TacticalArena
             {
                 float fade=1-impactAge/.3f;
                 Vector3 center=s.shape=="radial"?origin:target;
-                Halo(center+Vector3.up*.09f,(.2f+impactAge*3)*Mathf.Min(1.5f,s.radius),Color.Lerp(color,Color.white,fade*.4f));
+                Color impactColor=Color.Lerp(color,Color.white,fade*.4f);impactColor.a=presentationQuality?fade:1;
+                Halo(center+Vector3.up*.09f,(.2f+impactAge*3)*Mathf.Min(1.5f,s.radius),impactColor);
+                DrawFinishedImpact(s,center,impactAge,shot,color);
                 if(s.visual=="ice")for(int j=0;j<5;j++)
                 {
                     float a=j*Mathf.PI*2/5;Vector3 offset=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*.4f;
@@ -172,6 +206,7 @@ public sealed partial class TacticalArena
     }
     void DrawFlight(DigimonSkillCatalog.Entry s,Vector3 start,Vector3 end,Vector3 p,Vector3 side,float t,float age,Color color)
     {
+        if(DrawFinishedFlight(s,start,end,p,side,t,age,color))return;
         switch(s.visual)
         {
             case "bubble":case "air":

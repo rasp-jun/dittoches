@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TechniqueEffects } from './technique-effects.js';
+import { PoseTransition } from './pose-transition.js';
+import { finishCharacter } from './character-finish.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const $ = (id) => document.getElementById(id);
@@ -9,6 +12,11 @@ const state = { entries: [], pending: [], scope: 34, selected: null, loading: fa
 let renderer, scene, camera, controls, current, mixer, activeAction, clips = [], sequence = 0;
 let currentBox = new THREE.Box3(), filtered = [], floor, keyLight, clock = new THREE.Clock();
 let motionIndex = 0;
+const commonMotions = ['Idle', 'Walk', 'Run', 'Attack', 'Skill', 'Guard', 'Dodge', 'Hit', 'Victory', 'Down'];
+const motionLabels = { Idle: '대기', Walk: '걷기', Run: '달리기', Attack: '공격', Skill: '특수 공격', Guard: '방어', Dodge: '회피', Hit: '피격', Victory: '승리', Down: '쓰러짐' };
+state.demo = { motions: commonMotions, active: false, waiting: false, model: 0, motion: 0, elapsed: 0, ids: [] };
+let comparisonPose = null, techniqueEffects;
+let poseTransition = null, pendingIdle = null;
 const loader = new GLTFLoader();
 
 function plain(value, fallback = '—') {
@@ -58,6 +66,9 @@ function setupScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
+  // Render particle transparency against the same backdrop as the studio.
+  scene.background = new THREE.Color(0xe8edef);
+  techniqueEffects = new TechniqueEffects(scene);
   camera = new THREE.PerspectiveCamera(36, 1, .01, 100);
   camera.position.set(3, 2, 6);
   controls = new OrbitControls(camera, renderer.domElement);
@@ -69,10 +80,10 @@ function setupScene() {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const room = new RoomEnvironment();
   scene.environment = pmrem.fromScene(room, .04).texture;
-  scene.environmentIntensity = .35;
+  scene.environmentIntensity = .48;
   room.dispose();
   pmrem.dispose();
-  scene.add(new THREE.HemisphereLight(0xf7fbff, 0x9b9690, .7));
+  scene.add(new THREE.HemisphereLight(0xf7fbff, 0x879096, .62));
   keyLight = new THREE.DirectionalLight(0xfff6e9, 1.6);
   keyLight.position.set(4, 7, 5);
   keyLight.castShadow = true;
@@ -90,7 +101,7 @@ function setupScene() {
   const fill = new THREE.DirectionalLight(0xd7e7fa, .4);
   fill.position.set(-5, 3, 2);
   scene.add(fill);
-  const rim = new THREE.DirectionalLight(0xffffff, .65);
+  const rim = new THREE.DirectionalLight(0xe3f3ff, 1.05);
   rim.position.set(-1, 5, -4);
   scene.add(rim);
   floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.ShadowMaterial({ color: 0x566978, opacity: .17 }));
@@ -111,8 +122,22 @@ function setupScene() {
   new ResizeObserver(resize).observe($('viewport'));
   resize();
   renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), .08);
-    if (mixer) mixer.update(dt);
+    const rawDelta = clock.getDelta();
+    const dt = document.hidden || rawDelta > .5 ? 0 : Math.min(rawDelta, .1);
+    if (mixer && state.ready) {
+      const playing = !activeAction?.paused;
+      poseTransition?.beforeUpdate();
+      mixer.update(playing ? dt : 0);
+      poseTransition?.apply(playing ? dt * mixer.timeScale : 0);
+      poseTransition?.record(playing ? dt * mixer.timeScale : 0);
+      // Do not change the mixer's active actions inside its finished callback.
+      if (pendingIdle !== null) {
+        const idle = pendingIdle;
+        pendingIdle = null;
+        playClip(idle);
+      }
+    }
+    updateDemo(dt);
     if (activeAction) {
       state.animationTime = activeAction.time;
       state.animationPaused = activeAction.paused;
@@ -120,6 +145,7 @@ function setupScene() {
       $('animation-seek').value = String(activeAction.time / state.animationDuration || 0);
       $('animation-time').textContent = `${activeAction.time.toFixed(2)} / ${state.animationDuration.toFixed(2)}초`;
     }
+    updateTechniqueEffects();
     controls.update();
     renderer.render(scene, camera);
     state.frames += 1;
@@ -223,7 +249,22 @@ function renderList() {
   $('list-empty').hidden = filtered.length > 0 || pending.length > 0;
 }
 
+function showTechniques(entry) {
+  const data = entry?.techniques;
+  $('technique-card').hidden = !data;
+  if (!data) return;
+  for (const mode of ['Attack', 'Skill']) {
+    const row = $('technique-' + mode.toLowerCase());
+    row.querySelector('strong').textContent = data[mode].name;
+    row.setAttribute('aria-current', String(state.activeClip === mode));
+  }
+  const active = data[state.activeClip] || data.Skill;
+  $('technique-description').textContent = state.showPrevious ? '수정 전 공격 동작입니다.' : active.description;
+  $('technique-source').href = safeExternal(data.source);
+}
+
 function showMetadata(entry) {
+  showTechniques(entry);
   $('model-name').textContent = plain(entry.name, entry.id);
   $('model-subtitle').textContent = state.showPrevious ? '수정 전 모습 · 같은 시점과 각도에서 비교하고 있습니다.' : '아래에서 모션을 바꾸고, 드래그하여 자세를 돌려보세요.';
   $('compare-before').hidden = !entry.previousModel;
@@ -249,7 +290,12 @@ function showMetadata(entry) {
 }
 
 function setAnimations(gltf) {
-  clips = gltf.animations || [];
+  poseTransition = null;
+  pendingIdle = null;
+  clips = [...(gltf.animations || [])].sort((a, b) => {
+    const rank = (clip) => commonMotions.includes(clip.name) ? commonMotions.indexOf(clip.name) : 100;
+    return rank(a) - rank(b);
+  });
   state.clips = clips.map((clip) => clip.name);
   $('animation-select').replaceChildren();
   $('animation-select').disabled = clips.length === 0;
@@ -265,16 +311,22 @@ function setAnimations(gltf) {
     return;
   }
   mixer = new THREE.AnimationMixer(gltf.scene);
+  poseTransition = new PoseTransition(gltf.scene);
   mixer.addEventListener('finished', ({ action }) => {
     if (action !== activeAction) return;
+    if (state.demo.active || /^down$/i.test(action.getClip().name)) {
+      $('animation-play').textContent = '다시 재생';
+      return;
+    }
     const idle = clips.findIndex((clip) => /idle|stand|wait/i.test(clip.name));
-    if (idle >= 0 && idle !== motionIndex) playClip(idle);
+    if (idle >= 0 && idle !== motionIndex) pendingIdle = idle;
     else $('animation-play').textContent = '다시 재생';
   });
   mixer.timeScale = Number($('animation-speed').value);
-  const labels = { idle: '대기', walk: '걷기', run: '달리기', attack: '공격', hit: '피격', victory: '승리', move: '이동', damage: '피격', guard: '방어', win: '승리', eat: '먹기', down: '쓰러짐', getup: '일어나기', attack01: '공격 1', attack02: '공격 2', special01: '특수 공격', 'take 001': '기본 동작' };
-  clips.forEach((clip, i) => $('animation-select').add(new Option(labels[clip.name.toLowerCase()] || clip.name || `모션 ${i + 1}`, String(i))));
-  $('animation-note').textContent = `모델에 포함된 모션 ${clips.length}개`;
+  const labels = { idle: '대기', walk: '걷기', run: '달리기', attack: '공격', skill: '특수 공격', dodge: '회피', hit: '피격', victory: '승리', move: '이동', damage: '피격', guard: '방어', win: '승리', eat: '먹기', down: '쓰러짐', getup: '일어나기', attack01: '공격 1', attack02: '공격 2', special01: '특수 공격', 'take 001': '기본 동작' };
+  clips.forEach((clip, i) => $('animation-select').add(new Option((labels[clip.name.toLowerCase()] || clip.name || `모션 ${i + 1}`) + (commonMotions.includes(clip.name) ? '' : ' · 원본'), String(i))));
+  $('animation-note').textContent = `${clips.length}개 모션`;
+  renderMotionButtons();
   const requested = new URLSearchParams(location.search).get('motion')?.toLowerCase();
   let preferred = requested ? clips.findIndex((clip) => clip.name.toLowerCase() === requested || requested === 'walk' && clip.name.toLowerCase() === 'move') : -1;
   if (preferred < 0) preferred = Math.max(0, clips.findIndex((clip) => /idle|stand|wait/i.test(clip.name)));
@@ -284,29 +336,132 @@ function setAnimations(gltf) {
 
 function playClip(index, fade = true) {
   if (!mixer || !clips[index]) return;
+  const source = activeAction && fade ? poseTransition.capture() : null;
+  const velocity = activeAction && !activeAction.paused && fade ? poseTransition.captureVelocity() : null;
+  const previousClip = activeAction?.getClip();
+  const locomotion = /^(Walk|Run)$/;
+  const phase = fade && previousClip && locomotion.test(previousClip.name) && locomotion.test(clips[index].name)
+    ? (activeAction.time / previousClip.duration) % 1 : 0;
+  poseTransition.clear();
+  poseTransition.resetHistory();
+  pendingIdle = null;
+  mixer.stopAllAction();
   const next = mixer.clipAction(clips[index]);
   const repeat = $('animation-repeat').checked || /^(idle|walk|run|move|stand|wait|take 001)$/i.test(clips[index].name);
   next.reset().setEffectiveWeight(1).setEffectiveTimeScale(1);
   next.setLoop(repeat ? THREE.LoopRepeat : THREE.LoopOnce, repeat ? Infinity : 1);
   next.clampWhenFinished = true;
-  if (activeAction && activeAction !== next && fade) {
-    // A held inspection frame must still fade out when another motion starts.
-    activeAction.paused = false;
-    activeAction.crossFadeTo(next, .22, false);
-  } else mixer.stopAllAction();
   next.play();
+  next.time = phase * clips[index].duration;
   activeAction = next;
+  mixer.update(0);
+  const fadeSeconds = { Hit: .09, Dodge: .12, Attack: .16, Skill: .22, Down: .18, Idle: .28, Walk: .24, Run: .24 }[clips[index].name] || .22;
+  if (source) poseTransition.begin(source, Math.min(fadeSeconds, clips[index].duration*.2), velocity);
   motionIndex = index;
   $('animation-select').value = String(index);
   $('animation-play').textContent = '일시 정지';
   state.activeClip = clips[index].name;
+  showTechniques(state.entries.find((item) => item.id === state.selected));
   state.animationDuration = clips[index].duration;
-  state.animationTime = 0;
+  state.animationTime = next.time;
   state.animationPaused = false;
+  for (const button of $('motion-buttons').children) button.setAttribute('aria-pressed', String(button.dataset.motion === state.activeClip));
+}
+
+function renderMotionButtons() {
+  $('motion-buttons').replaceChildren();
+  for (const name of commonMotions) {
+    const index = clips.findIndex((clip) => clip.name === name);
+    if (index < 0) continue;
+    const button = document.createElement('button');
+    button.textContent = motionLabels[name];
+    button.dataset.motion = name;
+    button.title = state.entries.find((item) => item.id === state.selected)?.techniques?.[name]?.name || motionLabels[name];
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => { stopDemo(); playClip(index); });
+    $('motion-buttons').append(button);
+  }
+}
+
+function stopDemo() {
+  state.demo.active = false;
+  state.demo.waiting = false;
+  $('combat-demo').textContent = '기술 시연';
+  $('combat-demo').setAttribute('aria-pressed', 'false');
+  $('demo-toggle').textContent = '전체 시연';
+  $('demo-toggle').setAttribute('aria-pressed', 'false');
+  $('demo-next').hidden = true;
+  $('demo-status').textContent = '34종 · 종마다 10가지 동작';
+}
+
+function playDemoMotion() {
+  const demo = state.demo, name = demo.motions[demo.motion];
+  const index = clips.findIndex((clip) => clip.name === name);
+  if (index < 0) { stopDemo(); return; }
+  demo.elapsed = 0;
+  demo.waiting = false;
+  playClip(index);
+  $('demo-status').textContent = `${demo.model + 1} / ${demo.ids.length}종 · ${motionLabels[name]} ${demo.motion + 1} / ${demo.motions.length}`;
+}
+
+async function startDemo(combat = false) {
+  if (!state.ready) return;
+  stopDemo();
+  const ids = state.entries.filter((entry) => entry.model).map((entry) => entry.id);
+  const initial = Math.max(0, ids.indexOf(state.selected));
+  Object.assign(state.demo, { motions: combat ? ['Attack', 'Skill'] : commonMotions, active: true, waiting: true, model: 0, motion: 0, elapsed: 0, ids: [...ids.slice(initial), ...ids.slice(0, initial)] });
+  $('animation-repeat').checked = false;
+  $('combat-demo').textContent = combat ? '기술 시연 중지' : '기술 시연';
+  $('combat-demo').setAttribute('aria-pressed', String(combat));
+  $('demo-toggle').textContent = '시연 중지';
+  $('demo-toggle').setAttribute('aria-pressed', 'true');
+  $('demo-next').hidden = false;
+  if (state.showPrevious) {
+    state.showPrevious = false;
+    await selectModel(state.selected, true);
+  }
+  if (state.demo.active && state.ready) playDemoMotion();
+}
+
+async function advanceDemo(nextModel = false) {
+  const demo = state.demo;
+  if (!demo.active || demo.waiting) return;
+  demo.waiting = true;
+  demo.motion = nextModel ? demo.motions.length : demo.motion + 1;
+  if (demo.motion >= demo.motions.length) {
+    demo.motion = 0;
+    demo.model++;
+    if (demo.model >= demo.ids.length) {
+      stopDemo();
+      $('demo-status').textContent = `${demo.ids.length}종 · ${demo.ids.length * demo.motions.length}가지 동작 시연 완료`;
+      return;
+    }
+    await selectModel(demo.ids[demo.model], true);
+  }
+  if (demo.active && state.ready) playDemoMotion();
+  else stopDemo();
+}
+
+function updateDemo(dt) {
+  const demo = state.demo;
+  if (!demo.active || demo.waiting || !state.ready || !activeAction) return;
+  // Pausing a motion also pauses the demonstration timer.
+  if (activeAction.paused && activeAction.time < activeAction.getClip().duration - .001) return;
+  demo.elapsed += dt * Number($('animation-speed').value);
+  const duration = activeAction.getClip().duration;
+  const hold = state.activeClip === 'Down' ? .8 : .35;
+  if (demo.elapsed >= (state.activeClip === 'Idle' ? 1.6 : duration) + hold) void advanceDemo();
+}
+
+function updateTechniqueEffects() {
+  state.techniqueEffect = techniqueEffects.update(state.activeClip, activeAction?.time || 0, activeAction?.getClip().duration || 1, $('technique-effects').checked, state.showPrevious || !state.ready);
 }
 
 function seekMotion(seconds) {
   if (!mixer || !activeAction) return;
+  poseTransition.clear();
+  poseTransition.resetHistory();
+  pendingIdle = null;
   mixer.stopAllAction();
   activeAction.reset().setEffectiveWeight(1).play();
   activeAction.time = THREE.MathUtils.clamp(seconds, 0, activeAction.getClip().duration);
@@ -314,13 +469,17 @@ function seekMotion(seconds) {
   mixer.update(0);
   state.animationTime = activeAction.time;
   state.animationPaused = true;
+  updateTechniqueEffects();
   $('animation-play').textContent = '재생';
 }
 
-async function selectModel(id) {
+async function selectModel(id, automated = false) {
+  if (!automated) stopDemo();
   const entry = state.entries.find((candidate) => candidate.id === id);
   if (!entry) return;
+  if (state.selected !== id) comparisonPose = null;
   if (state.selected !== id || !entry.previousModel) state.showPrevious = false;
+  techniqueEffects?.clear();
   const token = ++sequence;
   state.selected = id;
   state.clips = [];
@@ -376,6 +535,7 @@ async function selectModel(id) {
         if (material) material.wireframe = $('wireframe').checked;
       }
     });
+    state.surfaceFinish = state.showPrevious ? null : finishCharacter(current, renderer, entry.id);
     scene.add(current);
     current.updateMatrixWorld(true);
     currentBox.setFromObject(current, true);
@@ -384,8 +544,13 @@ async function selectModel(id) {
       current.updateMatrixWorld(true);
       currentBox.setFromObject(current, true);
     }
+    // Reserve headroom for the raised hands/energy sphere and the tall portal.
+    if (entry.id === 'wargreymon') currentBox.max.y += .95 * scale;
+    if (entry.id === 'holyangemon') currentBox.max.y += .35 * scale;
     frame();
     setAnimations(gltf);
+    mixer?.update(0);
+    techniqueEffects.bind(current, entry, clips, gltf.scene);
     $('loading').hidden = true;
     state.loading = false;
     state.ready = true;
@@ -410,7 +575,10 @@ async function loadManifest() {
     if (!state.entries.length) throw new Error('아직 갤러리에 등록된 모델이 없습니다.');
     const available = state.entries.filter((entry) => entry.model).length;
     const unfinished = Math.max(state.pending.length, state.scope - available);
-    $('total-label').textContent = `${available} / ${state.scope}종 · ${unfinished}종 준비 중`;
+    const motionCount = state.entries.reduce((sum, entry) => sum + (entry.animations?.length || 0), 0);
+    $('total-label').textContent = unfinished
+      ? `${available} / ${state.scope}종 · ${unfinished}종 준비 중`
+      : `${available} / ${state.scope}종 · ${motionCount}개 모션`;
     const brandNote = document.querySelector('.brand small');
     brandNote.textContent = plain(manifest.status, '공개 외부 모델 · 원작 외형 비교 중');
     renderList();
@@ -419,6 +587,8 @@ async function loadManifest() {
       || state.entries.find((entry) => entry.id === state.selected && entry.model)
       || state.entries.find((entry) => entry.model) || state.entries[0];
     await selectModel(initial.id);
+    const demo = new URLSearchParams(location.search).get('demo');
+    if (demo === '1' || demo === 'skills') await startDemo(demo === 'skills');
   } catch (cause) {
     error('갤러리 모델 목록이 준비되지 않았습니다.\n모델 준비가 끝나면 오른쪽 위의 새로고침을 눌러 주세요.\n' + plain(cause.message, ''), cause);
   }
@@ -433,9 +603,10 @@ $('reference-image').addEventListener('error', () => {
 $('reset-camera').addEventListener('click', () => frame());
 $('compare-before').addEventListener('click', async () => {
   if (!current || state.loading) return;
-  const id = state.selected, name = state.activeClip;
-  const progress = activeAction ? activeAction.time / activeAction.getClip().duration : 0;
-  const paused = activeAction?.paused;
+  stopDemo();
+  const id = state.selected;
+  if (!state.showPrevious) comparisonPose = { name: state.activeClip, progress: activeAction ? activeAction.time / activeAction.getClip().duration : 0, paused: activeAction?.paused };
+  const { name, progress, paused } = comparisonPose || { name: state.activeClip, progress: 0, paused: true };
   const position = camera.position.clone(), target = controls.target.clone();
   state.showPrevious = !state.showPrevious;
   await selectModel(id);
@@ -446,6 +617,11 @@ $('compare-before').addEventListener('click', async () => {
     seekMotion(progress * activeAction.getClip().duration);
     activeAction.paused = !!paused;
     $('animation-play').textContent = paused ? '재생' : '일시 정지';
+  } else {
+    const idle = Math.max(0, clips.findIndex((clip) => /^idle$/i.test(clip.name)));
+    playClip(idle, false);
+    seekMotion(0);
+    $('model-subtitle').textContent = '수정 전에는 이 모션이 없어 대기 자세로 비교합니다.';
   }
   camera.position.copy(position);
   controls.target.copy(target);
@@ -461,12 +637,15 @@ $('wireframe').addEventListener('change', () => current?.traverse((node) => {
     if (material) material.wireframe = $('wireframe').checked;
   }
 }));
-$('animation-select').addEventListener('change', () => playClip(Number($('animation-select').value)));
+$('combat-demo').addEventListener('click', () => state.demo.active && state.demo.motions.length === 2 ? stopDemo() : startDemo(true));
+$('demo-toggle').addEventListener('click', () => state.demo.active ? stopDemo() : startDemo());
+$('demo-next').addEventListener('click', () => advanceDemo(true));
+$('animation-select').addEventListener('change', () => { stopDemo(); playClip(Number($('animation-select').value)); });
 $('animation-speed').addEventListener('change', () => { if (mixer) mixer.timeScale = Number($('animation-speed').value); });
-$('animation-repeat').addEventListener('change', () => playClip(motionIndex, false));
-$('animation-seek').addEventListener('input', () => seekMotion(Number($('animation-seek').value) * (activeAction?.getClip().duration || 0)));
-$('frame-back').addEventListener('click', () => seekMotion((activeAction?.time || 0) - 1 / 30));
-$('frame-next').addEventListener('click', () => seekMotion((activeAction?.time || 0) + 1 / 30));
+$('animation-repeat').addEventListener('change', () => { stopDemo(); playClip(motionIndex, false); });
+$('animation-seek').addEventListener('input', () => { stopDemo(); seekMotion(Number($('animation-seek').value) * (activeAction?.getClip().duration || 0)); });
+$('frame-back').addEventListener('click', () => { stopDemo(); seekMotion((activeAction?.time || 0) - 1 / 30); });
+$('frame-next').addEventListener('click', () => { stopDemo(); seekMotion((activeAction?.time || 0) + 1 / 30); });
 $('animation-play').addEventListener('click', () => {
   if (!activeAction) return;
   if (activeAction.time >= activeAction.getClip().duration - .00001) { playClip(motionIndex, false); return; }
@@ -511,7 +690,7 @@ function poseSnapshot() {
   });
   return { bones, positions };
 }
-window.faithfulGallery = { state, selectModel, frame, playClip, seekMotion, poseSnapshot, reload: loadManifest };
+window.faithfulGallery = { state, selectModel, frame, playClip, seekMotion, poseSnapshot, effectSnapshot: () => techniqueEffects.snapshot(), startDemo, stopDemo, advanceDemo, reload: loadManifest };
 try {
   setupScene();
   loadManifest();

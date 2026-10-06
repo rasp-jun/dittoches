@@ -10,17 +10,18 @@ public sealed partial class NativeGame
         public DigimonSkillCatalog.Entry skill;
         public Vector2 origin,aim;
         public float age,power;
-        public int hits;
+        public int hits,presentationId;
         public bool released,cancelled;
     }
     private readonly List<SkillCast> skillCasts=new List<SkillCast>();
     private bool applyingSkillDamage;
+    private int nextSkillPresentationId;
     private bool StartDigimonSkill(Fighter caster,Fighter target)
     {
         if(artPack!=0)return false;
         var skill=DigimonSkillCatalog.Find(caster.unit.def.id);
         if(skill==null)return false;
-        var cast=new SkillCast{caster=caster,target=target,skill=skill,origin=caster.pos,aim=target.pos,
+        var cast=new SkillCast{caster=caster,target=target,skill=skill,origin=caster.pos,aim=target.pos,presentationId=++nextSkillPresentationId,
             power=skill.Damage(caster.unit.star,AttackDamage(caster),DigimonCombatMath.AbilityPower(caster.build.abilityPower)*(caster.enemy?caster.attackScale:1f))};
         skillCasts.Add(cast);caster.skillCast=cast;
         caster.mana=0;caster.casts++;caster.cooldown=skill.Duration;
@@ -76,6 +77,6 @@ public sealed partial class NativeGame
     {
         foreach(SkillCast cast in skillCasts)if(!cast.cancelled)
             arena.DrawSkill(cast.skill,TacticalArena.CellWorld(cast.origin.x,cast.origin.y),
-                TacticalArena.CellWorld(cast.aim.x,cast.aim.y),cast.age);
+                TacticalArena.CellWorld(cast.aim.x,cast.aim.y),cast.age,cast.presentationId);
     }
 }

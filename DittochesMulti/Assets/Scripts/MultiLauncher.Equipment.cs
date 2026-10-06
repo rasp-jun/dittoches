@@ -42,20 +42,21 @@ public sealed partial class MultiLauncher
     void DrawOnlineEquipment(Player me,bool editable)
     {
         Card(new Rect(25,650,260,278),surface,new Color(.2f,.38f,.43f));
-        GUI.Label(new Rect(39,658,165,25),"장비 보관함 · "+me.inventory.Length,eyebrow);
-        if(Btn(new Rect(205,655,65,28),"조합표"))onlineItemGuide=onlineItem>=0?me.inventory[onlineItem]:0;
+        GUI.Label(new Rect(39,658,165,25),"무장 보관함 · "+me.inventory.Length,eyebrow);
+        if(Btn(new Rect(205,655,65,28),"도감"))onlineItemGuide=onlineItem>=0?me.inventory[onlineItem]:0;
         int pages=Mathf.Max(1,(me.inventory.Length+11)/12);onlineItemPage=Mathf.Clamp(onlineItemPage,0,pages-1);
         int hover=-1;
         for(int i=0;i<12;i++)
         {
-            Rect r=new Rect(39+i%4*57,695+i/4*42,49,36);int index=onlineItemPage*12+i;
+            Rect r=new Rect(39+i%4*57,695+i/4*43,39,39);int index=onlineItemPage*12+i;
             if(index>=me.inventory.Length){Panel(r,surface2);continue;}
             int id=me.inventory[index];var item=DigimonBuildCatalog.Data.items[id];
             if(r.Contains(Event.current.mousePosition))hover=id;
             if(GUI.enabled&&Event.current.type==EventType.MouseDown&&Event.current.button==1&&r.Contains(Event.current.mousePosition))
             {onlineItemGuide=id;Event.current.Use();}
-            if(Btn(r,item.icon,editable))SelectOnlineItem(index);
-            if(index==onlineItem)Border(r,paleGold,2);else if(id>=4&&id<14)Border(r,gold,1);
+            if(artPack==0)
+            {if(DigimonEquipmentArt.Button(r,id,index==onlineItem,editable,onlineItem>=0&&onlineItem!=index?me.inventory[onlineItem]:-1))SelectOnlineItem(index);}
+            else if(Btn(r,item.icon,editable))SelectOnlineItem(index);
         }
         if(pages>1)
         {
@@ -82,7 +83,13 @@ public sealed partial class MultiLauncher
             if(i<items.Length)
             {
                 int id=items[i];bool enabled=GUI.enabled;GUI.enabled=enabled&&!busy;
-                if(GUI.Button(r,DigimonBuildCatalog.Data.items[id].name,new GUIStyle(button){fontSize=13,padding=new RectOffset(6,6,3,3)}))onlineItemGuide=id;
+                if(artPack==0)
+                {
+                    DigimonEquipmentArt.Draw(new Rect(r.x,r.y,32,32),id);
+                    GUI.Label(new Rect(r.x+41,r.y+4,r.width-41,28),DigimonBuildCatalog.Data.items[id].name,new GUIStyle(small){fontSize=13});
+                    if(GUI.Button(r,new GUIContent("",DigimonEquipmentArt.Tooltip(id)),GUIStyle.none))onlineItemGuide=id;
+                }
+                else if(GUI.Button(r,DigimonBuildCatalog.Data.items[id].name,new GUIStyle(button){fontSize=13,padding=new RectOffset(6,6,3,3)}))onlineItemGuide=id;
                 GUI.enabled=enabled;
             }
             else GUI.Label(r,"빈 장비 슬롯",small);
@@ -92,6 +99,12 @@ public sealed partial class MultiLauncher
     void DrawOnlineEquipmentGuide()
     {
         if(onlineItemGuide<0)return;
+        if(artPack==0)
+        {
+            Panel(new Rect(0,76,1600,868),new Color(0,0,0,.65f));
+            if(!DigimonEquipmentUI.DrawGuide(new Rect(340,140,920,654),ref onlineItemGuide,OnlineMe.inventory))onlineItemGuide=-1;
+            return;
+        }
         var item=DigimonBuildCatalog.Data.items[onlineItemGuide];Rect r=new Rect(470,225,660,550);
         Panel(new Rect(0,76,1600,868),new Color(0,0,0,.6f));Card(r,surface,gold);
         GUI.Label(new Rect(r.x+24,r.y+18,555,50),item.name,text);
@@ -136,7 +149,8 @@ public sealed partial class MultiLauncher
         for(int i=0;i<count;i++)
         {
             Rect r=new Rect(p.x-count*12+i*24,p.y+18,22,20);Panel(r,surface);Border(r,gold,1);
-            GUI.Label(r,DigimonBuildCatalog.Data.items[unit.items[i]].icon,new GUIStyle(centered){fontSize=11});
+            if(artPack==0)DigimonEquipmentArt.Draw(r,unit.items[i]);
+            else GUI.Label(r,DigimonBuildCatalog.Data.items[unit.items[i]].icon,new GUIStyle(centered){fontSize=11});
         }
     }
 }

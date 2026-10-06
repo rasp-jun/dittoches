@@ -1,4 +1,4 @@
-param([ValidatePattern('^[a-z]*$')][string]$Model = '', [ValidateSet('', 'Idle', 'Walk', 'Run', 'Attack', 'Hit', 'Victory')][string]$Motion = '')
+param([ValidatePattern('^[a-z]*$')][string]$Model = '', [ValidateSet('', 'Idle', 'Walk', 'Run', 'Attack', 'Skill', 'Guard', 'Dodge', 'Hit', 'Victory', 'Down')][string]$Motion = '', [switch]$Demo)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $galleryUrl = 'http://127.0.0.1:8766/'
@@ -30,7 +30,8 @@ if (-not (Test-GalleryServer)) {
 }
 
 $openUrl = $galleryUrl
-if ($Motion) { $openUrl += '?motion=' + $Motion }
+if ($Demo) { $openUrl += '?demo=1' }
+if ($Motion) { $openUrl += $(if ($Demo) { '&' } else { '?' }) + 'motion=' + $Motion }
 if ($Model) { $openUrl += '#' + $Model }
 $edgeCandidates = @(
     (Join-Path ${env:ProgramFiles(x86)} 'Microsoft/Edge/Application/msedge.exe'),

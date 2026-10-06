@@ -45,12 +45,12 @@ class StatScalingTests(unittest.TestCase):
         self.assertEqual(stats.skill_damage(base),606)
         self.assertAlmostEqual(stats.skill_damage(ad),636.72)
         self.assertEqual(stats.skill_damage(ap),648)
-        # Courage + Fighter and the two separate flat AP sources are additive.
+        # Courage adds attack; Fighter adds sustain; Knowledge adds mana instead of AP.
         buff=unit('agumon',[0,3],team=['agumon','koromon'])
-        self.assertAlmostEqual(stats.attack(buff),48*1.34)
+        self.assertAlmostEqual(stats.attack(buff),48*1.22)
         mage=unit('tentomon',[3],team=['tentomon','mochimon'])
-        self.assertEqual(stats.ability_power(mage),122)
-        self.assertAlmostEqual(stats.skill_damage(mage),109.8)
+        self.assertEqual(stats.ability_power(mage),112)
+        self.assertAlmostEqual(stats.skill_damage(mage),100.8)
 
     def test_star_scaling_keeps_base_ap_at_100(self):
         self.assertEqual([stats.ability_power(unit('agumon',star=s)) for s in (1,2,3)],[100]*3)

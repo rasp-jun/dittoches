@@ -56,6 +56,8 @@ PROFILES={
  'mochimon':dict(kind='baby',hip=(0,0,.23),chest=(0,0,1.03),head=(0,-.02,1.50),head_top=(0,0,2.1),
    arms=[(.67,0,1.21),(.81,-.01,.90),(.81,-.02,.55)]),
 }
+from faithful_expanded_profiles import EXPANDED
+PROFILES.update(EXPANDED)
 
 
 def skeleton(profile):
@@ -84,6 +86,7 @@ def skeleton(profile):
                     elif 'hand_tip' in p:end=mirrored(p['hand_tip'])
                 add(n+suffix,parent if i==0 else names[i-1]+suffix,points[i],end)
         if 'wing_root' in p:add('Wing'+suffix,'Spine',mirrored(p['wing_root']),mirrored(p['wing_tip']))
+        if 'extra_wings' in p:add('LowerWing'+suffix,'Spine',mirrored(p['extra_wings'][0]),mirrored(p['extra_wings'][1]))
         if p.get('front_wings'):
             add('FrontUpperWing'+suffix,'Spine',mirrored((.14,.10,1.83)),mirrored((.35,-.15,2.15)))
             add('FrontLowerWing'+suffix,'Spine',mirrored((.14,.08,1.55)),mirrored((.36,-.15,1.20)))

@@ -11,11 +11,13 @@ public sealed partial class MultiLauncher
         var traits=DigimonBuildCatalog.Data.traits.Where(t=>DigimonBuildCatalog.Count(t,ids)>0)
             .OrderByDescending(t=>t.Level(DigimonBuildCatalog.Count(t,ids))).ThenByDescending(t=>DigimonBuildCatalog.Count(t,ids)).ToArray();
         Card(new Rect(1305,490,270,430),surface,new Color(.2f,.38f,.43f));
-        GUI.Label(new Rect(1320,500,240,25),"팀 시너지 · 전장만 계산",small);
+        GUI.Label(new Rect(1320,500,170,25),"팀 시너지 · 전장만 계산",small);
+        if(Btn(new Rect(1497,498,64,28),"도감"))OpenOnlineTrait(onlineTrait);
         for(int i=0;i<traits.Length;i++)
         {
             var trait=traits[i];int count=DigimonBuildCatalog.Count(trait,ids),tier=trait.Level(count);
-            if(Btn(new Rect(1320,533+i*25,240,23),(tier>0?"● ":"○ ")+trait.name+"    "+count+" / "+trait.Target(count)))onlineTrait=trait.name;
+            if(Btn(new Rect(1320,533+i*25,240,23),"     "+trait.name+"    "+count+" / "+trait.Target(count)))OpenOnlineTrait(trait.id);
+            GUI.DrawTexture(new Rect(1322,534+i*25,21,21),DigimonTraitUI.Icon(trait.id));
         }
         var selected=DigimonBuildCatalog.Find(onlineTrait)??traits.FirstOrDefault();
         if(selected!=null)

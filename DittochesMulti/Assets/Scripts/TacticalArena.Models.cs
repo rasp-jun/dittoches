@@ -7,6 +7,8 @@ public sealed partial class TacticalArena
     Material modelMaterial;
     bool modelStudio;
     Material studioShadow;
+    public System.Collections.Generic.IEnumerable<string> FaithfulMotions()
+    {foreach(Actor actor in actors.Values)if(actor.faithful!=null)yield return actor.faithful.Motion;}
     public void UseModelStudio(Vector3 origin)
     {
         if(modelStudio)return;
@@ -20,6 +22,24 @@ public sealed partial class TacticalArena
     }
     bool PoseModel(Actor actor,string id,float speed,float time,DigimonSkillCatalog.Entry skill,float castAge,float attack,float death,int star)
     {
+        if(!DigimonModelLibrary.PreviewEnabled&&FaithfulModelData.Available(id))
+        {
+            if(actor.faithful==null||actor.faithful.Data.id!=id)
+            {
+                if(actor.faithful!=null)Release(actor.faithful.gameObject);
+                var node=new GameObject(id+" / faithful model"){layer=Layer};node.transform.SetParent(actor.root.transform,false);
+                actor.faithful=node.AddComponent<FaithfulModelActor>();actor.faithful.Initialize(id,Layer);
+            }
+            actor.faithfulGeneration=generation;
+            if(!actor.faithful.gameObject.activeSelf)actor.faithful.gameObject.SetActive(true);
+            actor.portrait.enabled=false;
+            Vector3 facing=actor.hasFacing?actor.facing:-actor.faithful.transform.forward;actor.hasFacing=false;
+            actor.faithful.SetSize(DigimonVisualScale.Height(id,star));
+            float shadow=DigimonVisualScale.Shadow(id);
+            actor.contactShadow.transform.localScale=new Vector3(shadow,.01f,shadow*.72f);
+            actor.faithful.Pose(time,speed,facing,skill,castAge,attack,death,actor.attackSerial,actor.attackCooldown,actor.attackInRange,actor.hitAmount,actor.hitTime);
+            return true;
+        }
         if(!DigimonModelLibrary.HasModel(id))return false;
         if(actor.rig==null||actor.rig.model.id!=id)
         {
@@ -44,12 +64,14 @@ public sealed partial class TacticalArena
         if(modelStudio)
         {
             actor.teamBase.enabled=false;
-            actor.contactShadow.sharedMaterial=studioShadow;
+            actor.contactShadow.sharedMaterial=contactMaterial!=null?contactMaterial:studioShadow;
         }
         return true;
     }
     public void FaceActor(object key,Vector3 direction)
     {Actor actor;if(actors.TryGetValue(key,out actor)){actor.facing=direction;actor.hasFacing=true;}}
+    public void CombatMotion(object key,int attackSerial,float cooldown,bool inRange,float hitTime=float.NaN)
+    {Actor actor;if(actors.TryGetValue(key,out actor)){actor.attackSerial=attackSerial;actor.attackCooldown=cooldown;actor.attackInRange=inRange;actor.hitTime=hitTime;}}
     public void ResetModelPose(object key)
     {Actor actor;if(actors.TryGetValue(key,out actor)&&actor.rig!=null)actor.rig.ResetPose();}
     public bool ModelBounds(object key,out Bounds bounds)
@@ -67,10 +89,26 @@ public sealed partial class TacticalArena
     Vector3 ModelMuzzle(string id,Vector3 origin,Vector3 fallback)
     {
         foreach(Actor actor in actors.Values)
+            if(actor.generation==generation&&actor.faithful!=null&&actor.faithful.Data.id==id&&actor.faithful.Mouth!=null
+                &&(actor.root.transform.localPosition-origin).sqrMagnitude<.09f)
+                return root.transform.InverseTransformPoint(actor.faithful.Mouth.position);
+        foreach(Actor actor in actors.Values)
             if(actor.generation==generation&&actor.rig!=null&&actor.rig.model.id==id&&actor.rig.root.activeSelf
                 &&(actor.root.transform.localPosition-origin).sqrMagnitude<.09f)
                 return root.transform.InverseTransformPoint(actor.rig.Mouth);
         return fallback;
+    }
+    bool ModelSkillEmitter(string id,Vector3 origin,bool atRelease,out Vector3 point)
+    {
+        Actor nearest=null;float distance=.64f;point=Vector3.zero;
+        foreach(Actor actor in actors.Values)
+        {
+            if(actor.generation!=generation||actor.faithful==null||actor.faithful.Data.id!=id)continue;
+            float candidate=(actor.root.transform.localPosition-origin).sqrMagnitude;
+            if(candidate<distance){nearest=actor;distance=candidate;}
+        }
+        if(nearest==null)return false;
+        point=root.transform.InverseTransformPoint(nearest.faithful.SkillEmitter(atRelease));return true;
     }
     public void SetView(Vector3 position,Vector3 focus,float fieldOfView)
     {camera.transform.localPosition=position;camera.transform.LookAt(root.transform.TransformPoint(focus));camera.fieldOfView=fieldOfView;}

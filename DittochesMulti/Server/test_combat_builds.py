@@ -53,19 +53,21 @@ class BuildTests(unittest.TestCase):
     def test_teams_resolve_independently_and_harmonizer_aura_is_once(self):
         fs=[fighter(0,'palmon'),fighter(1,'patamon'),fighter(2),fighter(3,side=1)]
         b.initialize(fs)
-        self.assertAlmostEqual(fs[2]['shield'],50)
+        self.assertAlmostEqual(fs[2]['shield'],40)
         self.assertEqual(fs[3]['shield'],0)
         self.assertEqual(b.value(fs[2],'castHeal'),0)
-        self.assertEqual(b.value(fs[0],'castHeal'),.04)
+        self.assertEqual(b.value(fs[0],'castHeal'),0)
+        self.assertEqual(b.value(fs[0],'armor'),6)
+        self.assertEqual(b.value(fs[2],'magicResist'),6)
         self.assertEqual(b.value(fs[2],'attack'),0)
 
     def test_equipment_flat_health_stacks_before_trait_multiplier(self):
         fs=[fighter(0,'greymon',items=[8]),fighter(1,'togemon')]
         b.initialize(fs)
-        self.assertAlmostEqual(fs[0]['maxHp'],1300*1.15)
+        self.assertAlmostEqual(fs[0]['maxHp'],1300*1.12)
         self.assertAlmostEqual(b.value(fs[0],'reduction'),.12)
-        self.assertEqual(b.value(fs[0],'armor'),40)
-        self.assertEqual(b.value(fs[0],'magicResist'),10)
+        self.assertEqual(b.value(fs[0],'armor'),42)
+        self.assertEqual(b.value(fs[0],'magicResist'),12)
 
     def test_low_health_shield_once_and_no_resurrection(self):
         source,target=fighter(),fighter(1,side=1)
@@ -132,7 +134,9 @@ class BuildTests(unittest.TestCase):
         self.assertGreater(b.value(fs[0],'attack'),.35)
         fs[1]['hp']=0
         self.assertGreater(b.value(fs[0],'attack'),.35)
-        self.assertGreater(result[0][0]['units'][2]['shield'],0)
+        self.assertEqual(result[0][0]['units'][2]['shield'],0)
+        self.assertEqual(b.value(fs[2],'rampSpeed'),.04)
+        self.assertGreater(result[0][-1]['units'][2]['combatAge'],0)
         self.assertNotIn('build',result[0][0]['units'][0])
 
 

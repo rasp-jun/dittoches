@@ -15,7 +15,15 @@ public static class PortablePreview
         displayCamera.clearFlags=CameraClearFlags.SolidColor;displayCamera.backgroundColor=new Color(.012f,.022f,.04f);
         foreach(string name in new[]{"Sprites/Default","UI/Default","Unlit/Texture","Unlit/Color","Standard","Hidden/Internal-Colored"})
         {var shader=Shader.Find(name);Debug.Log("PREVIEW SHADER "+name+": "+(shader!=null?shader.isSupported.ToString():"missing"));}
+        if(HasArgument("--gameplay-capture")){new GameObject("Gameplay Capture").AddComponent<NativeGame>().BeginGameplayCapture();return true;}
+        if(HasArgument("--promo-capture")){new GameObject("Promo Capture").AddComponent<MultiLauncher>().BeginPromoCapture();return true;}
+        if(HasArgument("--team-plan-smoke")){new GameObject("Team Plan Validation").AddComponent<TeamPlanValidation>();return true;}
+        if(HasArgument("--loadout-smoke")){new GameObject("Loadout Validation").AddComponent<LoadoutValidation>();return true;}
+        if(EvolutionScaleValidation.TryBoot())return true;
+        if(HasArgument("--portrait-ui-smoke")){new GameObject("Portrait UI Review").AddComponent<MultiLauncher>().BeginPortraitReview();return true;}
         if(HasArgument("--arena-smoke")){new GameObject("Arena Runtime Validation").AddComponent<NativeGame>().BeginArenaSmoke();return true;}
+        if(HasArgument("--faithful-combat-smoke")){new GameObject("Faithful Combat Validation").AddComponent<NativeGame>().BeginFaithfulCombatSmoke();return true;}
+        if(HasArgument("--faithful-replay-smoke")){new GameObject("Faithful Replay Validation").AddComponent<MultiLauncher>().BeginFaithfulReplaySmoke();return true;}
         if(HasArgument("--online-smoke")){new GameObject("Online Runtime Validation").AddComponent<MultiLauncher>().BeginOnlineSmoke();return true;}
         if(!HasArgument("--skill-gallery"))return false;
         new GameObject("Canonical Skill Preview").AddComponent<PortableSkillGallery>();return true;
@@ -50,7 +58,7 @@ public static class PortablePreview
 
 public static class PortablePreviewPrefs
 {
-    static string Prefix { get { return PortablePreview.HasArgument("--arena-smoke")||PortablePreview.HasArgument("--online-smoke")?"portable-validation.":"portable-preview."; } }
+    static string Prefix { get { return PortablePreview.HasArgument("--gameplay-capture")?"portable-capture.":PortablePreview.HasArgument("--team-plan-smoke")||PortablePreview.HasArgument("--loadout-smoke")||PortablePreview.HasArgument("--arena-smoke")||PortablePreview.HasArgument("--online-smoke")||PortablePreview.HasArgument("--portrait-ui-smoke")||PortablePreview.HasArgument("--promo-capture")||PortablePreview.HasArgument("--faithful-combat-smoke")?"portable-validation.":"portable-preview."; } }
     public static bool HasKey(string key){return PlayerPrefs.HasKey(Prefix+key);}
     public static int GetInt(string key,int value=0){return PlayerPrefs.GetInt(Prefix+key,value);}
     public static string GetString(string key,string value=""){return PlayerPrefs.GetString(Prefix+key,value);}
