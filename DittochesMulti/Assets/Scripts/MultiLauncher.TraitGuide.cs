@@ -10,6 +10,6 @@ public sealed partial class MultiLauncher
     {
         if(!showTraitGuide)return;
         var me=OnlineMe;if(me==null){showTraitGuide=false;return;}
-        showTraitGuide=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,1000),ref onlineTrait,me.board.Select(u=>u.id).ToArray(),me.bench.Select(u=>u.id).ToArray());
+        showTraitGuide=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,1000),ref onlineTrait,me.board.Select(u=>u.id).ToArray(),me.bench.Select(u=>u.id).ToArray(),me.board.Select(BuildMember).ToArray());
     }
 }

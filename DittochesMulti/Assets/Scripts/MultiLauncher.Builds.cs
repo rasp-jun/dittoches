@@ -3,11 +3,13 @@ using UnityEngine;
 
 public sealed partial class MultiLauncher
 {
+    static DigimonBuildCatalog.Member BuildMember(Unit u){return u==null?null:new DigimonBuildCatalog.Member(u.id,u.items);}
+    int OnlineFormationLimit(Player me){return Mathf.Min(28,me.level+(me.inventory??new int[0]).Concat(me.board.Concat(me.bench).SelectMany(u=>u.items??new int[0])).Sum(i=>DigimonBuildCatalog.Data.items[i].teamSize));}
     string onlineTrait="";
     void DrawOnlineTraits(Player me)
     {
         Unit unit=SelectedOnlineUnit(me);if(unit!=null){DrawOnlineSkillStats(unit);return;}
-        var ids=me.board.Select(u=>u.id).ToArray();
+        var ids=me.board.Select(BuildMember).ToArray();
         var traits=DigimonBuildCatalog.Data.traits.Where(t=>DigimonBuildCatalog.Count(t,ids)>0)
             .OrderByDescending(t=>t.Level(DigimonBuildCatalog.Count(t,ids))).ThenByDescending(t=>DigimonBuildCatalog.Count(t,ids)).ToArray();
         Card(new Rect(1305,490,270,430),surface,new Color(.2f,.38f,.43f));

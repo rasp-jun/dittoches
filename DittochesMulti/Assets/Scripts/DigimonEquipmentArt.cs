@@ -9,6 +9,10 @@ public static class DigimonEquipmentArt
     static readonly Color steel=new Color(.64f,.78f,.86f),gold=new Color(1,.72f,.28f);
     public static Color Tint(int id)
     {
+        if(id>=17&&id<=24)return DigimonTraitUI.ColorFor(DigimonBuildCatalog.Data.items[id].grantsTrait);
+        if(id==15||id==25)return new Color(1,.65f,.18f);
+        if(id==16||id==26)return new Color(.25f,.85f,1);
+        if(id==27)return new Color(.4f,1,.65f);
         if(id==0||id==4||id==5)return new Color(1,.65f,.27f);
         if(id==1||id==8)return new Color(1,.34f,.31f);
         if(id==2||id==6||id==11)return new Color(.24f,.72f,1);
@@ -77,7 +81,23 @@ public static class DigimonEquipmentArt
     {
         Texture2D found;if(cache.TryGetValue(id,out found))return found;
         Color tint=Tint(id);var p=new Painter(tint);
-        if(id<3)
+        if(id==15||id==16)
+        {
+            if(id==15)p.Poly(tint,28,22,17,37,17,67,30,82,70,82,83,66,83,35,70,22);
+            else{p.Poly(tint,37,14,27,30,14,34,14,68,30,74,36,87,65,87,71,74,86,66,86,35,70,29,62,14);p.Line(steel,5,72,75,78,94);}
+            p.Poly(steel,29,36,29,69,70,69,70,36);p.Poly(new Color(.015f,.06f,.075f),34,41,34,64,65,64,65,41);
+            p.Gem(new Color(.5f,1,.8f),50,53,9,10);p.Ring(Color.white,35,28,4,2);p.Ring(Color.white,63,28,4,2);
+            p.Line(gold,3,28,75,40,75);p.Line(gold,3,58,75,70,75);
+        }
+        else if(id>=17&&id<=24)
+        {p.Poly(gold,50,88,81,69,81,33,50,14,19,33,19,69);p.Poly(tint,50,79,72,65,72,38,50,23,28,38,28,65);p.Gem(Color.white,50,52,12,18);for(int i=0;i<id-16;i++)p.Gem(gold,24+i*7,20,2,3);}
+        else if(id==25)
+        {p.Ring(gold,34,51,23,7);p.Ring(tint,67,51,23,7);p.Poly(steel,50,19,60,36,51,48,40,35);p.Gem(Color.white,50,69,8,12);}
+        else if(id==26)
+        {p.Poly(gold,18,19,18,72,31,87,69,87,82,72,82,19,69,19,69,68,59,76,41,76,31,68,31,19);p.Ring(tint,50,50,23,6);p.Ring(Color.white,50,50,12,3);p.Gem(tint,50,50,5,8);}
+        else if(id==27)
+        {p.Poly(steel,17,23,17,80,82,80,82,23);p.Poly(new Color(.015f,.06f,.075f),23,44,23,73,75,73,75,44);p.Line(tint,3,30,66,62,66);p.Line(tint,3,30,56,48,56);for(int x=29;x<76;x+=10)for(int y=29;y<40;y+=7)p.Line(tint,3,x,y,x+4,y);}
+        else if(id<3)
         {
             p.Poly(steel*.45f,19,30,62,22,84,42,75,62,33,70,16,49);
             p.Poly(id==0?steel:tint,19,49,34,70,74,62,62,44);
@@ -134,6 +154,7 @@ public static class DigimonEquipmentArt
     public static void Draw(Rect r,int id,bool selected=false)
     {
         GUI.DrawTexture(r,Icon(id),ScaleMode.ScaleToFit);
+        if(id>=17&&id<=24)GUI.DrawTexture(new Rect(r.x+r.width*.24f,r.y+r.height*.24f,r.width*.52f,r.height*.52f),DigimonTraitUI.Icon(DigimonBuildCatalog.Data.items[id].grantsTrait),ScaleMode.ScaleToFit);
         if(selected){ArenaInterface.Fill(new Rect(r.x,r.y,r.width,2),Color.white);ArenaInterface.Fill(new Rect(r.x,r.yMax-2,r.width,2),Tint(id));}
     }
     public static string Tooltip(int id)

@@ -11,8 +11,17 @@ DATA = json.loads((Path(__file__).resolve().parent.parent/'Assets/Resources/Digi
 TRAITS, ITEMS = DATA['traits'], DATA['items']
 
 
+def has_trait(trait, uid, items=()):
+    return uid in trait['members'] or any(0 <= i < len(ITEMS) and ITEMS[i].get('grantsTrait') == trait['id'] for i in items)
+
+
 def level(trait, ids):
-    count = len(set(ids).intersection(trait['members']))
+    members = set()
+    for u in ids:
+        uid, items = (u['id'], u.get('items', ())) if isinstance(u, dict) else (u, ())
+        if has_trait(trait, uid, items):
+            members.add(uid)
+    count = len(members)
     return sum(count >= t['count'] for t in trait['tiers'])
 
 
@@ -21,25 +30,29 @@ def resolve(unit_id, team_ids, equipment=()):
     def add(values):
         for key, value in values.items():
             bonus[key] = bonus.get(key, 0)+value
-    ids = set(team_ids)
+    ids = list(team_ids)
     for trait in TRAITS:
         tier = level(trait, ids)
         if not tier:
             continue
         active = trait['tiers'][tier-1]['bonus']
-        if unit_id in trait['members']:
+        if has_trait(trait, unit_id, equipment):
             add(active)
         add({'startShield': active.get('teamShield', 0), 'armor': active.get('teamResist', 0), 'magicResist': active.get('teamResist', 0)})
     for item in equipment:
-        if type(item) is int and 0 <= item < 14:
+        if type(item) is int and 0 <= item < len(ITEMS) and ITEMS[item]['kind'] != 'utility':
             add(ITEMS[item]['bonus'])
     return bonus
 
 
 def combine(a, b):
-    if type(a) is not int or type(b) is not int or not 0 <= a < 4 or not 0 <= b < 4:
+    if not is_component(a) or not is_component(b):
         return None
-    return next(i['id'] for i in ITEMS if sorted(i['recipe']) == sorted([a, b]))
+    return next((i['id'] for i in ITEMS if sorted(i['recipe']) == sorted([a, b])), None)
+
+
+def is_component(item):
+    return type(item) is int and 0 <= item < len(ITEMS) and ITEMS[item]['kind'] == 'component'
 
 
 def value(fighter, key):
@@ -66,7 +79,7 @@ def heal(source, target, amount):
 
 def initialize(fighters):
     for f in fighters:
-        f['build'] = resolve(f['id'], [u['id'] for u in fighters if u['side'] == f['side']], f.get('items', []))
+        f['build'] = resolve(f['id'], [u for u in fighters if u['side'] == f['side']], f.get('items', []))
         f['maxHp'] = (f['maxHp']+value(f, 'health')*1.8**(f['star']-1))*(1+value(f, 'hp'))
         f['hp'] = f['maxHp']
         f.update(attacks=0, casts=0, lowShieldUsed=False, crisisAt=-1, friendshipActive=value(f,'rampSpeed')>0, regenClock=0, combatAge=0, shield=0, damageDone=0,
@@ -85,6 +98,26 @@ def tick(f, dt):
         f['regenClock'] -= 1
         if value(f, 'regen'):
             heal(f, f, f['maxHp']*value(f, 'regen'))
+
+
+def change_equipment(f, items, team_ids):
+    """Change ongoing bonuses without restarting combat or granting opening effects.
+
+    Preserve health percentage, so removing/re-equipping health cannot heal.
+    A dead fighter stays dead; its next-round inventory is managed by the server.
+    """
+    if f['hp'] <= 0:
+        return
+    from combat_stats import SKILLS, attack_speed
+    old_speed = attack_speed(f)
+    fraction = f['hp']/f['maxHp']
+    f['items'] = list(items)
+    f['build'] = resolve(f['id'], team_ids, items)
+    f['maxHp'] = (SKILLS[f['id']]['baseHealth']+value(f, 'health'))*1.8**(f['star']-1)*(1+value(f, 'hp'))
+    f['hp'] = f['maxHp']*fraction
+    f['shield'] = min(f.get('shield', 0), f['maxHp']*.5)
+    if f.get('castUntil', 0) <= f.get('combatAge', 0):
+        f['cooldown'] *= old_speed/attack_speed(f)
 
 
 def on_cast(source, fighters):

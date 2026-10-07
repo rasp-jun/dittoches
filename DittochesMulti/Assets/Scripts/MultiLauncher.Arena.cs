@@ -26,26 +26,29 @@ public sealed partial class MultiLauncher
         bool combat=room.phase=="battle";
         Event e=Event.current;
         int hit=arena.HitCell(e.mousePosition),seat=arena.HitBench(e.mousePosition);
+        HandleOnlineEquipmentDrag(room,me,editable);
+        HandleOnlineEquipmentClick(editable);
+        if(artPack==0)HandleOnlineDrag(room,me,editable,hit,seat);
         if(artPack==0&&GUI.enabled&&!busy&&e.type==EventType.MouseDown&&e.button==1&&hit>=28&&room.phase!="finished")
         {selectedSlot=-1;selectedArea="";ResetEquipmentSelection();arenaPointer.Reset();MoveOnlineTamer(hit);e.Use();}
         if(GUI.enabled&&((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)
             ||(e.type==EventType.MouseDown&&e.button==1&&TacticalArena.MultiViewport.Contains(e.mousePosition))))
         {selectedSlot=-1;selectedArea="";ResetEquipmentSelection();arenaPointer.Reset();e.Use();}
         arenaPointer.Update(seat>=0?56+seat:hit,e.type==EventType.MouseDown&&e.button==0,
-            e.type==EventType.MouseUp&&e.button==0,false,!editable||busy||!GUI.enabled);
+            e.type==EventType.MouseUp&&e.button==0,onlineDragging,!editable||busy||!GUI.enabled);
         if(Event.current.type==EventType.Repaint)
         {
             if(artPack==0)arena.SetField(me.field);
-            arena.BeginFrame(OnlinePreparationCell(room),editable?hit:-1,!combat&&selectedArea=="bench"?selectedSlot:-1,editable&&selectedSlot>=0);
+            arena.BeginFrame(OnlinePreparationCell(room),editable&&!combat?hit:-1,selectedArea=="bench"?selectedSlot:-1,editable&&selectedSlot>=0);
             Unit selected=SelectedOnlineUnit(me);
             if(artPack==0&&room.phase=="prepare"&&selected!=null)
             {
                 int rangeCell=selectedArea=="board"?selectedSlot+28:-1;
-                if(editable&&GUI.enabled&&!busy&&seat<0&&hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<me.level))rangeCell=hit;
+                if(editable&&GUI.enabled&&!busy&&seat<0&&hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<OnlineFormationLimit(me)))rangeCell=hit;
                 if(rangeCell>=28)arena.HighlightHexAttackRange(rangeCell%7,rangeCell/7,DigimonSkillCatalog.Find(selected.id).attackRange);
             }
-            if(editable&&GUI.enabled&&!busy&&selectedSlot>=0)
-                arena.HighlightDestination(hit,seat,seat>=0||(hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<me.level)));
+            if(editable&&GUI.enabled&&!busy&&selectedSlot>=0&&(!combat||selectedArea=="bench"))
+                arena.HighlightDestination(hit,seat,seat>=0||(!combat&&hit>=28&&(selectedArea=="board"||At(me.board,hit-28)!=null||me.board.Length<OnlineFormationLimit(me))));
             if(combat&&room.frames!=null&&room.frames.Length>0)
             {
                 float progress=CombatProgress(room,remaining);

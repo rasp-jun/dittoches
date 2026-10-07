@@ -36,8 +36,8 @@ public sealed partial class NativeGame
         if(arena==null){arena=new TacticalArena(SoloArenaViewport,artPack==0);arenaArtPack=artPack;}
         if(artPack==0){if(tamerLoadout==null)ApplyEquippedLoadout();arena.SetField(tamerLoadout.field);}
     }
-    private void OnDisable() { if(tamerStudio!=null){tamerStudio.Dispose();tamerStudio=null;} if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear();skillCasts.Clear(); }
-    private void OnApplicationFocus(bool focused){if(!focused){dragSource=-1;draggingUnit=false;arenaPointer.Reset();}}
+    private void OnDisable() { if(tamerStudio!=null){tamerStudio.Dispose();tamerStudio=null;} if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;equipmentDrag.Reset();selectedItem=-1;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear();skillCasts.Clear(); }
+    private void OnApplicationFocus(bool focused){if(!focused){dragSource=-1;draggingUnit=false;equipmentDrag.Reset();selectedItem=-1;arenaPointer.Reset();}}
     private void OnDestroy() { if(tamerStudio!=null)tamerStudio.Dispose(); if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
     {
@@ -111,7 +111,7 @@ public sealed partial class NativeGame
             arena.Render();
         }
         GUI.DrawTexture(SoloArenaViewport,arena.Texture,ScaleMode.StretchToFill,false);
-        string heading=battling?battleText:scouting?RivalNames[scoutedRival]+" / SCOUT":RoundType()+" / "+board.Count(u=>u!=null)+" / "+level;
+        string heading=battling?battleText:scouting?RivalNames[scoutedRival]+" / SCOUT":RoundType()+" / "+board.Count(u=>u!=null)+" / "+FormationLimit;
         if(artPack!=0)GUI.Label(new Rect(295,96,1040,26),heading,center);
         GUI.Label(new Rect(SoloArenaViewport.x+20,SoloArenaViewport.y+12,300,22),scouting?heading:artPack==0?TamerLoadout.Fields[tamerLoadout.field]+" / ARENA":"FILE ISLAND / ARENA",small);
         GUI.Label(new Rect(SoloArenaViewport.xMax-260,SoloArenaViewport.y+12,245,22),battling?Mathf.CeilToInt(battleTimeRemaining)+"s":"7 x 4  /  HEX FORMATION",small);

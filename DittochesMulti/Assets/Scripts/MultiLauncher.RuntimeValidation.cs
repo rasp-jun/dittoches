@@ -11,10 +11,19 @@ public sealed partial class MultiLauncher
 {
     int onlineChecks;State smokePeer;
     int onlineClickStep;Vector2 onlineClickPoint;
+    bool onlineDragValidation,onlineDragCancel;
+    Vector2 onlineDragEnd;
     Event OnlineValidationEvent()
     {
         if(onlineClickStep==0||Event.current.type!=EventType.Repaint)return null;
         Event saved=new Event(Event.current);
+        if(onlineDragValidation)
+        {
+            if(onlineClickStep==3)return null;
+            Event.current=new Event{type=onlineClickStep==1?EventType.MouseDown:onlineClickStep==2?EventType.MouseDrag:onlineDragCancel?EventType.KeyDown:EventType.MouseUp,
+                keyCode=onlineDragCancel?KeyCode.Escape:KeyCode.None,button=0,mousePosition=onlineClickStep==1?onlineClickPoint:onlineDragEnd};
+            onlineClickStep=onlineClickStep==1?2:onlineClickStep==2?3:0;return saved;
+        }
         Event.current=new Event{type=onlineClickStep==1?EventType.MouseDown:EventType.MouseUp,button=0,mousePosition=onlineClickPoint};
         onlineClickStep=onlineClickStep==1?2:0;return saved;
     }
@@ -23,6 +32,70 @@ public sealed partial class MultiLauncher
         onlineClickPoint=new Vector2(x,y);onlineClickStep=1;float deadline=Time.unscaledTime+3;
         while(onlineClickStep>0&&Time.unscaledTime<deadline)yield return null;
         OnlineRequire(onlineClickStep==0,"online UI received both click phases");yield return null;
+    }
+    IEnumerator OnlineSaleDrag(int slot,bool cancel)
+    {
+        onlineDragValidation=true;onlineDragCancel=cancel;onlineClickPoint=arena.Project(TacticalArena.BenchWorld(slot));
+        onlineDragEnd=OnlineSellZone.center;onlineClickStep=1;float deadline=Time.unscaledTime+4;
+        while(onlineClickStep!=3&&Time.unscaledTime<deadline)yield return null;
+        OnlineRequire(onlineClickStep==3&&OnlineSaleVisible,"drag replaces entire recruit shop with sale target");
+        yield return new WaitForEndOfFrame();OnlineCapture(cancel?"combat-sale-cancel":"combat-shop-sale");
+        onlineClickStep=4;
+        while(onlineClickStep>0&&Time.unscaledTime<deadline)yield return null;
+        onlineDragValidation=false;OnlineRequire(onlineClickStep==0&&!OnlineSaleVisible,"sale release or cancel clears drag state");
+        yield return AwaitEquipmentAction();
+    }
+    IEnumerator OnlineGearDrag(int slot,Vector2 target,bool cancel)
+    {
+        onlineItemPage=slot/12;onlineDragValidation=true;onlineDragCancel=cancel;
+        onlineClickPoint=OnlineInventoryRect(slot%12).center;onlineDragEnd=target;onlineClickStep=1;float deadline=Time.unscaledTime+4;
+        while(onlineClickStep!=3&&Time.unscaledTime<deadline)yield return null;
+        OnlineRequire(onlineClickStep==3&&onlineEquipmentDrag.Dragging&&!OnlineSaleVisible,"gear drag captures inventory without unit sale");
+        onlineValidationPointer=target;
+        yield return new WaitForEndOfFrame();OnlineCapture(cancel?"gear-drag-cancel":arena.HitBench(target)>=0?"gear-drag-bench":TacticalArena.MultiViewport.Contains(target)?"gear-drag-combat":"gear-drag-outside");
+        onlineClickStep=4;
+        while(onlineClickStep>0&&Time.unscaledTime<deadline)yield return null;
+        onlineValidationPointer=null;onlineDragValidation=false;
+        OnlineRequire(onlineClickStep==0&&!onlineEquipmentDrag.Dragging&&onlineItem<0,"gear release or cancel clears selected source");
+        yield return AwaitEquipmentAction();
+    }
+    IEnumerator ValidateCombatManagementOnline()
+    {
+        yield return SmokeRequest("/leave");yield return PeerRequest("/leave",new Command());
+        yield return SmokeRequest("/queue",new Command{mode="normal"});yield return PeerRequest("/queue",new Command{mode="normal"});yield return SmokeRequest("/state");
+        OnlineRequire(state.combatActions==1,"server advertises combat management");
+        yield return SmokeRequest("/action",new Command{action="ready"});yield return PeerRequest("/action",new Command{action="ready"});yield return SmokeRequest("/state");
+        OnlineRequire(state.room.phase=="battle"&&OnlineManagementAllowed(state.room,OnlineMe),"combat management available even with ready flags");
+        float max=state.room.frames[0].units.First(f=>f.side==state.room.side).maxHp;
+        SelectOnlineItem(0);SelectOnlineItem(1);yield return AwaitEquipmentAction();
+        SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,5));ReconcileEquipmentSelection();
+        OnlineRequire(onlineItem>=0,"selected equipment survives combat UI reconciliation");
+        var row=onlineCombatLabels.First(r=>((Fighter)r.key).side==state.room.side&&((Fighter)r.key).slot==3);
+        yield return OnlineGearDrag(onlineItem,row.rect.center,false);
+        OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(new[]{5}),"combat UI equips item on persistent board");
+        OnlineRequire(state.room.frames.Any(frame=>frame.units.Any(f=>f.side==state.room.side&&f.maxHp>max)),"live equipment updates authoritative replay health");
+        selectedArea="board";selectedSlot=3;OnlineRequire(!CanSellOnline(state.room),"combat board selection cannot be sold");ClearOnlineUnitSelection();
+        int offer=Array.FindIndex(OnlineMe.shop,id=>!string.IsNullOrEmpty(id));
+        yield return SmokeRequest("/action",new Command{action="buy",slot=offer});
+        int seat=OnlineMe.bench[0].slot;int value=Def(OnlineMe.bench[0].id).cost;
+        int gear=Array.IndexOf(OnlineMe.inventory,2);var bag=OnlineMe.inventory.ToArray();int revision=OnlineMe.inventoryRevision;
+        yield return OnlineGearDrag(gear,arena.Project(TacticalArena.BenchWorld(seat)),true);
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(bag)&&OnlineMe.inventoryRevision==revision&&At(OnlineMe.bench,seat).items.Length==0,"gear cancel preserves authoritative inventory and unit");
+        yield return OnlineGearDrag(gear,OnlineSellZone.center,false);
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(bag)&&OnlineMe.inventoryRevision==revision,"gear outside drop cannot purchase or consume");
+        yield return OnlineGearDrag(gear,arena.Project(TacticalArena.BenchWorld(seat)),false);
+        OnlineRequire(At(OnlineMe.bench,seat).items.SequenceEqual(new[]{2}),"combat bench gear drag equips exactly once");
+        int bank=OnlineMe.gold;
+        yield return OnlineSaleDrag(seat,true);
+        OnlineRequire(At(OnlineMe.bench,seat)!=null&&OnlineMe.gold==bank,"ESC sale cancellation preserves unit gold and gear");
+        yield return OnlineSaleDrag(seat,false);
+        OnlineRequire(At(OnlineMe.bench,seat)==null&&OnlineMe.gold==bank+value&&OnlineMe.inventory.Contains(2),"shop drop sells combat bench unit once and returns gear");
+        OnlineRequire(state.room.phase=="battle","shop interactions completed during actual combat");
+        bank=OnlineMe.gold;yield return OnlineClick(140,460);yield return AwaitEquipmentAction();
+        OnlineRequire(OnlineMe.gold==bank-2,"combat reroll button works");
+        bank=OnlineMe.gold;yield return OnlineClick(140,410);yield return AwaitEquipmentAction();
+        OnlineRequire(OnlineMe.gold==bank-4,"combat XP button works");
+        yield return new WaitForEndOfFrame();OnlineCapture("combat-management");
     }
 
     Vector2? onlineValidationPointer;
@@ -68,14 +141,39 @@ public sealed partial class MultiLauncher
             }
             GUI.enabled=true;Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.Escape};DrawOnlineTraitGuide();
             OnlineRequire(!showTraitGuide&&Event.current.type==EventType.Used,"trait guide closes online with Escape");
-
-
+            ValidateOnlineEquipmentTargetsInGUI();
         }
         finally{me.gold=savedGold;Event.current=saved;GUI.enabled=enabled;}
     }
     void OnlineRequire(bool condition,string message)
     {if(!condition){Application.Quit(2);throw new InvalidOperationException("ONLINE SMOKE FAILED: "+message);}onlineChecks++;}
     public void BeginOnlineSmoke(){StartCoroutine(OnlineSmoke());}
+    void ValidateOnlineEquipmentTargetsInGUI()
+    {
+        var room=state.room;int oldSide=room.side;string oldPhase=room.phase;
+        var boards=room.players.Select(p=>p.board).ToArray();var benches=room.players.Select(p=>p.bench).ToArray();
+        try
+        {
+            room.phase="prepare";
+            foreach(int side in new[]{0,1})
+            {
+                room.side=side;var own=new Unit{id="agumon",star=1,slot=17,items=new int[0]};var bench=new Unit{id="koromon",star=1,slot=0,items=new int[0]};
+                var enemy=new Unit{id="greymon",star=1,slot=3,items=new int[0]};
+                room.players[side].board=new[]{own};room.players[side].bench=new[]{bench};room.players[1-side].board=new[]{enemy};
+                foreach(bool onBench in new[]{false,true})
+                {
+                    var u=onBench?bench:own;var r=OnlinePieceRect(u.id,u.star,onBench?TacticalArena.BenchWorld(u.slot):TacticalArena.CellWorld(u.slot%7,u.slot/7+4));
+                    Event.current=new Event{mousePosition=new Vector2(r.center.x,r.y+r.height*.3f)};
+                    string area,blocked;int slot;Fighter live;var selected=OnlineEquipmentTarget(out area,out slot,out live,out blocked);
+                    OnlineRequire(selected==u&&slot==u.slot&&area==(onBench?"bench":"board")&&onlineEquipmentTargetRect.width>0,"model body selects exact equipment owner on side "+side);
+                }
+                var er=OnlinePieceRect(enemy.id,enemy.star,TacticalArena.CellWorld(3,3));Event.current=new Event{mousePosition=er.center};
+                string targetArea,denied;int targetSlot;Fighter fighter;
+                OnlineRequire(OnlineEquipmentTarget(out targetArea,out targetSlot,out fighter,out denied)==null&&denied.Length>0,"enemy preparation model rejects gear on side "+side);
+            }
+        }
+        finally{room.side=oldSide;room.phase=oldPhase;for(int i=0;i<room.players.Length;i++){room.players[i].board=boards[i];room.players[i].bench=benches[i];}}
+    }
     IEnumerator ServerPause(double seconds)
     {
         // Server throttling uses wall time, independent of player simulation time.
@@ -260,7 +358,7 @@ public sealed partial class MultiLauncher
         yield return SmokeRequest("/queue",new Command{mode="normal"});
         yield return PeerRequest("/queue",new Command{mode="normal",tamer=3,field=2,finisher=1});
         yield return SmokeRequest("/state");
-        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{0,1,2,3,14}),"initial supplies deserialize");
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{0,1,2,3,14,15,16}),"initial supplies deserialize");
         string connectedRoom=state.room.id;
         token="expired-smoke-token";
         yield return Request("/state",new Command());
@@ -314,7 +412,7 @@ public sealed partial class MultiLauncher
         selectedArea="";selectedSlot=-1;
         onlineItemGuide=0;yield return new WaitForEndOfFrame();OnlineCapture("02-recipes");onlineItemGuide=-1;
         SelectOnlineItem(0);SelectOnlineItem(1);yield return AwaitEquipmentAction();
-        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{2,3,14,5}),"UI combines two components");
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{2,3,14,15,16,5}),"UI combines two components");
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,5));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
         OnlineRequire(At(OnlineMe.board,3).items.SequenceEqual(new[]{5}),"UI equips crafted item");
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,3));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
@@ -332,7 +430,7 @@ public sealed partial class MultiLauncher
         OpenOnlineSkill(At(OnlineMe.board,3),"board");yield return new WaitForEndOfFrame();OnlineCapture("07-skill-detail");onlineSkillId="";
         SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,14));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();
         OnlineRequire(OnlineMe!=null&&At(OnlineMe.board,3)!=null,"removal preserves unit slot");
-        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{5,12})&&At(OnlineMe.board,3).items.Length==0,"removal returns both items");
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{15,16,5,12})&&At(OnlineMe.board,3).items.Length==0,"removal returns both items");
         foreach(int id in new[]{5,12})
         {SelectOnlineItem(Array.IndexOf(OnlineMe.inventory,id));ClickSlot("board",3,At(OnlineMe.board,3));yield return AwaitEquipmentAction();}
         yield return SmokeRequest("/login",new Command{name="장비 테스트",key=key});
@@ -374,7 +472,7 @@ public sealed partial class MultiLauncher
         {yield return ServerPause(.7);yield return SmokeRequest("/state");}
         OnlineRequire(state.room.phase=="prepare"&&state.room.round==2,"battle settles to next round");
         OnlineRequire(selectedSlot==-1&&selectedArea==""&&onlineReport,"actual settlement clears combat inspection before preparation");
-        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{0}),"next round supply arrives once");
+        OnlineRequire(OnlineMe.inventory.SequenceEqual(new[]{15,16,0}),"next round supply arrives once");
         OnlineRequire(OnlineMe.shopLocked&&OnlineMe.shop.SequenceEqual(lockedOffers),"locked offers and bought hole survive settlement");
         OnlineRequire(state.room.reportRound==1&&state.room.lastCombat.Length==2,"completed report received after frames expire");
         OnlineRequire(HasRoundResult(state.room)&&state.room.roundResult.round==1,"completed settlement deserializes from server");
@@ -423,6 +521,8 @@ public sealed partial class MultiLauncher
         connectionError=false;
         ValidateSignalReplayRendering();
         yield return ValidateRecruitmentFeedback();
+        yield return ValidateCombatManagementOnline();
+        yield return ValidateEmblemsOnline();
         // Verify the visible cancel action also prevents the automatic poll from reusing credentials.
         state=null;token="";recoveringLogin=true;recoveryKey=key;recoveryName="장비 테스트";connectionError=true;lobbyTab=3;
         yield return new WaitForEndOfFrame();OnlineCapture("network-reconnect-cancel");

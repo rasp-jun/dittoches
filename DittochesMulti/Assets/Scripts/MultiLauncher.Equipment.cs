@@ -16,11 +16,11 @@ public sealed partial class MultiLauncher
         if(me==null)return;
         if(me.inventory==null)me.inventory=new int[0];
         if(state.room.phase=="finished")onlineItemGuide=-1;
-        if(onlineItem>=me.inventory.Length||me.inventoryRevision!=onlineItemRevision||me.ready||state.room.phase!="prepare")ResetEquipmentSelection();
+        if(onlineItem>=me.inventory.Length||me.inventoryRevision!=onlineItemRevision||!OnlineManagementAllowed(state.room,me))ResetEquipmentSelection();
     }
     void SelectOnlineItem(int index)
     {
-        var me=OnlineMe;if(me==null||busy||index<0||index>=me.inventory.Length)return;
+        var me=OnlineMe;if(me==null||!OnlineManagementAllowed(state.room,me)||!OnlineConnectionFresh()||busy||index<0||index>=me.inventory.Length)return;
         if(onlineItem==index){ResetEquipmentSelection();return;}
         if(onlineItem>=0&&onlineItemRevision==me.inventoryRevision&&DigimonBuildCatalog.Combine(me.inventory[onlineItem],me.inventory[index])>=0)
         {
@@ -33,7 +33,7 @@ public sealed partial class MultiLauncher
     {
         if(onlineItem<0)return false;
         if(unit==null){notice="장비를 장착할 아군 유닛을 선택하세요.";return true;}
-        if(busy)return true;
+        if(busy||!OnlineManagementAllowed(state.room,OnlineMe)||!OnlineConnectionFresh())return true;
         var command=new Command{action="equip",itemSlot=onlineItem,inventoryRevision=onlineItemRevision,area=area,slot=slot};
         selectedArea=area;selectedSlot=slot;
         onlineReport=false;
@@ -48,7 +48,7 @@ public sealed partial class MultiLauncher
         int hover=-1;
         for(int i=0;i<12;i++)
         {
-            Rect r=new Rect(39+i%4*57,695+i/4*43,39,39);int index=onlineItemPage*12+i;
+            Rect r=OnlineInventoryRect(i);int index=onlineItemPage*12+i;
             if(index>=me.inventory.Length){Panel(r,surface2);continue;}
             int id=me.inventory[index];var item=DigimonBuildCatalog.Data.items[id];
             if(r.Contains(Event.current.mousePosition))hover=id;
@@ -64,7 +64,8 @@ public sealed partial class MultiLauncher
             GUI.Label(new Rect(87,824,124,25),(onlineItemPage+1)+" / "+pages,centered);
             if(Btn(new Rect(228,824,40,25),"›",onlineItemPage+1<pages))onlineItemPage++;
         }
-        string hint=!editable?"준비 단계에서 장착·합성\n우클릭으로 장비 정보 확인":"장비 클릭 → 아군에게 장착\n재료 2개 클릭 → 합성";
+        string hint=!editable?"준비 취소·연결 확인 후 장착\n우클릭으로 장비 정보 확인":"장비 드래그 / 클릭 → 아군에게 장착\n재료 2개 클릭 → 합성";
+        if(editable&&state.room.phase=="battle")hint="장비 즉시 반영 · 대기석 관리 가능\n전장 이동·판매는 준비 단계에서";
         int focus=hover>=0?hover:onlineItem>=0?me.inventory[onlineItem]:-1;
         if(focus>=0)hint=DigimonBuildCatalog.Data.items[focus].name+"\n"+(onlineItem>=0?"아군에게 장착 · 같은 장비 클릭 시 취소":"우클릭 → 효과와 조합 확인");
         GUI.Label(new Rect(39,pages>1?861:830,230,pages>1?61:90),hint,new GUIStyle(small){fontSize=13});
@@ -133,14 +134,15 @@ public sealed partial class MultiLauncher
     void DrawOnlineEquipmentPreview(Player me,bool editable)
     {
         if(artPack!=0||!editable||!GUI.enabled||onlineItem<0||onlineItem>=me.inventory.Length||arena==null)return;
-        int seat=arena.HitBench(Event.current.mousePosition),cell=arena.HitCell(Event.current.mousePosition);
-        bool onBoard=seat<0&&cell>=28;
-        Unit unit=seat>=0?At(me.bench,seat):onBoard?At(me.board,cell-28):null;
+        string area,blocked;int slot;Fighter live;
+        Unit unit=OnlineEquipmentTarget(out area,out slot,out live,out blocked);bool onBoard=area=="board";
         if(unit==null)return;
-        var ids=onBoard?me.board.Select(u=>u.id):Enumerable.Empty<string>();
-        var preview=DigimonEquipmentPreview.Create(unit.id,unit.star,ids,unit.items??new int[0],me.inventory[onlineItem]);
-        DigimonEquipmentPreview.Draw(new Rect(1305,290,270,638),Def(unit.id).name+" "+new string('★',unit.star),
-            DigimonSkillCatalog.Find(unit.id),preview,onBoard?"현재 전장 시너지 적용":"대기석 · 시너지 미포함");
+        var ids=live!=null?state.room.frames[0].units.Where(f=>f.side==state.room.side).Select(f=>new DigimonBuildCatalog.Member(f.id,(At(me.board,f.slot)??new Unit()).items)):onBoard?me.board.Select(BuildMember):Enumerable.Empty<DigimonBuildCatalog.Member>();
+        int star=live!=null?live.star:unit.star;
+        var preview=DigimonEquipmentPreview.Create(unit.id,star,ids,unit.items??new int[0],me.inventory[onlineItem],onBoard);
+        if(live!=null)DigimonEquipmentPreview.SetCombatState(preview,live.hp,live.maxHp,live.mana);
+        DigimonEquipmentPreview.Draw(new Rect(1305,290,270,638),Def(unit.id).name+" "+new string('★',star),
+            DigimonSkillCatalog.Find(unit.id),preview,live!=null?"전투 즉시 적용 · 현재 전투 시너지":onBoard?"현재 전장 시너지 적용":"대기석 · 시너지 미포함");
     }
     void DrawUnitItemBadges(Unit unit,Vector3 ground)
     {

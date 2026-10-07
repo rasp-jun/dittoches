@@ -30,7 +30,7 @@ class OnlineEquipmentTests(unittest.TestCase):
         return self.request('/action',data)
 
     def test_equal_initial_supplies_private_inventory_public_equipment(self):
-        self.assertEqual(self.p['inventory'],[0,1,2,3,14])
+        self.assertEqual(self.p['inventory'],[0,1,2,3,14,15,16])
         self.assertEqual(self.p['inventory'],self.enemy['inventory'])
         self.equip()
         snapshot=self.request('/state',who=1)
@@ -89,14 +89,15 @@ class OnlineEquipmentTests(unittest.TestCase):
         self.assertEqual(self.p['board'][3]['items'],[0])
         self.assertEqual(self.enemy['board'][3]['items'],[])
 
-    def test_ready_and_battle_lock_all_equipment_mutations(self):
+    def test_ready_locks_equipment_but_battle_allows_it(self):
         self.request('/action',{'action':'ready'});before=copy.deepcopy(self.p)
         for action in ('equip','combine_items'):
             with self.assertRaises(Rejected):
                 self.request('/action',dict(action=action,itemSlot=0,targetItemSlot=1,area='board',slot=3,inventoryRevision=0))
         self.assertEqual(self.p,before)
         self.request('/action',{'action':'ready'},1)
-        with self.assertRaises(Rejected):self.equip()
+        self.equip()
+        self.assertEqual(self.p['board'][3]['items'],[0])
 
     def test_sale_returns_equipment_and_reconnect_keeps_it(self):
         self.p['board'][3]['items']=[8,12]
@@ -127,13 +128,13 @@ class OnlineEquipmentTests(unittest.TestCase):
     def test_next_round_supplies_are_equal_and_settled_only_once(self):
         self.game.fight(self.room);self.game.settle(self.room)
         self.assertEqual(self.room['round'],2)
-        self.assertEqual(self.p['inventory'],[0,1,2,3,14,0])
+        self.assertEqual(self.p['inventory'],[0,1,2,3,14,15,16,0])
         before=copy.deepcopy(self.room)
         self.game.settle(self.room)
         self.assertEqual(self.room,before)
         self.game.fight(self.room);self.game.settle(self.room)
         self.assertEqual(self.room['round'],3)
-        self.assertEqual(self.p['inventory'][-2:],[1,14])
+        self.assertEqual(self.p['inventory'][-3:],[1,15,14])
         self.assertEqual(self.p['inventory'],self.enemy['inventory'])
 
 

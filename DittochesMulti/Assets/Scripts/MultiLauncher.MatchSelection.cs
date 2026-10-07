@@ -2,8 +2,78 @@ using UnityEngine;
 
 public sealed partial class MultiLauncher
 {
+    int onlineDragSlot=-1,onlineDragStar;
+    string onlineDragArea="",onlineDragId="";
+    bool onlineDragging;
+    Vector2 onlineDragStart;
+    Rect OnlineSellZone { get { return new Rect(310,814,945,108); } }
+    bool OnlineSaleVisible { get { return onlineDragging&&onlineDragSlot>=0; } }
+    void ResetOnlineDrag(){onlineDragSlot=-1;onlineDragArea="";onlineDragId="";onlineDragging=false;}
+    Unit OnlineDraggedUnit(Player me)
+    {
+        if(me==null||onlineDragSlot<0)return null;
+        var unit=At(onlineDragArea=="board"?me.board:me.bench,onlineDragSlot);
+        return unit!=null&&unit.id==onlineDragId&&unit.star==onlineDragStar?unit:null;
+    }
+    void HandleOnlineDrag(Room room,Player me,bool editable,int cell,int seat)
+    {
+        Event e=Event.current;
+        if(!editable||busy||!GUI.enabled||onlineItem>=0){ResetOnlineDrag();return;}
+        if((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)||(e.type==EventType.MouseDown&&e.button==1))
+        {ResetOnlineDrag();return;}
+        if(e.type==EventType.MouseDown&&e.button==0)
+        {
+            ResetOnlineDrag();
+            string area=seat>=0?"bench":cell>=28&&room.phase=="prepare"?"board":"";
+            int slot=seat>=0?seat:cell-28;
+            var unit=area==""?null:At(area=="bench"?me.bench:me.board,slot);
+            if(unit!=null){onlineDragSlot=slot;onlineDragArea=area;onlineDragId=unit.id;onlineDragStar=unit.star;onlineDragStart=e.mousePosition;}
+        }
+        if(onlineDragSlot>=0&&OnlineDraggedUnit(me)==null){ResetOnlineDrag();return;}
+        if(e.type==EventType.MouseDrag&&onlineDragSlot>=0&&Vector2.Distance(e.mousePosition,onlineDragStart)>8)
+        {onlineDragging=true;arenaPointer.Reset();e.Use();}
+        if(e.type==EventType.MouseUp&&e.button==0)
+        {
+            if(onlineDragging&&OnlineDraggedUnit(me)!=null)
+            {
+                if(OnlineSellZone.Contains(e.mousePosition))
+                    Send("/action",new Command{action="sell",area=onlineDragArea,slot=onlineDragSlot});
+                else if(seat>=0||room.phase=="prepare"&&cell>=28)
+                {
+                    string target=seat>=0?"bench":"board";int slot=seat>=0?seat:cell-28;
+                    if(target!=onlineDragArea||slot!=onlineDragSlot)
+                        Send("/action",new Command{action="move",area=onlineDragArea,slot=onlineDragSlot,targetArea=target,targetSlot=slot});
+                }
+                ClearOnlineUnitSelection();e.Use();
+            }
+            ResetOnlineDrag();
+        }
+    }
+    void DrawOnlineSaleTarget(Player me)
+    {
+        var unit=OnlineDraggedUnit(me);if(!OnlineSaleVisible||unit==null)return;
+        int price=Def(unit.id).cost*(int)Mathf.Pow(3,unit.star-1);
+        bool over=OnlineSellZone.Contains(Event.current.mousePosition);
+        Card(OnlineSellZone,over?new Color(.35f,.12f,.07f):new Color(.12f,.09f,.04f),gold);
+        Portrait(new Rect(325,824,82,88),unit.id);
+        GUI.Label(new Rect(427,826,810,32),Def(unit.id).name+"  ·  판매 +"+price+" G",text);
+        GUI.Label(new Rect(427,863,810,25),"상점 영역에 놓아 판매 · 장비 "+(unit.items==null?0:unit.items.Length)+"개 반환 · 밖에 놓거나 ESC로 취소",small);
+        GUI.Label(new Rect(427,892,810,23),RecruitmentAdvice.Bank(me.gold+price),small);
+        if(!over)
+        {
+            Vector2 p=Event.current.mousePosition;
+            Card(new Rect(p.x+16,p.y-48,210,56),surface,gold);
+            GUI.Label(new Rect(p.x+25,p.y-40,195,44),Def(unit.id).name+"\n상점으로 드래그 · "+price+"G",small);
+        }
+    }
+    bool OnlineManagementAllowed(Room room,Player me)
+    {return room!=null&&me!=null&&((room.phase=="battle"&&state!=null&&state.combatActions>=1)||(room.phase=="prepare"&&!me.ready));}
+    bool OnlineConnectionFresh()
+    {return !connectionError&&!recoveringLogin&&Time.unscaledTime-receivedAt<6;}
+    bool CanSellOnline(Room room)
+    {return selectedArea=="bench"||(room.phase=="prepare"&&selectedArea=="board");}
     void ClearOnlineUnitSelection()
-    {selectedSlot=-1;selectedArea="";arenaPointer.Reset();}
+    {selectedSlot=-1;selectedArea="";arenaPointer.Reset();ResetOnlineDrag();}
     static Player MatchPlayer(Room room)
     {return room==null||room.players==null||room.side<0||room.side>=room.players.Length?null:room.players[room.side];}
     Unit SelectedInRoom(Room room)

@@ -8,7 +8,7 @@ public sealed partial class NativeGame
     DigimonSkillCatalog.Stats InspectStats(Unit unit)
     {
         Fighter live=InspectedFighter(unit);
-        var ids=board.Contains(unit)?board.Where(u=>u!=null).Select(u=>u.def.id):Enumerable.Empty<string>();
+        var ids=board.Contains(unit)?BoardBuildMembers():Enumerable.Empty<DigimonBuildCatalog.Member>();
         var bonus=live!=null?live.build:DigimonBuildCatalog.Resolve(unit.def.id,ids,unit.items);
         var result=new DigimonSkillCatalog.Stats(DigimonSkillCatalog.Find(unit.def.id),unit.star,bonus,live!=null&&live.enemy?live.attackScale:1);
         if(live!=null)result.speed=DigimonCombatMath.AttackSpeed(DigimonSkillCatalog.Find(unit.def.id).attackSpeed,bonus.speed,bonus.rampSpeed,live.combatAge);

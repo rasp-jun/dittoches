@@ -25,16 +25,17 @@ public sealed partial class MultiLauncher
         if(onlineInterface.Button(new Rect(30,390,245,43),new GUIContent("경험치 +4   4G   [F]",RecruitmentAdvice.Experience(me.level,me.xp,NativeGame.XpToNextLevel(me.level))+"\n"+RecruitmentAdvice.Spend(me.gold,4)),canAct&&me.gold>=4&&me.level<9))Send("/action",new Command{action="xp"});
         if(onlineInterface.Button(new Rect(30,440,245,43),new GUIContent("새로고침   2G   [D]",RecruitmentAdvice.Spend(me.gold,2)),canAct&&me.gold>=2))Send("/action",new Command{action="reroll"});
         Unit unit=SelectedOnlineUnit(me);
-        string sale=unit==null?"판매할 유닛 선택":"선택 유닛 판매  ·  "+(Def(unit.id).cost*(int)Mathf.Pow(3,unit.star-1))+"G";
-        if(onlineInterface.Button(new Rect(30,490,245,41),new GUIContent(sale),canAct&&unit!=null))
-        {Send("/action",new Command{action="sell",area=selectedArea,slot=selectedSlot});selectedSlot=-1;selectedArea="";}
-        int vacancies=me.level-me.board.Length;
-        GUI.Label(new Rect(40,533,235,18),vacancies>0?"빈 전장 슬롯 "+vacancies+"칸 · 배치 가능":"최대 인원 배치 완료",oddsStyle);
-        if(onlineInterface.Button(new Rect(30,555,245,78),new GUIContent(me.ready?"준비 취소  [SPACE]":"전투 준비 완료  [SPACE]",vacancies>0?"현재 "+me.board.Length+" / "+me.level+"명 배치 · 빈 슬롯을 확인하세요":"모든 전장 슬롯을 채웠습니다"),room.phase=="prepare"&&fresh&&!busy,true,16))Send("/action",new Command{action="ready"});
+        string sale=unit==null?"판매할 유닛 선택":(room.phase=="battle"?"대기석 판매 [E] · ":"선택 판매 [E] · ")+(Def(unit.id).cost*(int)Mathf.Pow(3,unit.star-1))+"G";
+        GUI.Label(new Rect(40,490,230,39),"상점으로 드래그해 판매 · [E]\n"+(unit==null?"유닛을 집으면 판매 가격 표시":CanSellOnline(room)?sale:"전투 중인 전장 유닛 판매 불가"),new GUIStyle(small){fontSize=13,wordWrap=true});
+        int vacancies=OnlineFormationLimit(me)-me.board.Length;
+        GUI.Label(new Rect(40,533,235,18),room.phase=="battle"?"전투 중: 장비 즉시 적용 · 대기석 관리":vacancies>0?"빈 전장 슬롯 "+vacancies+"칸 · 배치 가능":"최대 인원 배치 완료",oddsStyle);
+        if(onlineInterface.Button(new Rect(30,555,245,78),new GUIContent(room.phase=="battle"?"전투 중 · 상점 사용 가능":me.ready?"준비 취소  [SPACE]":"전투 준비 완료  [SPACE]",vacancies>0?"현재 "+me.board.Length+" / "+OnlineFormationLimit(me)+"명 배치 · 빈 슬롯을 확인하세요":"모든 전장 슬롯을 채웠습니다"),room.phase=="prepare"&&fresh&&!busy,true,16))Send("/action",new Command{action="ready"});
         Event e=Event.current;
         if(!GUI.enabled||busy||e.type!=EventType.KeyDown)return;
         string action=e.keyCode==KeyCode.F&&canAct&&me.gold>=4&&me.level<9?"xp":e.keyCode==KeyCode.D&&canAct&&me.gold>=2?"reroll":
             e.keyCode==KeyCode.Space&&room.phase=="prepare"&&fresh?"ready":null;
+        if(e.keyCode==KeyCode.E&&canAct&&unit!=null&&CanSellOnline(room))
+        {Send("/action",new Command{action="sell",area=selectedArea,slot=selectedSlot});ClearOnlineUnitSelection();e.Use();return;}
         if(action!=null){Send("/action",new Command{action=action});e.Use();}
     }
     CombatSignals.Signal OnlineCombatSignal(Fighter f,float time)
@@ -69,7 +70,7 @@ public sealed partial class MultiLauncher
                 Mathf.Lerp(f.shield,to.shield,progress-frame),f.side!=room.side);
             if(f.side==room.side&&GUI.enabled&&Event.current.type==EventType.MouseDown&&Event.current.button==0&&
                 (row.rect.Contains(Event.current.mousePosition)||new Rect(row.anchor.x-36,row.anchor.y,72,80).Contains(Event.current.mousePosition)))
-            {selectedArea="board";selectedSlot=f.slot;onlineReport=false;Event.current.Use();}
+            {if(!EquipOnlineSelection("board",f.slot,At(OnlineMe.board,f.slot))){selectedArea="board";selectedSlot=f.slot;onlineReport=false;}Event.current.Use();}
         }
     }
 }

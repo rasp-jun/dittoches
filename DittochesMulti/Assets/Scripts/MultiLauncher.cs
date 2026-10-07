@@ -20,7 +20,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
     [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta,reportRound,roundWinner=-1; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; public Fighter[] lastCombat; public RoundResult roundResult; }
-    [Serializable] public class State { public string token, name, queue, error,acknowledgedRequestId; public bool duplicateRequest; public int rating, waiting,reliableCommands; public Room room; }
+    [Serializable] public class State { public string token, name, queue, error,acknowledgedRequestId; public bool duplicateRequest; public int rating, waiting,reliableCommands,combatActions; public Room room; }
     [Serializable] public class Command { public bool shopLocked; public string name, key, mode, action, area, targetArea,requestId,expectedRoom,expectedPhase; public int expectedRound; public int slot, targetSlot, itemSlot, targetItemSlot, inventoryRevision,tamer,field,finisher; public float x,y; }
 
     string server = "http://127.0.0.1:7777", nickname = "테이머", token = "", notice = "서버에 접속한 뒤 일반 / 랭크 매칭을 시작하세요.";
@@ -257,7 +257,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Panel(new Rect(30,965,8,8),busy ? gold : connectionError ? new Color(.9f,.3f,.25f) : cyan);
         GUI.Label(new Rect(50,951,1500,38), ConnectionStatusText(), small);
         DrawOnlineSkillDetails();
-        if(artPack==0)onlineInterface.Tooltip(new Rect(0,0,1600,1000),showTraitGuide||showTeamPlan||state==null||state.room==null||confirmLeave||onlineItemGuide>=0||!string.IsNullOrEmpty(onlineSkillId));
+        if(artPack==0)onlineInterface.Tooltip(new Rect(0,0,1600,1000),onlineEquipmentDrag.Dragging||OnlineSaleVisible||showTraitGuide||showTeamPlan||state==null||state.room==null||confirmLeave||onlineItemGuide>=0||!string.IsNullOrEmpty(onlineSkillId));
         DrawOnlineTraitGuide();DrawTeamPlan();
 #if DITTOCHES_PORTABLE_PREVIEW
         if(validationOriginalEvent!=null)Event.current=validationOriginalEvent;
@@ -480,11 +480,14 @@ public sealed partial class MultiLauncher : MonoBehaviour
     Unit At(Unit[] units, int slot) { return Array.Find(units, u => u.slot == slot); }
     void ClickSlot(string area, int slot, Unit unit)
     {
+        if(!OnlineManagementAllowed(state.room,OnlineMe)||!OnlineConnectionFresh()||busy)return;
         if(EquipOnlineSelection(area,slot,unit))return;
+        if(state.room.phase=="battle"&&(area=="board"||selectedArea=="board"))
+        {selectedArea=unit==null?"":area;selectedSlot=unit==null?-1:slot;onlineReport=false;return;}
         if (selectedSlot >= 0)
         {
             Player me=state.room.players[state.room.side];
-            if(area=="board"&&selectedArea=="bench"&&unit==null&&me.board.Length>=me.level)
+            if(area=="board"&&selectedArea=="bench"&&unit==null&&me.board.Length>=OnlineFormationLimit(me))
             {notice="배치 인원이 가득 찼습니다. 다른 유닛과 교환하세요.";return;}
             if (selectedArea != area || selectedSlot != slot)
                 Send("/action", new Command { action = "move", area = selectedArea, slot = selectedSlot, targetArea = area, targetSlot = slot });
@@ -516,7 +519,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if (room.phase == "finished") confirmLeave = false;
         GUI.enabled = !showTraitGuide&&!showTeamPlan&&!confirmLeave&&onlineItemGuide<0&&string.IsNullOrEmpty(onlineSkillId);
         bool fresh = !connectionError && !recoveringLogin && Time.unscaledTime - receivedAt < 6;
-        bool editable = room.phase == "prepare" && !me.ready && fresh;
+        bool editable = OnlineManagementAllowed(room,me) && fresh;
         float remaining = Mathf.Max(0, room.remaining - (Time.unscaledTime - receivedAt));
         GUI.Label(new Rect(30,14,250,24),room.mode=="ranked"?"RANKED MATCH":"NORMAL MATCH",eyebrow);
         GUI.Label(new Rect(30,36,570,42),$"ROUND {room.round}",title);
@@ -528,7 +531,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         Card(new Rect(25,95,260,165),surface,new Color(gold.r,gold.g,gold.b,.5f));
         GUI.Label(new Rect(45,108,220,25),"나의 테이머",eyebrow); GUI.Label(new Rect(45,136,220,34),me.name,text);
         Pill(new Rect(43,180,102,36),"HP "+me.hp,new Color(.30f,.78f,.52f)); Pill(new Rect(155,180,108,36),me.rating+" RP",gold);
-        GUI.Label(new Rect(45,225,220,25),artPack==0?$"{me.gold} G · 배치 {me.board.Length}/{me.level} · 대기 {me.bench.Length}/9":$"{me.gold} G    ·    LV {me.level}    ·    XP {me.xp}",small);
+        GUI.Label(new Rect(45,225,220,25),artPack==0?$"{me.gold} G · 배치 {me.board.Length}/{OnlineFormationLimit(me)} · 대기 {me.bench.Length}/9":$"{me.gold} G    ·    LV {me.level}    ·    XP {me.xp}",small);
         Card(new Rect(1305,95,270,165),surface,new Color(.65f,.25f,.28f,.7f));
         GUI.Label(new Rect(1325,108,225,25),"OPPONENT",eyebrow); GUI.Label(new Rect(1325,136,225,34),enemy.name,text);
         Pill(new Rect(1323,180,102,36),"HP "+enemy.hp,new Color(.82f,.28f,.25f)); Pill(new Rect(1435,180,118,36),enemy.rating+" RP",gold);
@@ -538,7 +541,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if(artPack==0){DrawOnlineRoundResult(room);DrawRecruitmentReceipt(room);}
         GUI.Label(new Rect(310,790,500,22),artPack==0?"모집  ·  "+me.gold+" G":"RECRUIT SHOP",eyebrow);
         if(artPack==0)DrawOnlineShopLock(me,room,fresh);
-        for (int i = 0; i < me.shop.Length; i++)
+        for (int i = 0; i < me.shop.Length && !OnlineSaleVisible; i++)
         {
             float x = 310 + i * 191; string id = me.shop[i]; UnitDef def = Def(id);
             if(artPack==0){DrawOnlineRecruitCard(new Rect(x,814,181,108),id,i,me,editable);continue;}
@@ -550,22 +553,23 @@ public sealed partial class MultiLauncher : MonoBehaviour
                     Send("/action", new Command { action = "buy", slot = i });
             }
         }
-        if(artPack==0)DrawOnlineEconomy(me,room,editable,fresh);
+        if(artPack==0){DrawOnlineSaleTarget(me);DrawOnlineEconomy(me,room,editable,fresh);}
         else
         {
         GUI.Label(new Rect(30,286,250,24),"ECONOMY",eyebrow);
         if (Btn(new Rect(30,320,245,58),"새로고침     2 G",editable&&me.gold>=2)) Send("/action",new Command{action="reroll"});
         if (Btn(new Rect(30,390,245,58),"경험치 +4     4 G",editable&&me.gold>=4&&me.level<9)) Send("/action",new Command{action="xp"});
-        if (Btn(new Rect(30,460,245,58),"선택 유닛 판매",editable&&selectedSlot>=0))
+        if (Btn(new Rect(30,460,245,58),"선택 유닛 판매",editable&&CanSellOnline(room)&&selectedSlot>=0))
         { Send("/action", new Command { action = "sell", area = selectedArea, slot = selectedSlot }); selectedSlot = -1; selectedArea = ""; }
         if (Btn(new Rect(30,555,245,78),me.ready?"준비 취소":"전투 준비 완료",room.phase=="prepare"&&fresh)) Send("/action",new Command{action="ready"});
         }
         DrawOnlineEquipment(me,editable);
-        var formationPreview=OnlineFormationForecast(me,editable);
+        var formationPreview=OnlineFormationForecast(me,editable&&room.phase=="prepare");
         if(formationPreview!=null){DrawOnlineUnitEquipment(me,room);FormationForecastUI.Draw(new Rect(1305,490,270,438),formationPreview);}
         else if(artPack!=0||!DrawOnlineReport(room,remaining))
         {DrawOnlineUnitEquipment(me,room);if(artPack==0)DrawOnlineTraits(me);}
         DrawOnlineEquipmentPreview(me,editable);
+        DrawOnlineEquipmentGhost();
         if (room.phase == "finished")
         {
             Card(new Rect(510,300,610,270),new Color(.035f,.07f,.12f,.99f),gold);

@@ -88,6 +88,7 @@ public sealed partial class MultiLauncher
                     if(valid&&mutation&&reliable)valid=response.acknowledgedRequestId==command.requestId;
                     if(!valid)continue;
                     bool recovered=connectionError||recoveringLogin||attempt>0;
+                    int previousCapacity=OnlineMe==null?0:OnlineFormationLimit(OnlineMe);
                     ReceiveRecruitment(state==null?null:state.room,response.room,path,command);
                     ReconcileMatchSelection(state==null?null:state.room,response.room);
                     state=response;token=response.token;receivedAt=Time.unscaledTime;
@@ -97,6 +98,13 @@ public sealed partial class MultiLauncher
                     ReconcileEquipmentSelection();
                     if(recovered)notice="연결 복구 완료 · 최신 경기 상태를 반영했습니다.";
                     else if(path!="/state")notice=path=="/login"?"서버 접속 완료":"서버에 연결되었습니다.";
+                    if(!recovered&&path=="/action"&&OnlineMe!=null)
+                    {
+                        int capacity=OnlineFormationLimit(OnlineMe);
+                        if(capacity>previousCapacity)notice="배치 한도 +"+(capacity-previousCapacity)+" · 현재 최대 "+capacity+"명";
+                        else if(command.action=="combine_items")notice="장비 합성 완료 · 보관함에서 확인하세요";
+                        else if(command.action=="equip")notice="장비 적용 완료 · 시너지와 능력치를 반영했습니다";
+                    }
                     if(state.room==null||state.room.phase=="finished"){selectedSlot=-1;selectedArea="";}
                     if(path=="/leave")confirmLeave=false;
                     accepted=true;break;

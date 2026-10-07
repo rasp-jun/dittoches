@@ -31,7 +31,7 @@ public static class DigimonTraitUI
     }
     public static string Next(DigimonBuildCatalog.Trait trait,int count)
     {return trait.Level(count)==trait.tiers.Length?"최대 단계":(trait.Target(count)-count)+"종 더 배치하면 "+(trait.Level(count)+1)+"단계";}
-    public static bool DrawGuide(Rect canvas,ref string focus,string[] board,string[] bench)
+    public static bool DrawGuide(Rect canvas,ref string focus,string[] board,string[] bench,DigimonBuildCatalog.Member[] members=null)
     {
         if(title==null){body=new GUIStyle(GUI.skin.label){fontSize=16,wordWrap=true};body.normal.textColor=new Color(.87f,.93f,.94f);title=new GUIStyle(body){fontSize=26,fontStyle=FontStyle.Bold};small=new GUIStyle(body){fontSize=13};small.normal.textColor=new Color(.65f,.79f,.82f);bold=new GUIStyle(body){fontStyle=FontStyle.Bold};}
         var e=Event.current;if(e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape){e.Use();return false;}
@@ -42,7 +42,7 @@ public static class DigimonTraitUI
         var data=DigimonBuildCatalog.Data.traits;
         for(int i=0;i<data.Length;i++)
         {
-            var t=data[i];int n=DigimonBuildCatalog.Count(t,board);Rect row=new Rect(r.x+18,r.y+102+i*60,254,53);
+            var t=data[i];int n=members==null?DigimonBuildCatalog.Count(t,board):DigimonBuildCatalog.Count(t,members);Rect row=new Rect(r.x+18,r.y+102+i*60,254,53);
             bool chosen=t.id==focus||t.name==focus;ArenaInterface.Fill(row,chosen?new Color(.10f,.19f,.20f):new Color(.032f,.064f,.08f));
             GUI.DrawTexture(new Rect(row.x+5,row.y+5,43,43),Icon(t.id));
             GUI.Label(new Rect(row.x+58,row.y+4,128,27),t.name,bold);
@@ -51,13 +51,14 @@ public static class DigimonTraitUI
             if(t.Level(n)>0)ArenaInterface.Fill(new Rect(row.x,row.y,3,row.height),ColorFor(t.id));
             if(GUI.Button(row,GUIContent.none,GUIStyle.none))focus=t.id;
         }
-        var trait=DigimonBuildCatalog.Find(focus)??data[0];focus=trait.id;int count=DigimonBuildCatalog.Count(trait,board),tier=trait.Level(count);
+        var trait=DigimonBuildCatalog.Find(focus)??data[0];focus=trait.id;int count=members==null?DigimonBuildCatalog.Count(trait,board):DigimonBuildCatalog.Count(trait,members),tier=trait.Level(count);
         float x=r.x+298,width=954;
         GUI.DrawTexture(new Rect(x,r.y+18,61,61),Icon(trait.id));
         GUI.Label(new Rect(x+77,r.y+18,690,39),trait.name+"  ·  "+trait.identity,title);
         GUI.Label(new Rect(x+78,r.y+60,730,26),trait.category+"  /  전장 "+count+"종  /  "+Next(trait,count),small);
         bool open=!ui.Button(new Rect(r.xMax-114,r.y+19,94,36),new GUIContent("닫기 ESC"));
-        GUI.Label(new Rect(x,r.y+103,width,75),trait.description,body);
+        var emblemNames=members==null?new string[0]:members.Where(u=>u!=null&&!trait.members.Contains(u.id)&&DigimonBuildCatalog.HasTrait(trait,u.id,u.items)).Select(u=>u.id).Distinct().Select(id=>TeamPlan.Roster.First(u=>u.id==id).name).ToArray();
+        GUI.Label(new Rect(x,r.y+103,width,75),trait.description+(emblemNames.Length>0?"\n인장으로 참여: "+string.Join(" · ",emblemNames):""),body);
         for(int i=0;i<trait.tiers.Length;i++)
         {
             Rect row=new Rect(x,r.y+196+i*72,width,63);bool active=tier==i+1;
@@ -77,7 +78,7 @@ public static class DigimonTraitUI
             GUI.Label(new Rect(card.x+89,card.y+44,210,32),def.cost+"G · "+TeamPlan.Progress(id,board,bench),small);
         }
         GUI.Label(new Rect(x,r.y+688,width,56),"구성 방향  ·  "+trait.usage,body);
-        GUI.Label(new Rect(x,r.y+745,width,59),"서로 다른 종류만 계산 · 대기석 제외 · 최고 단계만 적용\n구성은 전투 시작 시 확정 · 창을 열어도 전투와 준비 시간은 계속 흐릅니다",small);
+        GUI.Label(new Rect(x,r.y+745,width,59),"서로 다른 종류만 계산 · 대기석 제외 · 최고 단계만 적용\n전투 인원은 시작 시 확정 · 인장 장착/회수에 따른 시너지 변화는 전투 중에도 즉시 반영",small);
         if(e.isMouse||e.isKey)e.Use();return open;
     }
 }

@@ -28,7 +28,7 @@ public sealed partial class NativeGame
         if(HudButton(new Rect(x+170,116,33,30),"×"))inspectedUnit=null;
         CharacterCardArt.Portrait(new Rect(x+14,155,190,112),unit.def.id,unit.def.cost,true);
         GUI.Label(new Rect(x+14,274,190,32),UnitName(unit.def)+"  "+new string('★',unit.star),hudWrap);
-        GUI.Label(new Rect(x+14,310,190,43),DigimonVisualScale.StageName(unit.def.id)+" · "+BuildTags(unit.def.id)+"\n"+meta.attr+" · "+unit.def.cost+" G",hudWrap);
+        GUI.Label(new Rect(x+14,310,190,43),DigimonVisualScale.StageName(unit.def.id)+" · "+BuildTags(unit.def.id,unit.items)+"\n"+meta.attr+" · "+unit.def.cost+" G",hudWrap);
         if(live!=null)
         {
             string status=live.dead?"전투 불능":!battling?"전투 종료":live.stun>0?"기절 "+live.stun.ToString("0.0")+"초":live.skillCast!=null?"스킬 시전":live.mana>=live.maxMana?"스킬 준비":"전투 중";
@@ -36,7 +36,7 @@ public sealed partial class NativeGame
         }
         else GUI.Label(new Rect(x+14,358,190,77),"최대 체력 "+stats.health.ToString("0")+"\n시작 마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0")+"\n"+StatContext(unit),hudWrap);
         GUI.Label(new Rect(x+14,454,190,79),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n"+skill.ScalingRole,hudWrap);
-        var statusBonus=live!=null?live.build:DigimonBuildCatalog.Resolve(unit.def.id,board.Contains(unit)?board.Where(u=>u!=null).Select(u=>u.def.id):Enumerable.Empty<string>(),unit.items);
+        var statusBonus=live!=null?live.build:DigimonBuildCatalog.Resolve(unit.def.id,board.Contains(unit)?BoardBuildMembers():Enumerable.Empty<DigimonBuildCatalog.Member>(),unit.items);
         CombatStatusUI.Draw(new Rect(x+14,541,190,84),CombatStatusUI.Describe(statusBonus,live!=null?live.combatAge:0,live!=null?live.attacks:0,live!=null&&live.lowShieldUsed,live!=null,live!=null&&(live.dead||!battling)));
         if(DigimonSkillUI.DrawIcon(new Rect(x+14,632,50,50),skill))OpenSkillDetails(unit);
         GUI.Label(new Rect(x+84,632,120,48),skill.name+"\n우클릭 → 정보",new GUIStyle(hudWrap){fontSize=12});

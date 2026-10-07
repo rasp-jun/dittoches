@@ -85,7 +85,7 @@ class SynergyReworkTests(unittest.TestCase):
         self.assertEqual(triggered[0]['units'][0]['combatStatsVersion'],2)
 
     def test_every_tier_has_finite_nonnegative_effects_and_guidance(self):
-        self.assertEqual(b.DATA['version'],4)
+        self.assertEqual(b.DATA['version'],5)
         for t in b.TRAITS:
             self.assertTrue(t['identity'] and t['usage'] and t['description'])
             self.assertEqual([r['count'] for r in t['tiers']],sorted(r['count'] for r in t['tiers']))

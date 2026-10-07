@@ -55,7 +55,7 @@ public sealed partial class NativeGame
             }
             Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.Escape};DrawBuildTraitGuide();
             Require(traitFocus==null&&Event.current.type==EventType.Used,"trait guide Escape consumes input");
-            skillDetailUnit=inspectedSkill;
+            ValidateEquipmentDragInGUI();skillDetailUnit=inspectedSkill;
         }
         finally{Event.current=saved;GUI.enabled=enabled;gold=savedGold;}
     }
@@ -78,14 +78,14 @@ public sealed partial class NativeGame
         if(validationEquipmentGallery)
         {
             DrawRect(new Rect(100,90,1720,890),new Color(.014f,.026f,.045f));
-            GUI.Label(new Rect(140,111,1200,42),"디지털 무장 · 전체 15종",header);
+            GUI.Label(new Rect(140,111,1200,42),"디지털 무장 · 전체 28종",header);
             foreach(var item in DigimonBuildCatalog.Data.items)
             {
-                float x=140+item.id%5*331,y=175+item.id/5*253;
-                DigimonEquipmentArt.Draw(new Rect(x,y,114,114),item.id);
-                GUI.Label(new Rect(x+128,y+6,192,56),item.name,header);
-                GUI.Label(new Rect(x+128,y+65,184,52),item.role,label);
-                GUI.Label(new Rect(x,y+129,302,68),DigimonEquipmentUI.Stats(item.id),new GUIStyle(small){wordWrap=true});
+                float x=140+item.id%7*237,y=175+item.id/7*192;
+                DigimonEquipmentArt.Draw(new Rect(x,y,76,76),item.id);
+                GUI.Label(new Rect(x+83,y+4,145,43),item.name,new GUIStyle(header){fontSize=16});
+                GUI.Label(new Rect(x+83,y+46,145,42),item.role,new GUIStyle(label){fontSize=13});
+                GUI.Label(new Rect(x,y+89,222,65),DigimonEquipmentUI.Stats(item.id),new GUIStyle(small){wordWrap=true});
             }
             return;
         }
@@ -210,6 +210,8 @@ public sealed partial class NativeGame
         ValidateArenaVisualQuality();
         ValidateImpactMotion();
         ValidateSkillFinish();
+        ValidateCombatManagementRules();
+        ValidateEmblems();
         Require(RecruitmentAdvice.Interest(9)==0&&RecruitmentAdvice.Interest(10)==1&&RecruitmentAdvice.Interest(50)==5&&RecruitmentAdvice.Interest(99)==5,"interest thresholds and cap");
         Require(RecruitmentAdvice.Spend(20,1).Contains("19G")&&RecruitmentAdvice.Spend(20,1).Contains("−1G"),"purchase forecast warns on interest threshold");
         Require(RecruitmentAdvice.Spend(19,1).Contains("+1G")&&!RecruitmentAdvice.Spend(19,1).Contains("−"),"purchase forecast preserves interest inside bracket");
@@ -252,6 +254,8 @@ public sealed partial class NativeGame
         yield return new WaitForEndOfFrame();CaptureRuntime("09-recipes");showRecipeGuide=false;
         OpenEquipmentGuide(8);yield return new WaitForEndOfFrame();CaptureRuntime("26-shield-guide");
         recipeFocus=14;yield return new WaitForEndOfFrame();CaptureRuntime("27-extractor-guide");showRecipeGuide=false;
+        foreach(int gear in new[]{15,16,17,25,26,27}){OpenEquipmentGuide(gear);yield return new WaitForEndOfFrame();CaptureRuntime("emblem-guide-"+gear);}
+        showRecipeGuide=false;
         selectedBoard=3;validationPointer=arena.Project(TacticalArena.CellWorld(3,4));
         yield return new WaitForEndOfFrame();CaptureRuntime("13-melee-range");
         selectedBoard=18;validationPointer=arena.Project(TacticalArena.CellWorld(4,6));
@@ -283,17 +287,17 @@ public sealed partial class NativeGame
         validationPointer=right;yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();
         Require(formationPositions[held].x-first.x>.2f,"held unit follows pointer continuously within one hex");
         Require(bench[0]==held&&board[17]==swapped,"drag preview leaves formation unchanged");
-        CaptureRuntime("22-drag-follow");DropDraggedUnit(right);draggingUnit=false;dragSource=-1;validationPointer=null;
+        CaptureRuntime("22-drag-follow");validationPointer=SellDropZone.center;yield return new WaitForEndOfFrame();CaptureRuntime("34-shop-sale");validationPointer=right;DropDraggedUnit(right);draggingUnit=false;dragSource=-1;validationPointer=null;
         yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();
         Require(board[17]==held&&bench[0]==swapped,"drop swaps board and bench units");
         Require(Vector3.Distance(formationPositions[held],destination)<.05f,"dropped unit settles onto target hex");
         CaptureRuntime("23-drop-settle");board[17]=swapped;bench[0]=held;inspectedUnit=null;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
-        inspectedUnit=board[18];
+        inspectedUnit=fighters.First(f=>!f.enemy&&f.sourceSlot==18).unit;
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");
         yield return new WaitForSeconds(2f);yield return new WaitForEndOfFrame();CaptureRuntime("05-skills");
-        inspectedUnit=board[16];yield return new WaitForSeconds(.5f);yield return new WaitForEndOfFrame();CaptureRuntime("32-combat-state");
+        inspectedUnit=fighters.First(f=>!f.enemy&&f.sourceSlot==16).unit;yield return new WaitForSeconds(.5f);yield return new WaitForEndOfFrame();CaptureRuntime("32-combat-state");
         inspectedUnit=null;tacticalReportMetric=0;yield return new WaitForEndOfFrame();CaptureRuntime("16-live-damage");
         tacticalReportMetric=1;yield return new WaitForEndOfFrame();CaptureRuntime("17-damage-received");tacticalReportMetric=0;
         float deadline=Time.unscaledTime+34;

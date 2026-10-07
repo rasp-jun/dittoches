@@ -1,5 +1,176 @@
 # 아구몬 Blender 모델과 모션 — 2026-09-29
 
+## 2026-10-06 실제 모델 전체 게임 연결 — 최신
+
+현재 검토된 GLB 34종/352클립을 FDM1으로 변환해 Unity 전투에 연결했습니다. `Play_Preview.bat`는 FaithfulPreview를 실행하며 기존 절차형 모델 검토기는 별도로 남습니다. 포즈/속도 전환, 이동 위상, 종별 기술 발사 시점과 관절 위치, 투사체 출발점 고정을 적용했습니다. 실제 Unity 스키닝 전체·14유닛 전투·양쪽 리플레이 검사는 NEXT_SESSION 최상단을 따릅니다. 새 정식 셰이더의 Editor 빌드와 전체 UI 재검사는 남아 있습니다. 최신 모델 제작·메탈그레이몬 백업은 아래 기록을 그대로 유지합니다.
+
+## 2026-10-06 메탈그레이몬 어깨 보완 — 최신
+
+메탈그레이몬 메시의 흉곽/상완 두께와 어깨 관절 간격(0.86→1.24), 높이를 보강했습니다. Down 접지 보정 후 10동작 변형·GLB·실제 WebGL·기술 표시 검증을 통과하고 갤러리에 반영했습니다. 다음 기술 저작은 이 종에 한해 `MetalGreymonShoulderApproved-20261006`을 자동 선택합니다. 다른 종은 기존 기준입니다. 수정 전 백업과 전후 이미지, 재실행 주의사항은 NEXT_SESSION 최상단을 따르세요. Unity 미통합입니다.
+
+## 2026-10-06 캐릭터 표면·기술 표현 개선 — 최신
+
+34종의 표면 재질/조명과 공격/기술 표현을 개선했습니다. 피부·털·껍질·금속의 마감, 불기둥·얼음 결정·물보라·전기·구체·문·미사일·깃털·덩굴의 형태를 구분합니다. 발사체는 실제 발사 자세에서 출발점을 고정해 손/입 반동과 독립적으로 이동합니다. 모델 체형·리그·GLB 클립은 보존하며 이번 범위는 갤러리 렌더링입니다. 상세·검사·전후 캡처는 `NEXT_SESSION.md` 최상단과 `Builds/QualityPass-20261006`입니다.
+
+## 2026-10-06 갤러리 모션 연결 보완
+
+기존 34종/352클립과 모델 원본을 유지하며 동작 전환을 보완했습니다. 현재 표시 자세에서 0.22초 연결, 전환 중 정지, 빠른 연속 선택, 자동 시연 연결과 정확한 프레임 이동을 처리합니다. 변경 전 코드에서는 그레이몬 일시정지 후 메시 정점이 움직이는 문제가 재현됐습니다. 코드·검사·현재 PC 경로는 `NEXT_SESSION.md` 최상단, 검사 자료는 `Builds/MotionConnectionValidation-20261006`에 있습니다. 기존 기술 저작 입력은 계속 TechniqueMotionBackup-20261002이며 Unity 게임에는 미통합입니다.
+
+## 2026-10-02 종별 기술·공격 모션 — 현재 기준
+
+사용자가 직전 외형·모션을 받아들인 뒤 **디지몬별 기술 파악과 일반/특수 공격, 부드러운 모션 연결**을 요청했습니다. 공식 도감 34종의 기술 설명을 확인해 **Attack/Skill 68클립을 교체**하고 갤러리에 기술 효과·기술명·공식 설명 링크·기술만 순회하는 시연을 추가했습니다. 전체는 기존과 같은 **34종/352클립**입니다. 각 모델의 다른 8개 공통 클립 272개, 네이티브 원본 12클립, 메시·스킨·재질·텍스처·노드 정의와 원본 BIN 바이트는 그대로 보존했습니다.
+
+- 그레이몬 메가 플레임은 입에서 나가며 목·가슴의 준비와 반동이 연결됩니다. 워그레이몬은 양팔을 머리 위로 들어 가이아 포스를 모아 던집니다. 메탈그레이몬은 가슴 미사일, 릴리몬은 두 손목 캐논, 엔젤몬은 지팡이 반대쪽 빛 주먹, 홀리엔젤몬은 실제 검 손과 게이트, 로제몬은 실제 채찍 손과 마디 지연, 세라피몬은 일곱 빛, 버드라몬은 날개 깃털 유성으로 구분했습니다.
+- 텐타몬은 날개에서 정전기, 가루다몬은 새 그림자를 남기는 바람 칼날, 봉황몬은 네 날개의 황금 입자입니다. 공식 설명에 맞춰 토게몬은 단단해진 바늘 주먹 연타, 토코몬은 물기로 정리했습니다. 토코몬 턱·쿠가몬 좌우 집게에는 독립 관절이 없어 해당 원본 리그 범위의 몸·목·아래턱과 타격 효과로 표현합니다. 원작의 모든 기술을 제작하거나 공식 게임 모션을 추출한 결과가 아닙니다.
+- **관절 모션은 GLB에 포함**, 불꽃·전기·물·미사일·빛·문·채찍 등의 효과는 `Tools/faithful_gallery/technique-effects.js`에서 클립 시간과 관절 위치로 계산합니다. 효과는 정지·배속·프레임 이동·반복과 함께 움직이고 비공격/수정 전 보기에는 남지 않습니다. Unity 일반 플레이는 기존 2D이며 이 갤러리 작업을 게임 전투에 통합하지 않았습니다.
+- 가감속은 양 끝 속도/가속도가 0인 곡선으로 구성하고 공격 후 중립 자세로 복귀합니다. 팔·턱·긴 귀·날개에서 발견된 늘어짐/급격한 이동은 동작 범위와 준비 시간을 조정했습니다. 34종 변형 표본, 프레임별 관절 이동, 그레이몬 눈 축/목 연결, GLB 구조·타이밍·보존 바이트 검사가 통과했습니다. 새 68클립은 실제 WebGL 변형 및 효과·기술명·준비/발사/복귀·켜기/끄기·재생 조작 검사를 했고, 변경 없는 클립은 동일 바이트와 직전 실제 브라우저 검사 증거를 확인했습니다. 게시 파일 SHA와 전후 비교·기술 시연 검사도 통과했습니다.
+- 현재 입력/복구 기준은 **`ArtSource/TechniqueMotionBackup-20261002`**입니다. `--reuse-current`는 `author_technique_motion.py`로 분기해 이 백업의 Blender/GLB를 읽고 두 공격만 다시 굽습니다. `merge_technique_clips.py`가 두 클립의 애니메이션 데이터만 원본 GLB에 합칩니다. **그레이몬 목 재구성·재스키닝을 다시 적용하면 안 됩니다.** 직전 ExpressiveMotionBackup 및 이전 백업은 과거 이력으로 보존합니다.
+- 기술 정의/출처: `Tools/faithful_techniques.py`, 관절 연출: `faithful_technique_poses.py`·`faithful_native_techniques.py`, 전체 기술 자료: `ArtSource/FaithfulGallery/techniques.json`, 조사 원문: `Builds/TechniqueResearch/official-profiles.json`. 그레이몬 공식 페이지는 `greymon-first`이며 `greymon`(다른 버전)을 사용하지 않습니다.
+- 확인: `http://127.0.0.1:8766/?motion=Skill#greymon`, 전체 기술 시연: `http://127.0.0.1:8766/?demo=skills#greymon`. ‘기술 효과’로 몸동작만 볼 수 있습니다. 검토 이미지: `Builds/TechniqueReview/techniques-1.jpg`~`techniques-6.jpg`, `techniques-overview.jpg`. 실제 영상 대신 갤러리 재생과 준비/발사 캡처를 제공했습니다.
+- 검증: `Builds/FaithfulMotionValidation/review-techniqueallfirst/browser-report.json`, `review-techniqueallrest/browser-report.json`, `published-report.json`, `Builds/FaithfulNaturalValidation/{glb-report,native-transition-report,comparison-report}.json`, 각 모델의 `deformation-report.json`. 반영은 `Tools/promote_faithful_motion.py`의 SHA/기술 브라우저 검사 게이트를 통과해야 합니다.
+- Windows 검사 명령은 C드라이브 작업 디렉터리에서 G드라이브 절대 경로를 사용합니다. Python 3.12용 `tmp/gallery-test-tools-py312`의 greenlet을 먼저 로드하는 기존 래퍼로 실행합니다. 두 개의 소프트웨어 WebGL 브라우저를 동시에 돌리면 매우 느려질 수 있어 순차 검사를 권장합니다. 인앱 브라우저는 이번에도 sandboxPolicy 오류로 시작하지 못해 설치된 Edge를 사용했습니다.
+- 코드·문서는 미커밋입니다. 모델·백업·Blender 편집본·검증 자료는 Git 제외 USB 자료로 함께 보존합니다. 이전 기록의 ‘현재 기준’은 아래 이력입니다.
+
+| 디지몬 ID | 일반 공격 | 특수 공격 |
+|---|---|---|
+| koromon | 몸통 박치기 | 거품 공격 |
+| tsunomon | 뿔 들이받기 | 산성 거품 |
+| mochimon | 탄성 몸통치기 | 탄성 거품 |
+| tanemon | 뿌리 박치기 | 접착 거품 |
+| pyocomon | 꽃 흔들기 | 비누꽃 |
+| tokomon | 짧은 몸통치기 | 물어뜯기 |
+| agumon | 발톱 베기 | 베이비 플레임 |
+| gabumon | 발톱 휘두르기 | 파란 불꽃 |
+| tentomon | 앞발 연타 | 쁘띠 썬더 |
+| palmon | 덩굴 후려치기 | 포이즌 아이비 |
+| piyomon | 부리 쪼기 | 매지컬 파이어 |
+| patamon | 윙 슬랩 | 에어 샷 |
+| togemon | 좌우 펀치 | 치쿠치쿠 뱅뱅 |
+| garurumon | 송곳니 덮치기 | 폭스 파이어 |
+| greymon | 뿔과 발톱 밀어치기 | 메가 플레임 |
+| kabuterimon | 네 팔 내려치기 | 메가 블래스터 |
+| angemon | 홀리 로드 타격 | 헤븐즈 너클 |
+| birdramon | 발톱 급강하 | 메테오 윙 |
+| metalgreymon | 트라이던트 암 | 기가 디스트로이어 |
+| weregarurumon | 권투 연타 | 카이저 네일 |
+| lilimon | 꽃잎 손날 | 플라워 캐논 |
+| holyangemon | 엑스칼리버 베기 | 헤븐즈 게이트 |
+| atlur | 앞다리와 뿔 타격 | 혼 버스터 |
+| garudamon | 갈고리 손톱 베기 | 섀도 윙 |
+| herakle | 집게와 네 팔 타격 | 기가 블래스터 |
+| hououmon | 황금 날개 쓸기 | 스타라이트 익스플로전 |
+| wargreymon | 드라몬 킬러 베기 | 가이아 포스 |
+| metalgarurumon | 기계 발톱 타격 | 코큐토스 브레스 |
+| rosemon | 가시 채찍 후려치기 | 쏜 위프 |
+| seraphimon | 빛의 구체 | 세븐 헤븐즈 |
+| kuwagamon | 네 팔 할퀴기 | 시저 암즈 |
+| shellmon | 앞발 밀어치기 | 하이드로 프레셔 |
+| devimon | 어둠의 손날 | 데스 클로 |
+| etemon | 러브 세레나데 | 다크 스피리츠 |
+
+
+## 2026-10-02 그레이몬 목 재구성·동작 개성 보완 — 현재 기준
+
+사용자가 직전 수정본도 “그레이몬 목이 돌아가 있고 모션이 단조롭다”고 지적해 다시 수정했습니다. **그레이몬의 실제 눈 표면 축을 기준으로 머리를 수평 정렬하고, 별도 Neck 관절·목 두께·목 가중치를 다시 만들었습니다.** 골반과 어깨 축, 팔꿈치·손·발 방향도 재정렬해 중립 자세를 새로 구웠습니다. 공개 원본의 메시 면수·UV·재질·출처는 유지했습니다. 현재 작업은 34종 갤러리의 모델·모션 수정이며 Unity 게임 적용은 아직입니다.
+
+- 그레이몬은 목과 머리가 나눠 움직입니다. 물기는 앞으로 몸을 싣고 턱을 열며, 특수 공격과 승리는 목·가슴을 들어 올리는 포효 자세로 구분했습니다. `alignment-report.json`은 실제 양 눈의 높이/앞뒤 축과 Spine→Neck→Head 연결을 검사하고 반영 GLB의 SHA를 기록합니다.
+- 전체 모션은 대기 중 시선 이동·호흡·체중 이동, 보행 시 몸통 반동·팔 스윙·꼬리 지연을 늘렸습니다. 물기/베기/양팔 연속 공격/펀치/돌진/지팡이/검/채찍/마법 등 종별 패턴을 나눴고 워그레이몬 특수 공격은 양팔을 머리 위로 올립니다. 유년기 눌림·도약, 사족형 몸통 돌진, 봉황몬 네 날개 위상, 승리 제스처와 넘어짐을 보완했습니다.
+- 큰 동작에서 드러난 파피몬 등 털·팔 안쪽과 헤라클레스캅테리몬 복부의 잘못된 관절 연결을 국소 수정했습니다. 로제몬은 실제 채찍 손의 관절 방향을 확인해 손목 방향을 고정하고 채찍 마디가 순서대로 따라오게 했습니다. 어니몬 공격은 1.6초로 늘려 큰 꽃의 반동이 급하지 않게 했습니다. 연속 공격의 두 번째 팔은 첫 타격과 독립된 연속 곡선을 사용합니다.
+- 버드라몬은 사용자가 기준으로 든 기존 비행 동작을 유지했습니다. 쿠가몬은 원래 관절에 네 팔·가슴·머리 반동을 보완했습니다. 두 종의 원본 12클립과 원본 메시·스킨·재질 BIN 바이트도 보존했습니다. 총량은 공통 340개와 원본 12개, **34종/352클립**으로 같으며 모든 클립을 새로 제작하거나 게임에서 추출했다고 설명하지 않습니다.
+
+검증: 34종 GLB 구조·타이밍·루프·정규화 가중치·기존 면수와 텍스처 보존, 공통 340클립의 표본 표면 변형/접지 및 모든 프레임 관절 전환, 전체 352클립의 실제 Edge WebGL 정점 이동·재생·타임라인·단발 복귀/반복·Down 유지가 통과했습니다. 34종의 대기/걷기/공격/특수 공격/승리/쓰러짐 6포즈를 7장으로 시각 검토했고 그레이몬의 정면 전후와 공격 애니메이션도 캡처했습니다. 6개 동작의 수정 전후 비교·정규화 시간·정지 상태 복원과 반영 SHA 일치를 확인했습니다. 표본 검증이며 완벽한 원작 재현이나 모든 자기 관통 인증은 아닙니다.
+
+재생: `http://127.0.0.1:8766/?motion=Walk#greymon`, `Tools/Open_Faithful_Gallery.ps1 -Model greymon -Motion Walk`. `전체 시연`으로 34종을 순회하며 `수정 전 보기`는 이번 직전 모델과 같은 동작·정규화 시점을 비교합니다. 실제 캡처는 `Builds/FaithfulNaturalValidation/greymon-stance-before-after.png`, `greymon-attack-before-after.gif`, `motion-sheet-01.png`~`07.png`이며 전체 미리보기는 `Builds/FaithfulFullRosterValidation/all-34-species.png`입니다.
+
+**현재 재생성 입력은 `ArtSource/ExpressiveMotionBackup-20261002`**입니다. 갤러리 34종·Blender 편집본·도구·검사와 `model-hashes.json`을 보존했습니다. `faithful_motion_catalog.BASELINE`과 `--reuse-current`가 이 백업을 읽습니다. 이전 NaturalMotionBackup 및 다른 백업도 그대로 둡니다. 새 목 교정은 이 입력에 한 번 적용하며 이미 교정된 후보에 반복 적용하지 마세요. 편집본 `AnimatedReview`, 반영본 `FaithfulGallery`, 비교본 `FaithfulGallery/previous`는 구분합니다. 정적 prepare/재질 전용 도구로 현재 애니메이션을 덮어쓰지 마세요.
+
+핵심 코드: `faithful_greymon_rebuild.py`, `verify_greymon_alignment.py`, `faithful_motion_personality.py`, `faithful_motion_binding.py`, `faithful_natural_motion.py`, `faithful_native_motion.py`, `faithful_motion_styles.py`, `faithful_motion_catalog.py`. 검사 기록: `FaithfulMotionValidation/published-report.json`, `review-expressivefirst/rest/native/fix/last`, `FaithfulNaturalValidation/natural-motion-report.json`, `glb-report.json`, `native-transition-report.json`, `comparison-report.json`, 각 모델의 `deformation-report.json`. 변경은 ce22d6e 위 미커밋이며 모델·백업·검사 파일은 Git 제외 USB 자료입니다. 아래 기록은 이전 수정 이력입니다.
+
+## 2026-10-02 그레이몬 자세·전체 자연스러운 모션 보완 — 가장 최신
+
+사용자 요청 “그레이몬 자세 수정, 전체 모션 자연스럽게”를 반영했습니다. **34종의 공통 10동작 340개를 갱신**했으며 버드라몬 11개·쿠가몬 1개 원본 동작은 보존해 총 352클립입니다. 새로 종이나 클립 수를 늘린 작업이 아닙니다. 아래의 모션 확장 기록은 이번 수정 전 상태입니다.
+
+- 그레이몬: 한 팔을 올리고 다리를 벌린 조각 원본 자세를 대기로 사용하던 문제를 수정했습니다. 골반과 몸통의 좌우 기울기, 양팔과 발 간격·높이, 손 방향, 턱과 꼬리를 다시 정렬한 중립 자세로 재바인딩했습니다. 잘못 Spine에 묶인 혀 944정점을 Jaw로 연결하고 발목 접힘을 국소 보정했습니다. 기존 메시 면수·UV·재질을 유지했습니다. `stance-report.json`에 전후 관절 좌표와 적용 내용을 기록했습니다.
+- 전체 모션: 무거운 이족형·작은 이족형·인간형·유년기·사족형·비행형·곤충형·셸몬으로 속도와 보폭을 구분했습니다. 지지하는 발은 골반 움직임과 분리하고, 스윙 궤적과 발끝 회전을 연결했습니다. 사족형은 걷기의 네 박자와 달리기의 다리 위상을 구분했습니다. 유년기는 눌림과 도약, 날개·귀·꼬리는 지연 반응을 적용했습니다.
+- 팔·다리 관절: 실제 부모 자세의 좌표계에서 회전하고 모델 고유의 무릎·팔꿈치 굽힘 면을 유지합니다. 일반적인 고정 방향을 사용하면서 관절이 갑자기 뒤집히던 문제를 줄였습니다. 공격은 준비·타격·회복의 시간을 구분하며, 한 번 재생하는 동작은 중립 자세로 진입·복귀합니다. Down은 다리 길이에 맞게 굽히고 균형을 잃을 때 접지를 풀며 발목 방향도 연속적으로 전환합니다.
+- 버드라몬: 기존 공격/승리 동작의 급격한 날개 전환을 그대로 이어 쓰지 않고 비행 사이클·선택 자세에 몸통·머리·회복·선회·착지를 다시 구성했습니다. Run의 날갯짓을 과속시키던 중복 사이클을 제거했습니다. 쿠가몬은 원래 관절에 네 팔의 지연 동작과 발 접지를 적용했습니다. 두 종의 원본 12클립 정의·원본 BIN 바이트·메시·스킨·재질은 보존했습니다.
+
+검증 완료: 34종/352클립 GLB 구조·길이·반복 끝점·가중치·기존 면수/텍스처 보존 검사, 공통 340클립의 13포즈 표면 늘어짐·바닥 침투 검사, 32종 Blender의 모든 프레임 관절 이동·중립 진입/복귀 검사, 원래 관절을 쓰는 2종의 내보낸 모든 프레임 전환 검사가 통과했습니다. 전체 352클립의 실제 Edge WebGL 정점 이동·타임라인·일회 재생/반복·Down 유지와 반영 SHA-256 일치를 확인했습니다. 34종의 대기/걷기/공격/특수 공격/쓰러짐 선택 프레임을 7장으로 검토했습니다. 이는 표본/선택 자세 검증이며 원작 모션의 완벽한 재현이나 모든 교차 관통 검증을 뜻하지 않습니다.
+
+재생: `http://127.0.0.1:8766/?motion=Walk#greymon` 또는 `Tools/Open_Faithful_Gallery.ps1 -Model greymon -Motion Walk`. `수정 전 보기`는 이번 수정 직전 352클립과 같은 동작·정규화 시점으로 비교합니다. `전체 시연`과 `Models_Demo.bat`는 34종을 순회합니다. 이번 변경은 갤러리 자산이며 Unity 게임 적용은 아직 하지 않았습니다.
+
+직전 상태·도구·검사 자료는 **`ArtSource/NaturalMotionBackup-20261002`**에 보존했습니다. `model-hashes.json`이 백업 기준입니다. `faithful_motion_catalog.BASELINE`과 `--reuse-current` 입력은 이 백업으로 갱신했습니다. 그레이몬의 자세 교정을 이미 수정된 Blender에 다시 적용하지 마세요. 편집본은 `ArtSource/AnimatedReview`, 반영본은 `ArtSource/FaithfulGallery`, 전후 비교는 `FaithfulGallery/previous`입니다. 더 이전의 MotionExpansionBackup/FullRosterBackup/FacePassBackup/NaturalPassBackup/AnimationBackup은 보존합니다.
+
+주요 코드: `faithful_pose_math.py`, `faithful_greymon_stance.py`, `faithful_motion_styles.py`, `faithful_natural_motion.py`, `faithful_native_motion.py`, `animate_faithful_models.py`, `extend_native_motion.py`. 결과는 `Builds/FaithfulMotionValidation/published-report.json`, `review-naturalfinalfirst/rest/fix`, `Builds/FaithfulNaturalValidation/glb-report.json`, `native-transition-report.json`, `motion-sheet-01.png`~`07.png`, 각 종의 `deformation-report.json`에 기록했습니다. 아구몬의 이전 얼굴 보정·출처·원본 모델은 유지했습니다. 코드·문서는 ce22d6e 위의 미커밋이고 자산·백업·검사 파일은 Git 제외 USB 자료입니다.
+
+추가 확인: 반영본에서 6개 동작의 수정 전후 비교와 정규화 시점·정지 상태 복원을 검사했습니다. Builds/FaithfulNaturalValidation/natural-motion-report.json에 34종/340개 공통/352개 전체와 전환 검사를 모았습니다. greymon-stance-before-after.png와 greymon-walk-before-after.gif는 실제 갤러리의 수정 전후 캡처이며, Builds/FaithfulFullRosterValidation/all-34-species.png도 갱신했습니다.
+
+## 2026-10-02 모션 확장 — 가장 최신
+
+**실제 메시 34종 모두 공통 10동작, 원본 모션 포함 총 352클립을 갤러리에 반영했습니다.** 직전 204클립에서 148개가 추가됐습니다. 아래 204클립과 6동작 기록은 이번 확장 전 이력입니다. Unity 게임 적용은 아직이며 일반 플레이는 기존 2D입니다.
+
+공통 동작은 Idle(대기), Walk(걷기), Run(달리기), Attack(공격), Skill(특수 공격), Guard(방어), Dodge(회피), Hit(피격), Victory(승리), Down(쓰러짐)입니다. 기존 32종은 6동작에서 10동작으로 확장했습니다. 쿠가몬은 원래 관절·스킨에 공통 10동작을 새로 붙이고 원본 1클립을 보존했습니다. 버드라몬은 기존 동작을 조정하고 회피·넘어짐을 만들어 공통 10동작을 추가했으며 원본 11클립도 보존했습니다. 352개를 전부 게임에서 추출한 원본 모션이라고 설명하지 않습니다.
+
+- 32종의 검토된 메시·가중치와 아구몬 얼굴 보정을 유지했습니다. 파피몬·가루다몬의 방어 팔 각도는 연결 메시가 늘어나지 않도록 줄였습니다.
+- 로제몬의 원래 팔 관절에는 IK 목표를 사용해 방어 시 손을 올리고 특수 공격 시 앞으로 뻗도록 보완했습니다. 버드라몬의 새 Down은 바닥에 닿는 넘어짐입니다.
+- 갤러리에 공통 10동작 바로 선택, 전체 자동 시연, 다음 캐릭터 이동을 추가했습니다. Down은 마지막 자세를 유지합니다. 수정 전 파일에 없는 새 동작은 대기 자세로 비교하고, 돌아오면 원래 동작·시간·정지를 복원합니다.
+- 재생: `http://127.0.0.1:8766/?demo=1#agumon`, 프로젝트의 `Models_Demo.bat`, 또는 `Tools/Open_Faithful_Gallery.ps1 -Model agumon -Demo`. 기존 `Models_Preview.bat`도 유효합니다.
+
+검증 결과: 34종/352클립 GLB 구조·타이밍·루프 검사와 모든 클립의 실제 WebGL 정점 이동·재생 검사가 통과했습니다. 공통 동작 340개의 클립당 13포즈에서 늘어짐·바닥 침투를 검사했고, 아구몬 얼굴의 Head 상대 변형도 검사했습니다. 반영 파일의 SHA-256은 검증한 후보와 모두 같습니다. 원본 12클립과 버드라몬·쿠가몬의 원본 메시·스킨·텍스처 BIN 바이트는 그대로 보존됐습니다. 표본 검사이며 원작 동작·세부 외형·모든 교차 관통의 완벽한 재현을 뜻하지 않습니다.
+
+추가 UI 검사도 통과했습니다: 자동 시연 시작·걷기로 자동 전환·정지/재개·다음 캐릭터·수동 선택 시 시연 중지·좁은 화면 표시, 새 특수 공격의 수정 전 대기 비교와 원래 포즈 복원입니다. `Builds/FaithfulCombatValidation/demo-report.json`과 `FaithfulNaturalValidation/comparison-report.json`에 기록했습니다.
+
+이번 수정 전 34종/204클립과 도구·검사 자료는 **`ArtSource/MotionExpansionBackup-20261002`**에 보존했습니다. `model-hashes.json`이 백업 기준입니다. 이전 FullRosterBackup/FacePassBackup/NaturalPassBackup/AnimationBackup도 덮어쓰지 않습니다. 현재 편집본은 `AnimatedReview`, 반영본은 `FaithfulGallery`이며 34종 모두 수정 전 비교 파일이 있습니다.
+
+주요 코드: `faithful_motion_catalog.py`(10클립과 기준 백업), `faithful_combat_poses.py`(새 동작), `animate_faithful_models.py --reuse-current`(32종), `extend_native_motion.py`(버드라몬·쿠가몬), `faithful_gallery/gallery.js`(재생·시연). **`--reuse-current`는 실행 시점의 후보가 아니라 MotionExpansionBackup의 확장 전 Blender를 읽습니다.** 다음 수동 편집을 재생성으로 덮기 전에 새 백업·입력 기준을 검토하세요. 원래 파일을 정적 파일로 덮는 prepare 도구나 재질 전용 도구를 현재 갤러리에 다시 실행하지 않습니다.
+
+검사 자료: `Builds/FaithfulMotionValidation/published-report.json`(34종/352클립과 해시), `Builds/FaithfulNaturalValidation/glb-report.json`, 각 후보의 `deformation-report.json`, `review-combatfirst`, `review-combatrest`, `review-collapse`, `review-rosegaze`. `Builds/FaithfulFullRosterValidation/all-34-species.png`은 갱신된 전체 미리보기입니다. 새 변경은 `ce22d6e` 위의 미커밋이며 자산·백업·보고서는 Git 제외 USB 자료입니다. 외부 공개·유료 생성·Git 업로드는 하지 않았습니다.
+
+## 2026-10-02 전체 갱신 — 가장 최신
+
+사용자 요청으로 **기존 15종을 모두 갱신하고 미제작 19종을 추가해 실제 메시 34종·204클립·미준비 0종**을 갤러리에 반영했습니다. 아래의 15종/90클립·19종 미준비 기록은 과거 이력입니다. 도형 조립식 구형 34종을 재사용하지 않았습니다. 일반 게임은 기존 2D이며, 이번 34종의 Unity 게임 적용은 아직 하지 않았습니다.
+
+- 기존 13종: 아구몬 얼굴 보정을 유지하고 달리기 팔 동작, 공격 체중 이동·반동, 피격 회복, 승리 제스처와 접지를 보완했습니다.
+- 신규 18종: 원작 게임에서 유래한 공개 Workshop OBJ와 원본 텍스처를 보존해 관절과 기본 6동작을 붙였습니다. 텐타몬 손 관절, 가루다몬 몸 중심, 엔젤몬 지팡이 양 끝·6개 날개·발목 연결을 검사 후 수정했습니다.
+- 로제몬: 공개 Workshop 배포본을 공식 SteamCMD 익명 다운로드로 확보했습니다. SourceIO로 원본 관절·스킨·얼굴 변형을 보존해 정상 형태를 변환하고 6동작을 추가했습니다. 보유 게임 폴더는 사용하지 않았습니다.
+- 버드라몬: 투명 깃털 경계를 유지하면서 몸과 겹친 깃털의 깊이 표시를 수정했습니다. 쿠가몬: 원본 텍스처에 곱해지던 회색과 과도한 광택을 보완했습니다. 두 종의 메시·텍스처·스킨·기존 모션 BIN 데이터는 원본과 바이트 단위로 같습니다.
+- 204클립 구성: 32종 × 신규/수정 6클립 = 192개 + 버드라몬 기존 11개 + 쿠가몬 기존 1개입니다. 모두 게임 원본 모션이라고 설명하지 않습니다.
+
+검증: 32종/192클립 GLB 구조·가중치·시간·루프 검사, 32종의 클립당 13포즈 실제 변형·늘어짐·접지 검사, 전체 34종/204클립 Edge WebGL 정점 변형·재생·타임라인 검사가 통과했습니다. 반영된 GLB 해시가 검사한 후보와 모두 같으며, 34개 선택 항목·미준비 0개·로제몬 한글 검색과 공식 참고 이미지 로딩, 아구몬/워그레이몬/홀리엔젤몬의 공격 자세 전후 비교도 확인했습니다. 표본 검사이므로 모든 자세의 원작 재현도나 모든 교차 관통까지 완벽하다고 주장하지 않습니다.
+
+현재 갤러리: `http://127.0.0.1:8766/` 또는 `Models_Preview.bat` / USB 루트 `Preview_Faithful_Digimon_3D.bat`. 기존 15종에는 이번 전체 갱신 직전 모습과 비교하는 버튼이 있습니다. 전체 미리보기 이미지는 `Builds/FaithfulFullRosterValidation/all-34-species.png`입니다.
+
+보존 위치:
+- `ArtSource/FullRosterBackup-20261002`: 이번 전체 갱신 직전 15종과 도구·검증 자료. 이전 FacePassBackup/NaturalPassBackup/AnimationBackup도 보존합니다.
+- `ArtSource/ThirdPartyCandidates/SteamDigimonModels-2101623444`: 원본 Workshop 목록, 18종 OBJ·텍스처, URL·SHA-256·출처.
+- `ArtSource/ThirdPartyCandidates/RosemonWorkshop-2451134533`: 공개 GMA 원본, 데이터 파일, 원본 Blender 가져오기, 추출 검증. 애드온 게임 스크립트는 실행하지 않았습니다.
+- `ArtSource/ExpandedSources-20261002`: 신규 19종 정규화 원본. 로제몬의 원본 관절 포함 Blender도 여기 있습니다.
+- `ArtSource/AnimatedReview`: 32종의 편집 가능한 Blender와 후보 GLB, 원본 모션 2종의 재질 수정 후보. `ArtSource/FaithfulGallery`: 반영본 34종.
+- `Builds/FaithfulMotionValidation/published-report.json`: 34종 최종 해시·204클립 검사 결과. `Builds/FaithfulNaturalValidation/glb-report.json`: 32종/192클립 구조 검사. 각 후보 폴더에 변형 검사 결과가 있습니다.
+
+출처: 새 OBJ 묶음은 https://steamcommunity.com/sharedfiles/filedetails/?id=2101623444 (Digital Dray), 로제몬은 https://steamcommunity.com/sharedfiles/filedetails/?id=2451134533 (BANDAI NAMCO 원본 게임, Debiddo 변환, Impmon 배포)입니다. 직접 창작 모델이나 공식 제공 자산으로 표현하지 않습니다. 출처·이용 조건과 원본 파일을 보존하며 이번 작업에서 외부 공개·배포·Git 업로드는 하지 않았습니다.
+
+다음 변경 시 새 백업을 만든 뒤 개별 외형·동작을 다듬습니다. 기존 13종의 `--reuse-bind`는 여전히 NaturalPassBackup 입력입니다. 신규 OBJ 18종은 `--reuse-bind` 없이 생성하고 로제몬은 native 경로로 원본 관절을 읽습니다. `faithful_rig_profiles.py`는 기존 13종 + `faithful_expanded_profiles.py` 신규 19종입니다. 재질만 갱신한 버드라몬/쿠가몬은 기존 애니메이션을 재샘플링하지 않습니다. 재생성한 종은 GLB·변형·브라우저 검사를 다시 통과시킨 뒤 `promote_faithful_motion.py --ids ...`로 반영합니다. 반영 도구는 후보 SHA와 일치하는 검사만 허용합니다.
+
+현재 경로는 G 드라이브입니다. 이전 E 경로의 그레이몬 원본은 프로젝트 상대 위치로 찾고 원본 SHA를 확인합니다. 기본 Python 3.12의 브라우저 검사는 `tmp/gallery-test-tools-py312`의 greenlet을 먼저 불러옵니다. 의존성은 Blender 4.5.9, Pillow, 기존 Playwright/Edge이며 로제몬 원본 재가져오기에는 `01_CurrentProject/tmp/SourceIO`가 필요합니다. 실제 자산·백업·검증 결과는 Git 제외이므로 USB를 함께 보존해야 합니다. 현재 HEAD `ce22d6e` 위의 변경은 미커밋입니다.
+
+## 2026-10-02 아구몬 얼굴·손 후속 수정 — 현재 상태
+
+어제 저장한 `develop`의 `ce22d6e`에서 재개했습니다. 현재 경로는 `G:\Dittoches_KEEP_20260917\01_CurrentProject\DittochesMulti`입니다. 아구몬의 주둥이 전체 폭과 앞면 곡률을 보완하고, 눈과 주변 피부를 함께 앞쪽으로 돌렸습니다. 팔꿈치를 몸 쪽으로 모으고 손목을 안쪽으로 돌렸습니다. 공개 팬 모델의 원작 재현도를 개선하는 검토본이며 최종 외형 승인을 받은 상태는 아닙니다.
+
+검토 과정에서 볼·눈 주변에 팔/상체 관절 가중치가 남아 얼굴이 끌리는 문제를 확인했습니다. `faithful_sculpt.py`에서 목과 아래턱의 연결을 부드럽게 유지하면서 위 얼굴·눈·눈썹을 Head에 연결했습니다. 혀의 턱 움직임은 유지하고 정점당 최대 4개 가중치를 정규화합니다. `animate_faithful_models.py`의 새 바인딩에서도 얼굴을 팔 영역으로 분류하지 않도록 수정했습니다.
+
+검증은 아구몬 6클립의 실제 Blender 표면 변형·바닥 관통·반복 연결과 상부 얼굴의 Head 상대 변형, 실제 Edge의 WebGL 재생·타임라인·공격 후 대기 복귀를 확인했습니다. 13종/78클립 GLB 구조·시간·루프·가중치·삼각형 및 텍스처 수 검사도 통과했습니다. 새 얼굴 검사는 어제 모델에서 실패하고 수정본에서 통과합니다(상부 얼굴 최대 상대 오차: 이전 약 0.33048, 현재 약 0.000000414 모델 단위; 클립별 13자세 표본). 검사 실패 시 종료 코드도 실패를 반환하도록 보완했습니다.
+
+`promote_faithful_motion.py --ids agumon`으로 검증된 아구몬만 반영했습니다. 다른 14종 GLB의 SHA-256은 수정 전과 같습니다. 비교 버튼의 아구몬 **수정 전**은 10월 1일 최종본이며, **수정 후**는 이번 수정본입니다. 아구몬·워그레이몬·홀리엔젤몬 3종의 같은 시점 비교와 복원 검사도 통과했습니다. 갤러리는 **15종/90클립**, 미준비 **19종**, Unity 게임 미적용 상태입니다.
+
+- 수정 전 전체 보존: `ArtSource/FacePassBackup-20261002` (`review`, `gallery`, `tools`, 기존 검사 결과·문서). 기존 NaturalPassBackup은 그대로입니다.
+- 편집본·내보내기·최신 렌더: `ArtSource/AnimatedReview/agumon`. 실제 갤러리: `ArtSource/FaithfulGallery/agumon`.
+- 검사 결과: `Builds/FaithfulMotionValidation/review-face20261002/browser-report.json`, `published-report.json`, `Builds/FaithfulNaturalValidation/glb-report.json`, `comparison-report.json`.
+- 이번 전후·보존·이전 모델 회귀 증거: `Builds/AgumonFaceReview-20261002`. 후보 중간 캡처보다 `FaithfulNaturalValidation/agumon-after.png`가 최종 반영 화면입니다.
+
+모델·백업·렌더·보고서는 Git 제외 대상이며 USB 로컬에 저장했습니다. 코드와 문서는 이번 세션에서 커밋/푸시하지 않았습니다. 다음은 치아·입술선·눈 표현과 손가락 세부 조형, 종별 걷기 접지의 추가 육안 검토입니다. 이후 워그레이몬·천사형과 미준비 19종을 이어갑니다. 이번 결과를 전체 3D 완성이나 정식 게임 적용으로 설명하지 마세요.
+
 > 2026-10-01 Git 저장 시점: 현재 코드와 다음 작업 메모를 저장합니다. 다음 세션은 [NEXT_SESSION.md](NEXT_SESSION.md) 최상단의 실행·수정·검증 절차에서 시작하세요. 현재 기준은 실제 메시 15종/90클립·미준비 19종·Unity 미적용입니다. 아래 ‘커밋·푸시하지 않았습니다’는 각 작업 당시 기록입니다. 모델·텍스처·원본 백업·검증 보고서는 Git 밖의 USB 로컬 자료이므로 함께 보존해야 합니다.
 
 ## 2026-10-01 2차 자연스러움 보완 — 가장 최신

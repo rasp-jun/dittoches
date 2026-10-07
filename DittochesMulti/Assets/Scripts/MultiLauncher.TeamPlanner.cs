@@ -12,6 +12,6 @@ public sealed partial class MultiLauncher
         if(!showTeamPlan)return;
         Player me=state!=null&&state.room!=null?state.room.players[state.room.side]:null;
         showTeamPlan=teamPlanner.Draw(new Rect(0,0,1600,1000),me==null?new string[0]:me.board.Select(u=>u.id).ToArray(),
-            me==null?new string[0]:me.bench.Select(u=>u.id).ToArray(),me==null?9:me.level,me!=null);
+            me==null?new string[0]:me.bench.Select(u=>u.id).ToArray(),me==null?9:OnlineFormationLimit(me),me!=null,me==null?null:me.board.Select(BuildMember).ToArray());
     }
 }

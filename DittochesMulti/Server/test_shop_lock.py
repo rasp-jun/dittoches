@@ -74,7 +74,8 @@ class ShopLockTests(unittest.TestCase):
         self.game.fight(self.room);frames=copy.deepcopy(self.room['frames']);offers=self.p['shop'].copy()
         self.action(action='shop_lock',shopLocked=False)
         self.assertEqual(self.room['frames'],frames);self.assertEqual(self.p['shop'],offers)
-        with self.assertRaises(Rejected):self.action(action='reroll')
+        gold=self.p['gold'];self.action(action='reroll')
+        self.assertEqual(self.p['gold'],gold-2);self.assertEqual(self.room['frames'],frames)
 
     def test_reconnect_retains_lock_and_opponent_cannot_see_it(self):
         self.action(action='shop_lock',shopLocked=True)

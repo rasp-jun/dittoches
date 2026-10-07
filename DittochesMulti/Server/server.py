@@ -1,5 +1,6 @@
 """Dittoches Multi prototype. Python 3.10+, standard library only."""
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -12,10 +13,15 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from combat_skills import simulate
-from combat_builds import combine
+from combat_builds import combine, ITEMS
 from combat_stats import SKILLS
 
 ROOT = Path(__file__).resolve().parent
+def formation_limit(player):
+    items=list(player.get('inventory', []))
+    for unit in player['board']+player['bench']:
+        if unit:items.extend(unit.get('items', []))
+    return min(28,player['level']+sum(ITEMS[i].get('teamSize',0) for i in items))
 ROSTER = json.loads((ROOT / 'roster.json').read_text(encoding='utf-8'))
 DEFS = {u['id']: u for u in ROSTER}
 POOL = [0, 39, 26, 21, 13, 10]
@@ -68,7 +74,7 @@ class Game:
     def player(self, session):
         return dict(id=session['id'], name=session['name'], rating=session['rating'], hp=100, gold=10, level=3, xp=0,
                     board=[None]*28, bench=[None]*9, shop=[None]*5, ready=False, shopLocked=False,
-                    inventory=[0,1,2,3,14],inventoryRevision=0,tamerX=3.,tamerY=7.,
+                    inventory=[0,1,2,3,14,15,16],inventoryRevision=0,tamerX=3.,tamerY=7.,
                     **session.get('cosmetics',dict(tamer=0,field=0,finisher=0)))
 
     @staticmethod
@@ -146,8 +152,15 @@ class Game:
         for area,i in slots:
             area[i]=None
         area,i=slots[0]
-        area[i]={'id':unit_id,'star':star+1,'items':equipment[:2]}
-        player['inventory'].extend(equipment[2:])
+        kept=[];returned=[];grants=set()
+        for item in equipment:
+            grant=ITEMS[item].get('grantsTrait')
+            if len(kept)>=2 or grant and grant in grants:returned.append(item)
+            else:
+                kept.append(item)
+                if grant:grants.add(grant)
+        area[i]={'id':unit_id,'star':star+1,'items':kept}
+        player['inventory'].extend(returned)
         if equipment:
             player['inventoryRevision']+=1
 
@@ -161,12 +174,14 @@ class Game:
             # Explicit state makes a repeated request idempotent; never reroll here.
             player['shopLocked']=data['shopLocked']
             return
-        require(room is not None and room['phase']=='prepare', '현재 준비 단계가 아닙니다.')
+        require(room is not None and room['phase'] in ('prepare','battle'), '지금은 변경할 수 없습니다.')
+        combat=room['phase']=='battle'
         player=next(p for p in room['players'] if p['id']==session['id'])
         if action=='ready':
+            require(not combat, '전투 중에는 준비 상태를 변경할 수 없습니다.')
             player['ready']=not player['ready']
         else:
-            require(not player['ready'], '준비 완료를 취소한 뒤 변경하세요.')
+            require(combat or not player['ready'], '준비 완료를 취소한 뒤 변경하세요.')
             if action=='buy':
                 i=index(data.get('slot'),5)
                 unit_id=player['shop'][i]
@@ -185,6 +200,8 @@ class Game:
                 player['gold']-=cost
                 player['shop'][i]=None
                 self.merge(room,player)
+                if combat:
+                    self.sync_combat_equipment(room,player)
             elif action=='reroll':
                 require(player['gold']>=2,'골드가 부족합니다.')
                 player['gold']-=2
@@ -194,10 +211,16 @@ class Game:
                 player['gold']-=4
                 self.add_xp(player,4)
             elif action in ('equip','combine_items'):
+                live_equip=combat and action=='equip' and data.get('area')=='board'
+                if live_equip:
+                    require(len(room.get('equipmentEvents',[]))<256,'이번 전투의 장비 변경 한도에 도달했습니다.')
                 self.equipment_action(player,data)
+                if live_equip:
+                    self.update_combat_equipment(room,player,data['slot'])
             elif action in ('move','sell'):
                 area=data.get('area')
                 require(area in ('board','bench'),'잘못된 영역입니다.')
+                require(not combat or area=='bench', '전투 중인 전장 유닛은 이동·판매할 수 없습니다.')
                 source=player[area]
                 i=index(data.get('slot'),len(source))
                 require(source[i] is not None,'빈 슬롯입니다.')
@@ -213,16 +236,50 @@ class Game:
                 else:
                     target_area=data.get('targetArea')
                     require(target_area in ('board','bench'),'잘못된 영역입니다.')
+                    require(not combat or target_area=='bench','전투 중에는 대기석 안에서만 이동할 수 있습니다.')
                     target=player[target_area]
                     j=index(data.get('targetSlot'),len(target))
                     count=sum(u is not None for u in player['board'])
                     increase=area=='bench' and target_area=='board' and target[j] is None
-                    require(not increase or count<player['level'],'배치 한도를 초과합니다.')
+                    require(not increase or count<formation_limit(player),'배치 한도를 초과합니다.')
                     source[i],target[j]=target[j],source[i]
             else:
                 raise Rejected('알 수 없는 행동입니다.')
-        if all(p['ready'] for p in room['players']):
+        if not combat and all(p['ready'] for p in room['players']):
             self.fight(room)
+
+    def sync_combat_equipment(self,room,player):
+        side=room['players'].index(player)
+        changes=[]
+        for fighter in room['initialFighters']:
+            if fighter['side']!=side:continue
+            unit=player['board'][fighter['slot']]
+            desired=list(unit.get('items',[])) if unit and unit['id']==fighter['id'] else []
+            previous=next((e['items'] for e in reversed(room['equipmentEvents']) if e['side']==side and e['slot']==fighter['slot']),fighter.get('items',[]))
+            if desired!=previous:changes.append((fighter['slot'],desired))
+        when=(math.floor(max(0,self.clock()-room['battleStartedAt'])/.2)+1)*.2
+        for slot,items in changes:self.update_combat_equipment(room,player,slot,items,when,False)
+        if changes:self.recompute_combat(room)
+
+    def update_combat_equipment(self,room,player,slot,items=None,when=None,recompute=True):
+        side=room['players'].index(player)
+        fighter=next((f for f in room['initialFighters'] if f['side']==side and f['slot']==slot),None)
+        if fighter is None:return
+        if items is None:items=player['board'][slot].get('items',[])
+        # Apply at the next 200 ms boundary. All already displayed snapshots stay
+        # unchanged, and deterministic replay retains HP, deaths, casts and timers.
+        elapsed=max(0,self.clock()-room['battleStartedAt'])
+        if when is None:when=(math.floor(elapsed/.2)+1)*.2
+        room['equipmentEvents'].append(dict(time=when,side=side,slot=slot,id=fighter['id'],items=list(items)))
+        if recompute:self.recompute_combat(room)
+
+    def recompute_combat(self,room):
+        fighters=copy.deepcopy(room['initialFighters'])
+        frames,events,duration=simulate(fighters,DEFS,room['equipmentEvents'])
+        totals=[sum(f['hp'] for f in fighters if f['side']==s) for s in (0,1)]
+        winner=-1 if abs(totals[0]-totals[1])<.001 else int(totals[1]>totals[0])
+        room.update(frames=frames,skillEvents=events,battleDuration=duration,
+                    deadline=room['battleStartedAt']+duration,roundWinner=winner)
 
     @staticmethod
     def equipment_action(player, data):
@@ -237,7 +294,7 @@ class Game:
             j=index(data.get('targetItemSlot'),len(inventory))
             require(i!=j,'서로 다른 두 재료 슬롯을 선택하세요.')
             completed=combine(item,inventory[j])
-            require(completed is not None,'기본 재료 2개만 합성할 수 있습니다.')
+            require(completed is not None,'합성 가능한 재료 2개를 선택하세요.')
             for slot in sorted((i,j),reverse=True):
                 inventory.pop(slot)
             inventory.append(completed)
@@ -254,12 +311,16 @@ class Game:
                 inventory.extend(equipped)
                 unit['items']=[]
             else:
-                partner=next((j for j,value in enumerate(equipped) if value<4),None) if item<4 else None
+                partner=next((j for j,value in enumerate(equipped) if combine(value,item) is not None),None)
                 require(partner is not None or len(equipped)<2,'장비 슬롯이 가득 찼습니다.')
                 if partner is not None:
                     equipped[partner]=combine(equipped[partner],item)
                 else:
                     equipped.append(item)
+                from combat_builds import ITEMS, TRAITS
+                granted=[ITEMS[value].get('grantsTrait') for value in equipped if ITEMS[value].get('grantsTrait')]
+                require(len(granted)==len(set(granted)) and not any(t['id'] in granted and unit['id'] in t['members'] for t in TRAITS),
+                        '이미 보유한 시너지입니다. 다른 아군에게 장착하세요.')
                 unit['items']=equipped
                 inventory.pop(i)
         player['inventoryRevision']+=1
@@ -285,10 +346,11 @@ class Game:
                 hp=SKILLS[unit['id']]['baseHealth']*1.8**(unit['star']-1)
                 fighters.append(dict(key=len(fighters),side=side,slot=slot,id=unit['id'],star=unit['star'],x=float(slot%7 if side==0 else 6-slot%7),
                                      y=float(slot//7+4 if side==0 else 3-slot//7),hp=hp,maxHp=hp,cooldown=0,items=list(unit.get('items',[]))))
+        room.update(initialFighters=copy.deepcopy(fighters),equipmentEvents=[],battleStartedAt=self.clock())
         frames, skill_events, playback_duration = simulate(fighters, DEFS)
         totals=[sum(f['hp'] for f in fighters if f['side']==side) for side in (0,1)]
         winner=-1 if abs(totals[0]-totals[1])<.001 else int(totals[1]>totals[0])
-        room.update(phase='battle',deadline=self.clock()+playback_duration,frames=frames,skillEvents=skill_events,battleDuration=playback_duration,roundWinner=winner)
+        room.update(phase='battle',deadline=room['battleStartedAt']+playback_duration,frames=frames,skillEvents=skill_events,battleDuration=playback_duration,roundWinner=winner)
 
     def settle(self, room):
         if room['phase']!='battle':
@@ -329,6 +391,7 @@ class Game:
             for p in room['players']:
                 # Equal supplies for both sides; no client-controlled loot rolls.
                 p['inventory'].append((room['round']-2)%4)
+                if room['round'] in (3,5,7,9):p['inventory'].append(15 if room['round'] in (3,7) else 16)
                 if room['round']%3==0:
                     p['inventory'].append(14)
                 p['inventoryRevision']+=1
@@ -382,7 +445,7 @@ class Game:
 
     def snapshot(self, session):
         response=dict(token=session['token'],name=session['name'],rating=session['rating'],queue=session['queue'],
-                      waiting=len(self.queues.get(session['queue'],[])),room=None,error='',reliableCommands=1)
+                      waiting=len(self.queues.get(session['queue'],[])),room=None,error='',reliableCommands=1,combatActions=1)
         room=self.rooms.get(session['room'])
         if room:
             side=next(i for i,p in enumerate(room['players']) if p['id']==session['id'])

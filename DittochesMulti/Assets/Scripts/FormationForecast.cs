@@ -15,7 +15,7 @@ public static class FormationForecast
         public bool allowed;public string message;public string[] board,bench;public TraitChange[] traits;
         public bool Changed { get {return traits.Any(t=>t.before!=t.after);} }
     }
-    public static Plan Preview(string[] board,string[] bench,bool fromBoard,int source,bool toBoard,int destination,int level)
+    public static Plan Preview(string[] board,string[] bench,bool fromBoard,int source,bool toBoard,int destination,int level,DigimonBuildCatalog.Member[] members=null,DigimonBuildCatalog.Member[] reserves=null)
     {
         var plan=new Plan{board=(string[])board.Clone(),bench=(string[])bench.Clone()};
         var from=fromBoard?plan.board:plan.bench;var to=toBoard?plan.board:plan.bench;
@@ -28,8 +28,12 @@ public static class FormationForecast
             string displaced=to[destination];to[destination]=from[source];from[source]=displaced;
             plan.allowed=true;plan.message="현재 → 이동 후 · 서로 다른 종류만 집계";
         }
+        var beforeMembers=members??board.Select(id=>new DigimonBuildCatalog.Member(id)).ToArray();
+        var afterMembers=(DigimonBuildCatalog.Member[])beforeMembers.Clone();
+        var afterBench=reserves==null?bench.Select(id=>new DigimonBuildCatalog.Member(id)).ToArray():(DigimonBuildCatalog.Member[])reserves.Clone();
+        if(plan.allowed){var origin=fromBoard?afterMembers:afterBench;var target=toBoard?afterMembers:afterBench;var other=target[destination];target[destination]=origin[source];origin[source]=other;}
         plan.traits=DigimonBuildCatalog.Data.traits.Select(t=>new TraitChange{trait=t,
-            before=DigimonBuildCatalog.Count(t,board),after=DigimonBuildCatalog.Count(t,plan.board)})
+            before=DigimonBuildCatalog.Count(t,beforeMembers),after=DigimonBuildCatalog.Count(t,afterMembers)})
             .Where(t=>t.before>0||t.after>0).OrderByDescending(t=>Math.Abs(t.AfterTier-t.BeforeTier))
             .ThenByDescending(t=>t.before!=t.after).ThenByDescending(t=>t.AfterTier).ThenBy(t=>t.trait.name).ToArray();
         if(plan.allowed&&!plan.Changed)plan.message="전장 구성 유지 · 시너지 변화 없음";

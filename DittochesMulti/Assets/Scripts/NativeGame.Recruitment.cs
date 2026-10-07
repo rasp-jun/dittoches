@@ -16,7 +16,7 @@ public sealed partial class NativeGame
         bool fromBoard=draggingUnit?dragFromBoard:selectedBoard>=0;
         int source=draggingUnit?dragSource:fromBoard?selectedBoard:selectedBench;
         return FormationForecast.Preview(board.Select(u=>u==null?null:u.def.id).ToArray(),bench.Select(u=>u==null?null:u.def.id).ToArray(),
-            fromBoard,source,target<56,target<56?target-28:target-56,level);
+            fromBoard,source,target<56,target<56?target-28:target-56,FormationLimit,board.Select(BuildMember).ToArray(),bench.Select(BuildMember).ToArray());
     }
     void OpenShopSkill(UnitDef definition)
     {

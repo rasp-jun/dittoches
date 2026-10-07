@@ -101,11 +101,13 @@ def select_target(fighter, fighters, keep_current=True):
     return reachable if reachable is not None else current if current is not None else next(iter(ordered), None)
 
 
-def simulate(fighters, definitions):
+def simulate(fighters, definitions, equipment_events=()):
     """50 ms simulation, 200 ms snapshots, explicit events for reconnect-safe playback."""
     frames, casts = [], []
     step_time = .05
     serial = 0
+    changes = iter(sorted(equipment_events, key=lambda e: e['time']))
+    change = next(changes, None)
     for f in fighters:
         skill=SKILLS[f['id']]
         f.update(mana=skill['startMana'], maxMana=skill['maxMana'], stun=0, castUntil=0, attackAt=-10, hitAt=-10, target=-1)
@@ -114,6 +116,19 @@ def simulate(fighters, definitions):
         f.update(combatStatsVersion=2,attackDamage=stats.attack(f),abilityPower=stats.ability_power(f),armor=builds.value(f,'armor'),magicResist=builds.value(f,'magicResist'),attackRange=SKILLS[f['id']]['attackRange'])
     for step in range(481):
         now = step*step_time
+        changed_sides=set()
+        while change is not None and change['time'] <= now+1e-8:
+            fighter = next((f for f in fighters if f['side']==change['side'] and f['slot']==change['slot'] and f['id']==change['id']), None)
+            if fighter is not None:
+                fighter['items']=list(change['items'])
+                changed_sides.add(fighter['side'])
+            change = next(changes, None)
+        for side in sorted(changed_sides):
+            team=[f for f in fighters if f['side']==side]
+            for ally in team:
+                builds.change_equipment(ally, ally.get('items', []), team)
+                ally.update(attackDamage=stats.attack(ally), abilityPower=stats.ability_power(ally),
+                            armor=builds.value(ally,'armor'), magicResist=builds.value(ally,'magicResist'))
         if step:
             for f in fighters:
                 f['stun'] = max(0, f['stun']-step_time)

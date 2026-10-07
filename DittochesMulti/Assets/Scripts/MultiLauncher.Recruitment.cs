@@ -21,7 +21,8 @@ public sealed partial class MultiLauncher
         var board=new string[28];var bench=new string[9];
         foreach(var unit in me.board)board[unit.slot]=unit.id;
         foreach(var unit in me.bench)bench[unit.slot]=unit.id;
-        return FormationForecast.Preview(board,bench,selectedArea=="board",selectedSlot,seat<0,seat>=0?seat:cell-28,me.level);
+        return FormationForecast.Preview(board,bench,selectedArea=="board",selectedSlot,seat<0,seat>=0?seat:cell-28,OnlineFormationLimit(me),
+            Enumerable.Range(0,28).Select(i=>BuildMember(At(me.board,i))).ToArray(),Enumerable.Range(0,9).Select(i=>BuildMember(At(me.bench,i))).ToArray());
     }
     void OpenOnlineShopSkill(UnitDef definition)
     {onlineSkillId=definition.id;onlineSkillArea="shop";onlineSkillSlot=-1;onlineItemGuide=-1;arenaPointer.Reset();}

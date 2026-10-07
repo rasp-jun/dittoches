@@ -5,6 +5,40 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    void ValidateCombatManagementRules()
+    {
+        artPack=0;battling=false;showCarousel=false;scoutedRival=-1;hp=100;gold=100;level=3;round=4;
+        Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
+        board[3]=new Unit(RosterById["agumon"]);bench[0]=new Unit(RosterById["agumon"]);
+        RebuildPool();SetupBattle();battling=true;
+        var live=fighters.First(f=>!f.enemy);live.hp=live.maxHp*.4f;live.mana=7;live.lowShieldUsed=true;live.attacks=5;live.damageDone=123;
+        Require(!ReferenceEquals(live.unit,board[3]),"combat unit detached from future formation");
+        float baseMax=live.maxHp,baseHp=live.hp;
+        inventory.Add(8);selectedItem=0;Equip(live.unit);
+        Require(board[3].items.SequenceEqual(new[]{8})&&live.unit.items.SequenceEqual(new[]{8})&&live.build.armor>=30,"live click equips owned unit and combat snapshot");
+        Require(live.maxHp>baseMax&&Mathf.Abs(live.hp/live.maxHp-.4f)<.0001f,"health item preserves current health percentage");
+        inventory.Add(14);selectedItem=0;Equip(live.unit);
+        Require(board[3].items.Count==0&&live.unit.items.Count==0&&Mathf.Abs(live.hp-baseHp)<.01f,"live removal does not create health");
+        Require(live.mana==7&&live.lowShieldUsed&&live.attacks==5&&live.damageDone==123,"equipment preserves mana crisis and combat counters");
+        inventory.Clear();inventory.Add(12);selectedItem=0;Equip(live.unit);
+        Require(live.build.abilityPower==45&&live.mana==7,"live AP applies without replaying opening mana");
+        shop[0]=RosterById["agumon"];Require(Buy(0),"combat purchase succeeds");
+        Require(board[3].star==2&&live.unit.star==1,"combat purchase merge applies next round without changing current star");
+        selectedBoard=3;selectedBench=-1;int bank=gold;SellSelectedUnit();
+        Require(board[3]!=null&&gold==bank,"direct combat board sale rejected");
+        bench[1]=new Unit(RosterById["koromon"]);bench[1].items.Add(1);
+        selectedBoard=-1;selectedBench=1;ClickBench(8);
+        Require(bench[1]==null&&bench[8]!=null,"combat bench click moves unit");
+        dragSource=8;dragFromBoard=false;draggingUnit=true;int bag=inventory.Count;bank=gold;
+        DropDraggedUnit(SellDropZone.center);
+        Require(bench[8]==null&&gold==bank+1&&inventory.Count==bag+1&&inventory.Last()==1,"shop drop sells once and returns equipment");
+        DropDraggedUnit(SellDropZone.center);Require(gold==bank+1,"repeat drop cannot sell empty source");
+        dragSource=-1;draggingUnit=false;selectedBoard=selectedBench=selectedItem=-1;
+        bank=gold;RerollShop();Require(gold==bank-2,"combat reroll costs two");bank=gold;PurchaseExperience();Require(gold==bank-4,"combat experience purchase costs four");
+        float deadMax=live.maxHp;live.dead=true;live.hp=0;ApplyLiveEquipment(live,new[]{8});
+        Require(live.hp==0&&live.maxHp==deadMax,"equipment never resurrects dead fighter");
+        fighters.Clear();skillCasts.Clear();battling=false;inspectedUnit=null;
+    }
     void ValidateFormationRules()
     {
         artPack=0;battling=false;selectedItem=-1;
@@ -162,11 +196,11 @@ public sealed partial class NativeGame
             inventory.Clear();inventory.Add(a);inventory.Add(b);selectedItem=-1;
             SelectInventoryItem(0);SelectInventoryItem(1);
             Require(inventory.SequenceEqual(new[]{result}),"inventory combine consumes exactly two");
-            Unit equipped=new Unit(Roster[0]);equipped.items.Add(a);equipped.items.Add(4);
+            Unit equipped=new Unit(Roster[0]);bench[8]=equipped;equipped.items.Add(a);equipped.items.Add(4);
             inventory.Clear();inventory.Add(b);selectedItem=0;Equip(equipped);
             Require(equipped.items.SequenceEqual(new[]{result,4})&&inventory.Count==0,"auto combine on full equipment slots");
         }
-        Unit original=LoadUnit(new UnitSave{id="agumon",star=2,items=new[]{12,13}});
+        Unit original=LoadUnit(new UnitSave{id="agumon",star=2,items=new[]{12,13}});bench[8]=original;
         Require(original.items.SequenceEqual(new[]{12,13})&&!ItemNames[12].Contains("캡슐")&&!ItemNames[13].Contains("캡슐"),"legacy capsule ids map to equipment");
         inventory.Clear();inventory.Add(0);selectedItem=0;Equip(original);
         Require(inventory.Count==1&&original.items.Count==2,"full slots reject without consuming");
@@ -194,7 +228,7 @@ public sealed partial class NativeGame
         attacker.build=new DigimonBuildCatalog.Bonus{regen=.01f,healPower=.2f,manaRegen=3};attacker.hp=attacker.maxHp*.5f;attacker.mana=0;before=attacker.hp;
         TickBuild(attacker,1);Require(Mathf.Abs(attacker.hp-before-attacker.maxHp*.012f)<.01f&&attacker.mana==3,"regeneration and mana tick");
         inventory.Clear();inventory.Add(0);selectedItem=0;battling=true;Equip(board[0]);battling=false;
-        Require(inventory.Count==1&&board[0].items.Count==0,"board equipment frozen in combat");
+        Require(inventory.Count==0&&board[0].items.SequenceEqual(new[]{0}),"board equipment allowed during combat");
         Save();Require(Load(),"version two save roundtrip");
         var legacy=JsonUtility.FromJson<SoloSave>(PortablePreviewPrefs.GetString(SaveKey));legacy.version=1;
         PortablePreviewPrefs.SetString(SaveKey,JsonUtility.ToJson(legacy));Require(Load(),"version one save still loads");

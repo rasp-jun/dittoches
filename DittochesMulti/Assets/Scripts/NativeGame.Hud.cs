@@ -44,8 +44,8 @@ public sealed partial class NativeGame
             DrawRect(segment,i<step-1?accent:new Color(.14f,.22f,.24f));
             if(i==step-1)DrawRect(new Rect(segment.x,segment.y,segment.width*(battling?1-battleProgress:1),5),new Color(.39f,.87f,.73f));
         }
-        GUI.Label(new Rect(1240,18,215,27),"전장  "+board.Count(u=>u!=null)+" / "+level,hudName);
-        int vacancies=level-board.Count(u=>u!=null);
+        GUI.Label(new Rect(1240,18,215,27),"전장  "+board.Count(u=>u!=null)+" / "+FormationLimit,hudName);
+        int vacancies=FormationLimit-board.Count(u=>u!=null);
         GUI.Label(new Rect(1240,48,215,22),vacancies>0?"빈 전장 슬롯 "+vacancies+"칸 · 배치 가능":"최대 인원 배치 완료",hudSmall);
         GUI.Label(new Rect(1460,20,160,26),"대기석 "+bench.Count(u=>u!=null)+" / 9",hudSmall);
         for(int i=0;i<9;i++)DrawRect(new Rect(1460+i*17,56,12,4),bench[i]!=null?accent:new Color(.14f,.22f,.24f));
@@ -88,7 +88,7 @@ public sealed partial class NativeGame
         int itemPages=Mathf.Max(1,(inventory.Count+11)/12);inventoryPage=Mathf.Clamp(inventoryPage,0,itemPages-1);
         for(int slot=0;slot<12;slot++)
         {
-            int i=inventoryPage*12+slot;Rect r=new Rect(30+slot%4*47,550+slot/4*46,40,40);
+            int i=inventoryPage*12+slot;Rect r=InventorySlotRect(slot);
             GUI.Box(r,GUIContent.none,i==selectedItem?selectedStyle:card);
             if(i>=inventory.Count)continue;int item=inventory[i];Event e=Event.current;
             if(GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&r.Contains(e.mousePosition))
@@ -101,7 +101,7 @@ public sealed partial class NativeGame
             GUI.Label(new Rect(75,693,90,26),(inventoryPage+1)+" / "+itemPages,center);
             if(HudButton(new Rect(174,693,40,26),"›",inventoryPage+1<itemPages))inventoryPage++;
         }
-        GUI.Label(new Rect(30,737,182,64),selectedItem>=0?EquipmentHint():"무장 클릭 → 아군에게 장착\n재료 2개 클릭 → 융합\n우클릭 / 도감 → 전체 조합",hudWrap);
+        GUI.Label(new Rect(30,737,182,64),selectedItem>=0?EquipmentHint():"무장 드래그 / 클릭 → 장착\n재료 2개 클릭 → 융합\n우클릭 / 도감 → 전체 조합",hudWrap);
     }
     void DrawArenaHudRight()
     {
@@ -123,8 +123,7 @@ public sealed partial class NativeGame
             }
             if(lastBattleReport.Count>0||battling)if(HudButton(new Rect(x+13,695,192,34),"전투 기록"))showCombatReport=true;
         }
-        bool canSell=!showCarousel&&(selectedBench>=0||(!battling&&selectedBoard>=0));
-        if(HudButton(new Rect(x+13,767,192,42),"선택 유닛 판매",canSell))SellSelectedUnit();
+        GUI.Label(new Rect(x+13,767,192,42),battling?"대기석 → 상점에 드래그\n[E] 판매":"유닛 → 상점에 드래그\n[E] 판매",hudSmall);
     }
     void DrawArenaHudShop()
     {
@@ -147,10 +146,11 @@ public sealed partial class NativeGame
         for(int i=0;i<5;i++)if(shop[i]!=null&&new Rect(249+i*285,893,271,170).Contains(mouse))previewCost=shop[i].cost;
         if(level<9&&new Rect(24,925,200,54).Contains(mouse))previewCost=4;
         if(new Rect(24,991,200,54).Contains(mouse))previewCost=2;
-        GUI.Label(new Rect(1104,859,385,28),new GUIContent(previewCost>=0?RecruitmentAdvice.Spend(gold,previewCost):RecruitmentAdvice.Bank(gold), "보유 골드 10마다 이자 +1G, 최대 +5G · 현재 보유 골드 기준"),hudSmall);
+        GUI.Label(new Rect(1104,859,385,28),new GUIContent(draggingUnit&&HeldUnit()!=null?"판매 후 "+(gold+UnitSaleValue(HeldUnit()))+"G · 이자 +"+RecruitmentAdvice.Interest(gold+UnitSaleValue(HeldUnit()))+"G":previewCost>=0?RecruitmentAdvice.Spend(gold,previewCost):RecruitmentAdvice.Bank(gold), "보유 골드 10마다 이자 +1G, 최대 +5G · 현재 보유 골드 기준"),hudSmall);
         if(HudButton(new Rect(1501,858,159,28),new GUIContent(shopLocked?"잠금 유지 중":"상점 잠금",RecruitmentAdvice.ShopLockHint),true,shopLocked)){shopLocked=!shopLocked;Save();}
         for(int i=0;i<5;i++)
         {
+            if(draggingUnit&&HeldUnit()!=null)continue;
             Rect r=new Rect(249+i*285,893,271,170);var d=shop[i];
             bool hovered=GUI.enabled&&r.Contains(Event.current.mousePosition);
             if(Event.current.type==EventType.Repaint)shopHover[i]=Mathf.MoveTowards(shopHover[i],hovered?1:0,Time.unscaledDeltaTime*7);
@@ -192,8 +192,8 @@ public sealed partial class NativeGame
             if(!afford||!room)DrawRect(r,new Color(.012f,.018f,.026f,.22f));
         }
         bool carousel=RoundType()=="초밥집";
-        GUI.Label(new Rect(1694,870,208,28),battling?"전투 진행 중":"배치 준비",center);
+        GUI.Label(new Rect(1694,870,208,28),battling?"장비·상점 이용 가능":"배치 준비",center);
         if(HudButton(new Rect(1696,916,205,87),battling?"전투 중":carousel?"보상 선택\n[SPACE]":"전투 시작\n[SPACE]",!battling&&(carousel||board.Any(u=>u!=null)),true))StartRoundAction();
-        GUI.Label(new Rect(1696,1014,205,46),"배치 "+board.Count(u=>u!=null)+" / "+level+"\n대기석 "+bench.Count(u=>u!=null)+" / 9",center);
+        GUI.Label(new Rect(1696,1014,205,46),"배치 "+board.Count(u=>u!=null)+" / "+FormationLimit+"\n대기석 "+bench.Count(u=>u!=null)+" / 9",center);
     }
 }

@@ -12,7 +12,7 @@ public sealed partial class NativeGame
     private string lastReportRound="";
     private string placementNotice="";
     private float placementNoticeUntil;
-    private Rect SellDropZone { get { return artPack==0?new Rect(1699,767,192,42):new Rect(1380,672,500,48); } }
+    private Rect SellDropZone { get { return artPack==0?new Rect(249,893,1411,170):new Rect(1380,672,500,48); } }
     private int UnitSaleValue(Unit unit){return unit==null?0:unit.def.cost*(int)Mathf.Pow(3,unit.star-1);}
     private void RerollShop()
     {
@@ -31,7 +31,11 @@ public sealed partial class NativeGame
         bool hovered=SellDropZone.Contains(Event.current.mousePosition);
         DrawRect(SellDropZone,hovered?new Color(.42f,.16f,.12f):new Color(.12f,.075f,.05f));
         DrawRect(new Rect(SellDropZone.x,SellDropZone.y,SellDropZone.width,3),hovered?new Color(1f,.5f,.3f):accent);
-        GUI.Label(SellDropZone,"여기에 놓아 판매  ·  "+UnitSaleValue(HeldUnit())+" G",center);
+        Unit unit=HeldUnit();
+        Portrait(new Rect(SellDropZone.x+26,SellDropZone.y+23,112,112),UnitSprite(unit.def));
+        GUI.Label(new Rect(SellDropZone.x+165,SellDropZone.y+28,SellDropZone.width-195,43),UnitName(unit.def)+"  ·  판매 +"+UnitSaleValue(unit)+" G",new GUIStyle(header){fontSize=27});
+        GUI.Label(new Rect(SellDropZone.x+165,SellDropZone.y+77,SellDropZone.width-195,35),"상점 영역에 놓으면 판매됩니다 · 밖에 놓거나 ESC로 취소",new GUIStyle(label){fontSize=20});
+        GUI.Label(new Rect(SellDropZone.x+165,SellDropZone.y+120,SellDropZone.width-195,28),"장착 장비 "+unit.items.Count+"개 반환 · "+RecruitmentAdvice.Bank(gold+UnitSaleValue(unit)),small);
     }
     private readonly Dictionary<Unit,float> promotions=new Dictionary<Unit,float>();
     private readonly List<BattleTrace> battleTraces=new List<BattleTrace>();
@@ -147,26 +151,46 @@ public sealed partial class NativeGame
     {
         if(unit==null||selectedItem<0||selectedItem>=inventory.Count)return false;
         int item=inventory[selectedItem];
-        if(artPack==0)return DigimonBuildCatalog.PreviewEquipment(unit.items,item).allowed&&!(battling&&board.Contains(unit));
+        if(artPack==0)return DigimonBuildCatalog.PreviewEquipment(unit.items,item,unit.def.id).allowed;
         if(item==14)return unit.items.Count>0;
         return (item<=3&&unit.items.Any(i=>i<=3))||unit.items.Count<2;
     }
-    private Unit EquipmentHoverTarget(out string blocked)
+    Rect equipmentTargetRect;
+    Unit CombatEquipmentTarget(Fighter fighter,out string blocked)
     {
         blocked="";
-        int hit=PickFormationTarget(Event.current.mousePosition);
-        Unit target=hit>=56?bench[hit-56]:!battling&&scoutedRival<0&&hit>=28?board[hit-28]:null;
-        if(battling&&target==null)
+        if(fighter.enemy){blocked="상대 유닛에는 장비를 장착할 수 없습니다";return null;}
+        if(fighter.sourceSlot>=0&&(board[fighter.sourceSlot]==null||board[fighter.sourceSlot].def.id!=fighter.unit.def.id))
+        {blocked="합성으로 회수된 유닛입니다";return null;}
+        return fighter.unit;
+    }
+    private Unit EquipmentHoverTarget(out string blocked)
+    {
+        blocked="";equipmentTargetRect=new Rect();Vector2 pointer=Event.current.mousePosition;
+        // Label selection wins over a different model's overlapping silhouette.
+        if(battling&&artPack==0)
         {
-            foreach(Fighter fighter in fighters.Where(f=>!f.dead).OrderByDescending(f=>f.renderPos.y))
+            foreach(var row in combatLabels)
             {
-                Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(fighter.unit.def.id,fighter.unit.star):1.4f)),feet=arena.Project(FighterWorld(fighter));
-                if(!new Rect(feet.x-40,head.y,80,Mathf.Max(24,feet.y-head.y)).Contains(Event.current.mousePosition))continue;
-                if(fighter.enemy){blocked="상대 유닛에는 장비를 장착할 수 없습니다";return null;}
-                target=fighter.unit;break;
+                var f=(Fighter)row.key;
+                if(f.dead||!fighters.Contains(f)||!row.rect.Contains(pointer))continue;
+                equipmentTargetRect=row.rect;return CombatEquipmentTarget(f,out blocked);
             }
         }
-        if(artPack==0&&battling&&target!=null&&board.Contains(target))blocked="전장 장비 변경은 준비 단계에 가능합니다";
+        int hit=PickFormationTarget(pointer);
+        Unit target=hit>=56?bench[hit-56]:!battling&&scoutedRival<0&&hit>=28?board[hit-28]:null;
+        if(target!=null)equipmentTargetRect=FormationPieceRect(target,hit>=56?TacticalArena.BenchWorld(hit-56):TacticalArena.CellWorld((hit-28)%7,(hit-28)/7+4),72);
+        if(battling&&target==null)
+        {
+            foreach(Fighter fighter in fighters.Where(f=>!f.dead).OrderByDescending(f=>arena.Project(FighterWorld(f)).y))
+            {
+                Vector2 head=arena.Project(FighterWorld(fighter)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(fighter.unit.def.id,fighter.unit.star):1.4f)),feet=arena.Project(FighterWorld(fighter));
+                Rect body=new Rect(feet.x-40,head.y,80,Mathf.Max(24,feet.y-head.y));
+                if(!body.Contains(pointer))continue;
+                equipmentTargetRect=body;return CombatEquipmentTarget(fighter,out blocked);
+            }
+        }
+
         return target;
     }
     private string EquipmentHint()
@@ -176,7 +200,7 @@ public sealed partial class NativeGame
         if(blocked!="")return blocked;
         int item=inventory[selectedItem];
         if(target==null)return ItemNames[item]+" · 장착할 아군 유닛을 선택하세요";
-        if(artPack==0)return UnitName(target.def)+" · "+DigimonBuildCatalog.PreviewEquipment(target.items,item).message;
+        if(artPack==0)return UnitName(target.def)+" · "+DigimonBuildCatalog.PreviewEquipment(target.items,item,target.def.id).message;
         if(item==14)return target.items.Count>0?UnitName(target.def)+" · 장비 "+target.items.Count+"개 회수":"회수할 장비가 없는 유닛입니다";
         int partner=target.items.FindIndex(i=>i<=3);
         if(item<=3&&partner>=0)return UnitName(target.def)+" · "+ItemNames[ItemRecipes[target.items[partner],item]]+" 자동 합성";
@@ -186,17 +210,19 @@ public sealed partial class NativeGame
     {
         if(artPack!=0||selectedItem<0||selectedItem>=inventory.Count||!GUI.enabled||showCarousel)return false;
         string blocked;Unit target=EquipmentHoverTarget(out blocked);if(target==null)return false;
-        var ids=board.Contains(target)?board.Where(u=>u!=null).Select(u=>u.def.id):Enumerable.Empty<string>();
-        var preview=DigimonEquipmentPreview.Create(target.def.id,target.star,ids,target.items,inventory[selectedItem]);
+        var live=battling?fighters.FirstOrDefault(f=>!f.enemy&&f.unit==target):null;
+        var ids=live!=null?CombatBuildMembers(false):board.Contains(target)?BoardBuildMembers():Enumerable.Empty<DigimonBuildCatalog.Member>();
+        var preview=DigimonEquipmentPreview.Create(target.def.id,target.star,ids,target.items,inventory[selectedItem],board.Contains(target)||live!=null);
+        if(live!=null)DigimonEquipmentPreview.SetCombatState(preview,live.hp,live.maxHp,live.mana);
         DigimonEquipmentPreview.Draw(new Rect(1686,106,218,720),UnitName(target.def)+" "+new string('★',target.star),
-            DigimonSkillCatalog.Find(target.def.id),preview,board.Contains(target)?"현재 전장 시너지 적용":"대기석 · 시너지 미포함",blocked);
+            DigimonSkillCatalog.Find(target.def.id),preview,live!=null?"전투 즉시 적용 · 현재 전투 시너지":board.Contains(target)?"현재 전장 시너지 적용":"대기석 · 시너지 미포함",blocked);
         return true;
     }
     private bool ValidBoardDestination(int cell)
     {
         if(cell<28||cell>=56)return false;
         bool fromBoard=draggingUnit?dragFromBoard:selectedBoard>=0;
-        return fromBoard||board[cell-28]!=null||board.Count(u=>u!=null)<level;
+        return fromBoard||board[cell-28]!=null||board.Count(u=>u!=null)<FormationLimit;
     }
     private void NotifyPlacement(string text)
     {
@@ -239,7 +265,7 @@ public sealed partial class NativeGame
         if(Time.unscaledTime<placementNoticeUntil)text=placementNotice;
         else if(draggingUnit&&SellDropZone.Contains(Event.current.mousePosition))text=UnitName(HeldUnit().def)+" · 놓으면 "+UnitSaleValue(HeldUnit())+"G에 판매합니다";
         else if(selectedItem>=0)text=EquipmentHint();
-        else if(battling)text=artPack==0?"전투 중 · 유닛을 눌러 정보 확인 / 전장 장비는 준비 단계에 변경":"전투 중 · 유닛을 눌러 정보 확인 / 아이템 장착";
+        else if(battling)text=artPack==0?"전투 중 · 장비 즉시 장착 / 대기석 → 상점 드래그 판매 / D 새로고침 · F 경험치":"전투 중 · 유닛을 눌러 정보 확인 / 아이템 장착";
         else if(scoutedRival>=0)text="관전 중 · 오른쪽 나의 테이머를 눌러 복귀";
         else if(HeldUnit()!=null)
         {
@@ -269,7 +295,7 @@ public sealed partial class NativeGame
             if(i==step-1)color=battling?new Color(1f,.48f,.27f):new Color(.35f,.94f,.8f);
             DrawRect(new Rect(809+i*width,45,width-5,5),color);
         }
-        GUI.Label(new Rect(795,55,330,23),battling?Mathf.CeilToInt(battleTimeRemaining)+"초 남음":"배치 "+board.Count(u=>u!=null)+" / "+level,center);
+        GUI.Label(new Rect(795,55,330,23),battling?Mathf.CeilToInt(battleTimeRemaining)+"초 남음":"배치 "+board.Count(u=>u!=null)+" / "+FormationLimit,center);
     }
     private float ReportValue(Fighter f){return reportMetric==1?f.healingDone:reportMetric==2?f.shieldingDone:f.damageDone;}
     private bool DrawCombatReportPanel()

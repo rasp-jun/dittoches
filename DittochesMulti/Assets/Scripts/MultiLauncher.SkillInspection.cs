@@ -10,11 +10,15 @@ public sealed partial class MultiLauncher
     {return selectedSlot<0?null:At(selectedArea=="board"?me.board:me.bench,selectedSlot);}
     DigimonSkillCatalog.Stats OnlineStats(Unit unit,string area)
     {
-        var me=OnlineMe;var ids=me!=null&&area=="board"?me.board.Select(u=>u.id):Enumerable.Empty<string>();
+        var me=OnlineMe;var ids=me!=null&&area=="board"?me.board.Select(BuildMember):Enumerable.Empty<DigimonBuildCatalog.Member>();
         var bonus=DigimonBuildCatalog.Resolve(unit.id,ids,unit.items??new int[0]);
         var stats=new DigimonSkillCatalog.Stats(DigimonSkillCatalog.Find(unit.id),unit.star,bonus);
         var live=OnlineLiveFighter(unit,area);
-        if(live!=null)stats.speed=DigimonCombatMath.AttackSpeed(DigimonSkillCatalog.Find(unit.id).attackSpeed,bonus.speed,bonus.rampSpeed,live.combatAge);
+        if(live!=null)
+        {
+            stats.speed=DigimonCombatMath.AttackSpeed(DigimonSkillCatalog.Find(unit.id).attackSpeed,bonus.speed,bonus.rampSpeed,live.combatAge);
+            if(live.combatStatsVersion>=1){stats.attack=live.attackDamage;stats.abilityPower=live.abilityPower;stats.health=live.maxHp;stats.armor=live.armor;stats.magicResist=live.magicResist;stats.range=live.attackRange;stats.speed=live.attackSpeed;}
+        }
         return stats;
     }
     void DrawOnlineSkillStats(Unit unit)
@@ -31,7 +35,7 @@ public sealed partial class MultiLauncher
             GUI.Label(new Rect(1320,638,240,57),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸",new GUIStyle(small){fontSize=13});
         }
         else GUI.Label(new Rect(1320,543,240,139),"공격력 "+stats.attack.ToString("0.#")+" · 주문력 "+stats.abilityPower.ToString("0.#")+"\n최대 체력 "+stats.health.ToString("0")+"\n방어 "+stats.armor.ToString("0")+" · 마저 "+stats.magicResist.ToString("0")+"\n공속 "+stats.speed.ToString("0.00")+" · 사거리 "+stats.range+"칸\n시작 마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0"),small);
-        var me=OnlineMe;var ids=me!=null&&selectedArea=="board"?me.board.Select(u=>u.id):Enumerable.Empty<string>();
+        var me=OnlineMe;var ids=me!=null&&selectedArea=="board"?me.board.Select(BuildMember):Enumerable.Empty<DigimonBuildCatalog.Member>();
         var bonus=DigimonBuildCatalog.Resolve(unit.id,ids,unit.items??new int[0]);
         CombatStatusUI.Draw(new Rect(1320,700,240,84),CombatStatusUI.Describe(bonus,live!=null?live.combatAge:0,live!=null?live.attacks:0,live!=null&&live.lowShieldUsed,live!=null,live!=null&&live.hp<=0));
         if(DigimonSkillUI.DrawIcon(new Rect(1320,795,54,54),skill))OpenOnlineSkill(unit,selectedArea);

@@ -5,16 +5,30 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    static DigimonBuildCatalog.Member BuildMember(Unit u){return u==null?null:new DigimonBuildCatalog.Member(u.def.id,u.items);}
+    IEnumerable<DigimonBuildCatalog.Member> BoardBuildMembers(){return board.Where(u=>u!=null).Select(BuildMember);}
+    IEnumerable<DigimonBuildCatalog.Member> CombatBuildMembers(bool enemy){return fighters.Where(f=>f.enemy==enemy).Select(f=>BuildMember(f.unit));}
+    int FormationLimit { get {return artPack==0?Mathf.Min(board.Length,level+inventory.Concat(board.Concat(bench).Where(u=>u!=null).SelectMany(u=>u.items)).Sum(i=>DigimonBuildCatalog.Data.items[i].teamSize)):level;} }
+    void AssignMergedEquipment(Unit unit,IEnumerable<int> equipment)
+    {
+        unit.items.Clear();var granted=new HashSet<string>();
+        foreach(int item in equipment)
+        {
+            string trait=artPack==0?DigimonBuildCatalog.Data.items[item].grantsTrait:null;
+            if(unit.items.Count>=2||!string.IsNullOrEmpty(trait)&&granted.Contains(trait))inventory.Add(item);
+            else{unit.items.Add(item);if(!string.IsNullOrEmpty(trait))granted.Add(trait);}
+        }
+    }
     string[] buildItemNames,buildItemIcons,buildItemDescriptions;
     string[] ItemNames { get { return artPack==0?(buildItemNames??(buildItemNames=DigimonBuildCatalog.Data.items.Select(i=>i.name).ToArray())):LegacyItemNames; } }
     string[] ItemIcons { get { return artPack==0?(buildItemIcons??(buildItemIcons=DigimonBuildCatalog.Data.items.Select(i=>i.icon).ToArray())):LegacyItemIcons; } }
     string[] ItemDescriptions { get { return artPack==0?(buildItemDescriptions??(buildItemDescriptions=DigimonBuildCatalog.Data.items.Select(i=>i.description+(i.id<4?" · 재료 2개로 합성":"")).ToArray())):LegacyItemDescriptions; } }
     Rect TraitGuideRect { get { return new Rect(270,145,artPack==0?610:475,artPack==0?360:155); } }
     Rect RecipeGuideRect { get { return artPack==0?new Rect(360,150,920,654):new Rect(270,470,470,recipeFocus<=3?270:150); } }
-    string BuildTags(string id){return string.Join(" · ",DigimonBuildCatalog.ForUnit(id).Select(t=>t.name).ToArray());}
+    string BuildTags(string id,IEnumerable<int> gear=null){return string.Join(" · ",DigimonBuildCatalog.ForUnit(id,gear).Select(t=>t.name).ToArray());}
     List<TraitEntry> BuildTraits()
     {
-        string[] ids=board.Where(u=>u!=null).Select(u=>u.def.id).ToArray();
+        var ids=BoardBuildMembers().ToArray();
         return DigimonBuildCatalog.Data.traits.Select(t=>new TraitEntry(t.category,t.name,DigimonBuildCatalog.Count(t,ids)))
             .Where(t=>t.count>0).OrderByDescending(t=>DigimonBuildCatalog.Find(t.key).Level(t.count)).ThenByDescending(t=>t.count).ThenBy(t=>t.name).ToList();
     }
@@ -26,10 +40,10 @@ public sealed partial class NativeGame
     void DrawBuildTraitGuide()
     {
         string focus=traitFocus.key;Matrix4x4 previous=GUI.matrix;GUI.matrix=previous*Matrix4x4.Scale(new Vector3(1.2f,1.2f,1));
-        bool open=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,900),ref focus,board.Where(u=>u!=null).Select(u=>u.def.id).ToArray(),bench.Where(u=>u!=null).Select(u=>u.def.id).ToArray());
+        bool open=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,900),ref focus,board.Where(u=>u!=null).Select(u=>u.def.id).ToArray(),bench.Where(u=>u!=null).Select(u=>u.def.id).ToArray(),BoardBuildMembers().ToArray());
         GUI.matrix=previous;
         var trait=DigimonBuildCatalog.Find(focus);
-        traitFocus=open?new TraitEntry(trait.category,trait.name,DigimonBuildCatalog.Count(trait,board.Where(u=>u!=null).Select(u=>u.def.id))):null;
+        traitFocus=open?new TraitEntry(trait.category,trait.name,DigimonBuildCatalog.Count(trait,BoardBuildMembers())):null;
     }
     void OpenTraitGuide(string id)
     {
@@ -53,7 +67,7 @@ public sealed partial class NativeGame
         if(artPack!=0)return;
         foreach(bool enemy in new[]{false,true})
         {
-            Fighter[] team=fighters.Where(f=>f.enemy==enemy).ToArray();string[] ids=team.Select(f=>f.unit.def.id).ToArray();
+            Fighter[] team=fighters.Where(f=>f.enemy==enemy).ToArray();var ids=team.Select(f=>BuildMember(f.unit)).ToArray();
             foreach(Fighter f in team)
             {
                 f.build=DigimonBuildCatalog.Resolve(f.unit.def.id,ids,f.unit.items);f.attacks=0;f.lowShieldUsed=false;f.combatAge=0;f.crisisAt=-1;
@@ -72,6 +86,35 @@ public sealed partial class NativeGame
         // Tick once a second to keep healing popups readable and independent of frame rate.
         f.regenClock+=dt;
         while(f.regenClock>=1){f.regenClock-=1;if(f.build.regen>0)Heal(f,f,f.maxHp*f.build.regen);}
+    }
+    void ApplyLiveEquipment(Fighter f,IEnumerable<int> items)
+    {
+        int[] equipment=items.ToArray();
+        f.unit.items.Clear();f.unit.items.AddRange(equipment);
+        foreach(var ally in fighters.Where(u=>u.enemy==f.enemy))RefreshLiveBuild(ally);
+    }
+    void RefreshLiveBuild(Fighter f)
+    {
+        if(f.dead)return;
+        float fraction=f.hp/Mathf.Max(1,f.maxHp);
+        float oldSpeed=DigimonCombatMath.AttackSpeed(Meta(f.unit.def.id).speed,f.build.speed,f.build.rampSpeed,f.combatAge);
+        f.build=DigimonBuildCatalog.Resolve(f.unit.def.id,CombatBuildMembers(f.enemy),f.unit.items);
+        f.maxHp=(Meta(f.unit.def.id).hp+f.unit.items.Sum(ItemHealth))*Mathf.Pow(1.8f,f.unit.star-1)*f.attackScale*(1+f.build.hp);
+        f.hp=f.maxHp*fraction;f.shield=Mathf.Min(f.shield,f.maxHp*.5f);
+        float speed=DigimonCombatMath.AttackSpeed(Meta(f.unit.def.id).speed,f.build.speed,f.build.rampSpeed,f.combatAge);
+        if(f.skillCast==null)f.cooldown*=oldSpeed/speed;
+        // Opening mana/shields, crisis triggers and regeneration timers are never reset.
+    }
+    void SyncCombatEquipment()
+    {
+        if(artPack!=0||!battling)return;
+        foreach(var f in fighters.Where(f=>!f.enemy&&f.sourceSlot>=0))
+        {
+            var owner=board[f.sourceSlot];
+            var items=owner!=null&&owner.def.id==f.unit.def.id?owner.items.ToArray():new int[0];
+            f.unit.items.Clear();f.unit.items.AddRange(items);
+        }
+        foreach(var f in fighters.Where(f=>!f.enemy))RefreshLiveBuild(f);
     }
     void OnBuildCast(Fighter caster)
     {

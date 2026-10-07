@@ -12,7 +12,7 @@ public sealed class TeamPlannerUI
     public int Cost {get{return cost;}set{cost=Mathf.Clamp(value,0,5);}}
     void Remember(){undo=JsonUtility.ToJson(TeamPlan.Data);}
     void Toggle(string id){Remember();notice=TeamPlan.Toggle(id)?"팀 계획 저장 완료":"최대 9종입니다 · 먼저 목표를 하나 해제하세요";}
-    public bool Draw(Rect canvas,string[] board,string[] bench,int level,bool inMatch)
+    public bool Draw(Rect canvas,string[] board,string[] bench,int level,bool inMatch,DigimonBuildCatalog.Member[] members=null)
     {
         if(heading==null)
         {
@@ -68,7 +68,7 @@ public sealed class TeamPlannerUI
             .OrderByDescending(t=>t.Level(DigimonBuildCatalog.Count(t,TeamPlan.Units))).ThenByDescending(t=>DigimonBuildCatalog.Count(t,TeamPlan.Units)).ToArray();
         for(int i=0;i<traits.Length;i++)
         {
-            var t=traits[i];int planned=DigimonBuildCatalog.Count(t,TeamPlan.Units),present=DigimonBuildCatalog.Count(t,board),tier=t.Level(planned);float y=side.y+96+i*37;
+            var t=traits[i];int planned=DigimonBuildCatalog.Count(t,TeamPlan.Units),present=members==null?DigimonBuildCatalog.Count(t,board):DigimonBuildCatalog.Count(t,members),tier=t.Level(planned);float y=side.y+96+i*37;
             GUI.DrawTexture(new Rect(side.x+13,y+2,24,24),DigimonTraitUI.Icon(t.id));
             GUI.Label(new Rect(side.x+44,y+2,140,29),t.name,small);
             GUI.Label(new Rect(side.x+184,y+2,146,29),(inMatch?present+" → ":"")+planned+" / "+t.Target(planned)+(tier>0?"  "+tier+"단계":""),small);
