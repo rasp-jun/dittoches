@@ -42,3 +42,14 @@ DittochesMulti/Assets/Resources/**/*.jpeg
 DittochesMulti/Assets/Resources/**/*.psd
 DittochesMulti/Assets/Resources/**/*.fbx
 DittochesMulti/Assets/Resources/**/*.blend
+DittochesMulti/Assets/**/*.glb
+DittochesMulti/Assets/**/*.gltf
+DittochesMulti/Assets/**/*.fbx
+DittochesMulti/Assets/**/*.blend
+DittochesMulti/Assets/**/*.bin
+DittochesMulti/Assets/Resources/Models/**/*.bytes
+DittochesMulti/ArtSource/
+
+# This is the offline viewer's JavaScript library, not a generated game build.
+!DittochesMulti/Tools/faithful_gallery/vendor/build/
+!DittochesMulti/Tools/faithful_gallery/vendor/build/*.js

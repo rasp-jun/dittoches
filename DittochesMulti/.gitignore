@@ -11,3 +11,6 @@
 Server/*.sqlite3*
 __pycache__/
 *.log
+/Assets/StreamingAssets/FaithfulModels/
+
+/Assets/StreamingAssets/FaithfulPortraits/

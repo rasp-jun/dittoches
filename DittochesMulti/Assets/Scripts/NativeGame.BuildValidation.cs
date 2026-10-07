@@ -1,0 +1,240 @@
+#if DITTOCHES_PORTABLE_PREVIEW
+using System;
+using System.Linq;
+using UnityEngine;
+
+public sealed partial class NativeGame
+{
+    void ValidateCombatManagementRules()
+    {
+        artPack=0;battling=false;showCarousel=false;scoutedRival=-1;hp=100;gold=100;level=3;round=4;
+        Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);inventory.Clear();
+        board[3]=new Unit(RosterById["agumon"]);bench[0]=new Unit(RosterById["agumon"]);
+        RebuildPool();SetupBattle();battling=true;
+        var live=fighters.First(f=>!f.enemy);live.hp=live.maxHp*.4f;live.mana=7;live.lowShieldUsed=true;live.attacks=5;live.damageDone=123;
+        Require(!ReferenceEquals(live.unit,board[3]),"combat unit detached from future formation");
+        float baseMax=live.maxHp,baseHp=live.hp;
+        inventory.Add(8);selectedItem=0;Equip(live.unit);
+        Require(board[3].items.SequenceEqual(new[]{8})&&live.unit.items.SequenceEqual(new[]{8})&&live.build.armor>=30,"live click equips owned unit and combat snapshot");
+        Require(live.maxHp>baseMax&&Mathf.Abs(live.hp/live.maxHp-.4f)<.0001f,"health item preserves current health percentage");
+        inventory.Add(14);selectedItem=0;Equip(live.unit);
+        Require(board[3].items.Count==0&&live.unit.items.Count==0&&Mathf.Abs(live.hp-baseHp)<.01f,"live removal does not create health");
+        Require(live.mana==7&&live.lowShieldUsed&&live.attacks==5&&live.damageDone==123,"equipment preserves mana crisis and combat counters");
+        inventory.Clear();inventory.Add(12);selectedItem=0;Equip(live.unit);
+        Require(live.build.abilityPower==45&&live.mana==7,"live AP applies without replaying opening mana");
+        shop[0]=RosterById["agumon"];Require(Buy(0),"combat purchase succeeds");
+        Require(board[3].star==2&&live.unit.star==1,"combat purchase merge applies next round without changing current star");
+        selectedBoard=3;selectedBench=-1;int bank=gold;SellSelectedUnit();
+        Require(board[3]!=null&&gold==bank,"direct combat board sale rejected");
+        bench[1]=new Unit(RosterById["koromon"]);bench[1].items.Add(1);
+        selectedBoard=-1;selectedBench=1;ClickBench(8);
+        Require(bench[1]==null&&bench[8]!=null,"combat bench click moves unit");
+        dragSource=8;dragFromBoard=false;draggingUnit=true;int bag=inventory.Count;bank=gold;
+        DropDraggedUnit(SellDropZone.center);
+        Require(bench[8]==null&&gold==bank+1&&inventory.Count==bag+1&&inventory.Last()==1,"shop drop sells once and returns equipment");
+        DropDraggedUnit(SellDropZone.center);Require(gold==bank+1,"repeat drop cannot sell empty source");
+        dragSource=-1;draggingUnit=false;selectedBoard=selectedBench=selectedItem=-1;
+        bank=gold;RerollShop();Require(gold==bank-2,"combat reroll costs two");bank=gold;PurchaseExperience();Require(gold==bank-4,"combat experience purchase costs four");
+        float deadMax=live.maxHp;live.dead=true;live.hp=0;ApplyLiveEquipment(live,new[]{8});
+        Require(live.hp==0&&live.maxHp==deadMax,"equipment never resurrects dead fighter");
+        fighters.Clear();skillCasts.Clear();battling=false;inspectedUnit=null;
+    }
+    void ValidateFormationRules()
+    {
+        artPack=0;battling=false;selectedItem=-1;
+        int[][] cases={new[]{0,0,1,0,3},new[]{0,2,1,0,3},new[]{0,0,1,5,3},new[]{0,0,1,5,4},
+            new[]{1,0,0,3,3},new[]{1,0,0,0,3},new[]{1,0,1,2,3},new[]{0,0,0,1,3},
+            new[]{1,0,1,0,3},new[]{0,1,1,2,3},new[]{1,2,0,0,3},new[]{0,2,1,5,4}};
+        foreach(var test in cases)
+        {
+            Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);
+            board[0]=new Unit(RosterById["agumon"]);board[1]=new Unit(RosterById["koromon"]);board[2]=new Unit(RosterById["palmon"]);
+            bench[0]=new Unit(RosterById["gabumon"]);bench[1]=new Unit(RosterById["lilimon"]);bench[2]=new Unit(RosterById["agumon"]){star=2};level=test[4];
+            var beforeBoard=board.Select(u=>u==null?null:u.def.id).ToArray();var beforeBench=bench.Select(u=>u==null?null:u.def.id).ToArray();
+            var plan=FormationForecast.Preview(beforeBoard,beforeBench,test[0]==1,test[1],test[2]==1,test[3],level);
+            Require(board.Select(u=>u==null?null:u.def.id).SequenceEqual(beforeBoard)&&bench.Select(u=>u==null?null:u.def.id).SequenceEqual(beforeBench),"formation preview is read-only");
+            bool blocked=test[0]==0&&test[2]==1&&test[3]==5&&level==3;
+            Require(plan.allowed!=blocked,"formation preview enforces level cap");
+            selectedBoard=test[0]==1?test[1]:-1;selectedBench=test[0]==0?test[1]:-1;
+            if(test[2]==1)ClickBoard(test[3]);else ClickBench(test[3]);
+            Require(plan.board.SequenceEqual(board.Select(u=>u==null?null:u.def.id))&&plan.bench.SequenceEqual(bench.Select(u=>u==null?null:u.def.id)),"forecast equals actual native move and swap");
+            foreach(var t in DigimonBuildCatalog.Data.traits)
+            {
+                var predicted=plan.traits.FirstOrDefault(c=>c.trait==t);
+                Require((predicted==null?0:predicted.after)==TraitCount(t.category,t.name),"forecast matches applied trait count "+t.id);
+            }
+        }
+        var b=new string[28];var seats=new string[9];b[0]="agumon";b[1]="koromon";seats[0]="agumon";
+        Require(!FormationForecast.Preview(b,seats,false,0,true,2,3).Changed,"duplicate species do not increase synergy");
+        seats[0]="gabumon";var lost=FormationForecast.Preview(b,seats,false,0,true,0,2).traits.First(t=>t.trait.id=="courage");
+        Require(lost.BeforeTier==1&&lost.AfterTier==0,"swap forecasts deactivation when the unique contributor leaves");
+        Require(!FormationForecast.Preview(b,seats,false,8,true,0,3).allowed&&!FormationForecast.Preview(b,seats,true,99,true,0,3).allowed,"empty or stale source selection is rejected");
+        Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);selectedBoard=selectedBench=-1;placementNoticeUntil=0;
+    }
+    void ValidateReportRules()
+    {
+        artPack=0;battling=false;fighters.Clear();lastBattleReport.Clear();
+        var source=CreateFighter(new Unit(RosterById["agumon"]),false,new Vector2(3,4));
+        var target=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+        source.build=new DigimonBuildCatalog.Bonus();target.build=new DigimonBuildCatalog.Bonus{armor=100};
+        target.hp=target.maxHp=100;target.shield=40;
+        DealDamage(source,target,120);
+        Require(source.damageDone==20&&source.basicDamageDone==20&&source.skillDamageDone==0,"basic report counts post-resistance health damage");
+        Require(target.damageTaken==20&&target.shieldAbsorbed==40,"received report separates health and shield");
+        applyingSkillDamage=true;try{DealDamage(source,target,500,"magic");}finally{applyingSkillDamage=false;}
+        Require(source.damageDone==100&&source.basicDamageDone==20&&source.skillDamageDone==80,"skill report excludes overkill");
+        DealDamage(source,target,500);Require(source.damageDone==100,"dead target adds no report damage");
+        source.maxHp=100;source.hp=90;source.shield=0;Heal(source,source,100);Heal(source,source,100);
+        Shield(source,source,100);Shield(source,source,100);
+        Require(source.healingDone==10&&source.shieldingDone==50,"recovery report excludes capped overflow");
+        source.unit.items.Add(3);var snapshot=source.Snapshot();lastBattleReport.Add(snapshot);
+        float recorded=InspectStats(snapshot.unit).abilityPower;
+        source.unit.items.Clear();source.unit.star=3;source.damageDone=999;
+        Require(snapshot.unit.star==1&&snapshot.unit.items.SequenceEqual(new[]{3})&&snapshot.damageDone==100,"completed report freezes unit and counters");
+        Require(InspectedFighter(snapshot.unit)==snapshot&&InspectStats(snapshot.unit).abilityPower==recorded,"historical selection resolves historical fighter");
+        var row=new CombatReportUI.Row{damage=100,basic=20,skill=80,taken=20,absorbed=40,healing=10,shielding=50};
+        Require(row.Value(0)==100&&row.Value(1)==60&&row.Value(2)==10&&row.Value(3)==50,"report tabs use explicit accounting");
+        lastBattleReport.Clear();combatPopups.Clear();battleTraces.Clear();
+    }
+    void ValidateTacticalRules()
+    {
+        artPack=0;battling=false;fighters.Clear();
+        var source=CreateFighter(new Unit(RosterById["agumon"]),false,new Vector2(3,4));
+        var near=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+        var far=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,0));far.hp=1;
+        fighters.Add(source);fighters.Add(far);fighters.Add(near);source.target=far;
+        Require(SelectTarget(source)==near,"reachable enemy replaces distant weak target");
+        far.pos=new Vector2(3,3.5f);Require(SelectTarget(source)==near,"reachable target stays locked");
+        near.pos=new Vector2(3,0);far.pos=new Vector2(3,2);
+        Require(SelectTarget(source)==near,"stable chase when neither target is reachable");
+        near.dead=true;Require(SelectTarget(source)==far,"dead target replaced");
+        far.enemy=false;Require(SelectTarget(source)==null,"allies excluded");fighters.Clear();
+        foreach(string id in new[]{"agumon","weregarurumon","wargreymon"})
+        {
+            var unit=new Unit(RosterById[id]){star=2};unit.items.Add(0);unit.items.Add(3);
+            Array.Clear(board,0,board.Length);board[0]=unit;board[1]=new Unit(RosterById["koromon"]);
+            int[] old=unit.items.ToArray();var team=board.Where(u=>u!=null).Select(u=>u.def.id);
+            var preview=DigimonEquipmentPreview.Create(id,unit.star,team,unit.items,1);
+            Require(preview.change.allowed&&unit.items.SequenceEqual(old),"preview never mutates gear "+id);
+            inventory.Clear();inventory.Add(1);selectedItem=0;Equip(unit);var actual=InspectStats(unit);
+            Require(unit.items.SequenceEqual(preview.change.items),"craft preview equals applied equipment "+id);
+            Require(Mathf.Abs(actual.attack-preview.after.attack)<.001f&&actual.abilityPower==preview.after.abilityPower&&actual.health==preview.after.health,"preview equals actual gear plus synergy stats "+id);
+            var skill=DigimonSkillCatalog.Find(id);
+            Require(Mathf.Abs(skill.Damage(unit.star,actual.attack,actual.abilityPower)-preview.damageAfter)<.001f,"skill preview matches equipped damage "+id);
+            Require(!DigimonEquipmentPreview.Create(id,2,team,unit.items,8).change.allowed,"full slots reject before consumption");
+            var remove=DigimonEquipmentPreview.Create(id,2,team,unit.items,14);
+            Require(remove.change.allowed&&remove.change.removed&&remove.change.items.Length==0,"remover preview clears both slots");
+        }
+        Require(!DigimonBuildCatalog.PreviewEquipment(new int[0],14).allowed,"empty remover preview rejects");
+        Array.Clear(board,0,board.Length);inventory.Clear();selectedItem=-1;placementNoticeUntil=0;
+    }
+    void ValidateScalingRules()
+    {
+        artPack=0;battling=false;Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);fighters.Clear();skillCasts.Clear();
+        foreach(var d in Roster)
+        {
+            var s=DigimonSkillCatalog.Find(d.id);
+            Require(s.adRatio.Length==3&&s.apRatio.Length==3,"three explicit coefficient tiers "+d.id);
+            Require(Meta(d.id).range==s.attackRange,"native range from catalog "+d.id);
+            Require(DigimonSkillUI.Icon(s).width==96,"skill icon generated "+d.id);
+            var unit=new Unit(d);board[0]=unit;var before=InspectStats(unit);
+            unit.items.Add(3);var after=InspectStats(unit);
+            Require(after.abilityPower==before.abilityPower+12&&after.attack==before.attack,"AP component does not add AD "+d.id);
+            if(s.apRatio[0]>0)Require(s.Damage(1,after.attack,after.abilityPower)>s.Damage(1,before.attack,before.abilityPower),"AP changes this skill "+d.id);
+            else Require(s.Damage(1,after.attack,after.abilityPower)==s.Damage(1,before.attack,before.abilityPower),"AD skill ignores AP "+d.id);
+        }
+        foreach(string id in new[]{"agumon","weregarurumon","wargreymon"})
+        {
+            Array.Clear(board,0,board.Length);var unit=new Unit(RosterById[id]);unit.items.Add(id=="weregarurumon"?0:3);board[0]=unit;
+            var source=CreateFighter(unit,false,new Vector2(3,4));var target=CreateFighter(new Unit(RosterById["koromon"]),true,new Vector2(3,3));
+            fighters.Clear();fighters.Add(source);fighters.Add(target);InitializeBuildBonuses();
+            target.build=new DigimonBuildCatalog.Bonus{armor=100,magicResist=50};target.maxHp=target.hp=10000;target.shield=0;
+            var stats=InspectStats(unit);var s=DigimonSkillCatalog.Find(id);float predicted=s.Damage(1,stats.attack,stats.abilityPower);
+            Require(StartDigimonSkill(source,target),"native skill starts "+id);
+            Require(Mathf.Abs(source.skillCast.power-predicted)<.001f,"tooltip and cast use same calculation "+id);
+            source.build.abilityPower=9999;source.build.attack=99;UpdateDigimonSkills(s.Duration+.01f);
+            float actual=10000-target.hp,expected=predicted/(s.damageType=="physical"?2:1.5f);
+            Require(Mathf.Abs(actual-expected)<.01f,"actual frozen typed damage "+id);
+        }
+        Require(DigimonCombatMath.InAttackRange(3,2,2,1,1)&&!DigimonCombatMath.InAttackRange(3,2,1,1,1),"hex range distinguishes adjacent and distant cells");
+        fighters.Clear();skillCasts.Clear();combatPopups.Clear();Array.Clear(board,0,board.Length);
+    }
+    void ValidateBuildRules()
+    {
+        artPack=0;round=12;
+        var equipmentImages=new System.Collections.Generic.HashSet<string>();
+        foreach(var item in DigimonBuildCatalog.Data.items)
+        {
+            var icon=DigimonEquipmentArt.Icon(item.id);
+            Require(icon.width==160&&ReferenceEquals(icon,DigimonEquipmentArt.Icon(item.id)),"equipment art cached "+item.id);
+            Require(equipmentImages.Add(Convert.ToBase64String(icon.EncodeToPNG())),"equipment silhouette is unique "+item.id);
+            Require(!string.IsNullOrEmpty(item.usage)&&!string.IsNullOrEmpty(DigimonEquipmentUI.Stats(item.id)),"runtime equipment presentation catalog loaded "+item.id);
+        }
+        Require(DigimonBuildCatalog.Data.traits.Length==11,"eleven new traits");
+        foreach(var unit in Roster)Require(DigimonBuildCatalog.ForUnit(unit.id).Count()==2,"two tags "+unit.id);
+        foreach(var trait in DigimonBuildCatalog.Data.traits)
+        {
+            for(int count=0;count<=trait.members.Length;count++)
+            {
+                Array.Clear(board,0,board.Length);Array.Clear(bench,0,bench.Length);
+                for(int i=0;i<count;i++)board[i]=new Unit(RosterById[trait.members[i]]);
+                bench[0]=new Unit(RosterById[trait.members[0]]){star=3};
+                int expected=trait.tiers.Count(t=>count>=t.count);
+                Require(TraitCount(trait.category,trait.name)==count,"bench excluded "+trait.name);
+                Require(TraitLevel(trait.category,trait.name)==expected,"threshold "+trait.name+":"+count);
+                if(count>0){board[20]=new Unit(RosterById[trait.members[0]]){star=3};Require(TraitCount(trait.category,trait.name)==count,"duplicate excluded");}
+            }
+        }
+        for(int a=0;a<4;a++)for(int b=0;b<4;b++)
+        {
+            int result=DigimonBuildCatalog.Combine(a,b);
+            int[] materials={a,b};
+            Require(DigimonEquipmentUI.CanCraft(result,materials),"recipe guide accepts two actual ingredients "+a+":"+b);
+            Require(!DigimonEquipmentUI.CanCraft(result,new[]{a}),"recipe guide rejects a missing second ingredient "+a+":"+b);
+            Require(materials.SequenceEqual(new[]{a,b}),"recipe forecast never consumes inventory");
+            Require(result==ItemRecipes[a,b]&&result==DigimonBuildCatalog.Combine(b,a),"recipe parity "+a+":"+b);
+            inventory.Clear();inventory.Add(a);inventory.Add(b);selectedItem=-1;
+            SelectInventoryItem(0);SelectInventoryItem(1);
+            Require(inventory.SequenceEqual(new[]{result}),"inventory combine consumes exactly two");
+            Unit equipped=new Unit(Roster[0]);bench[8]=equipped;equipped.items.Add(a);equipped.items.Add(4);
+            inventory.Clear();inventory.Add(b);selectedItem=0;Equip(equipped);
+            Require(equipped.items.SequenceEqual(new[]{result,4})&&inventory.Count==0,"auto combine on full equipment slots");
+        }
+        Unit original=LoadUnit(new UnitSave{id="agumon",star=2,items=new[]{12,13}});bench[8]=original;
+        Require(original.items.SequenceEqual(new[]{12,13})&&!ItemNames[12].Contains("캡슐")&&!ItemNames[13].Contains("캡슐"),"legacy capsule ids map to equipment");
+        inventory.Clear();inventory.Add(0);selectedItem=0;Equip(original);
+        Require(inventory.Count==1&&original.items.Count==2,"full slots reject without consuming");
+        inventory.Clear();inventory.Add(14);selectedItem=0;Equip(original);
+        Require(original.items.Count==0&&inventory.SequenceEqual(new[]{12,13}),"remover returns equipment");
+        Array.Clear(board,0,board.Length);board[0]=new Unit(RosterById["agumon"]);board[1]=new Unit(RosterById["koromon"]);
+        fighters.Clear();var attacker=CreateFighter(board[0],false,new Vector2(3,4));var target=CreateFighter(new Unit(RosterById["gabumon"]),true,new Vector2(3,3));
+        fighters.Add(attacker);fighters.Add(CreateFighter(board[1],false,new Vector2(2,4)));fighters.Add(target);InitializeBuildBonuses();
+        Require(Mathf.Abs(attacker.build.attack-.10f)<.0001f&&attacker.build.hp==.08f&&attacker.build.lifesteal==.10f&&target.build.attack==0,"side independent courage and fighter effects");
+        attacker.build=new DigimonBuildCatalog.Bonus{lifesteal=.5f};attacker.hp=attacker.maxHp*.5f;attacker.attacks=1;
+        float before=attacker.hp;target.hp=20;target.shield=100;target.build=new DigimonBuildCatalog.Bonus();
+        DealDamage(attacker,target,100);Require(attacker.hp==before,"no lifesteal from shields");
+        DealDamage(attacker,target,1000);Require(Mathf.Abs(attacker.hp-before-10)<.001f,"lifesteal uses actual health, excludes overkill");
+        Require(target.dead,"damage kills");Heal(attacker,target,99999);Shield(attacker,target,99999);Require(target.hp==0&&target.shield==0,"no accidental resurrection");
+        target.dead=false;target.maxHp=target.hp=1000;target.shield=0;target.build=new DigimonBuildCatalog.Bonus{lowShield=.25f};
+        DealDamage(attacker,target,700);Require(target.hp==300&&target.shield==250,"low health shield triggers");
+        DealDamage(attacker,target,260);Require(target.hp==290&&target.shield==0,"shield triggers only once");
+        attacker.build=new DigimonBuildCatalog.Bonus{thirdStun=.4f,castHeal=.1f,castShield=.12f,healPower=.2f};attacker.attacks=2;
+        target.stun=0;DealDamage(attacker,target,1);Require(target.stun==0,"second basic no stun");
+        attacker.attacks=3;DealDamage(attacker,target,1);Require(target.stun==.4f,"third basic stuns");
+        target.stun=0;applyingSkillDamage=true;DealDamage(attacker,target,1);applyingSkillDamage=false;Require(target.stun==0,"skill does not proc basic equipment");
+        Fighter ally=fighters[1];ally.hp=1;float allyBefore=ally.hp;OnBuildCast(attacker);
+        Require(Mathf.Abs(ally.hp-allyBefore-ally.maxHp*.12f)<.01f,"cast heals weakest ally with amplification");
+        Require(Mathf.Abs(attacker.shield-attacker.maxHp*.12f)<.01f,"cast shields caster");
+        attacker.build=new DigimonBuildCatalog.Bonus{regen=.01f,healPower=.2f,manaRegen=3};attacker.hp=attacker.maxHp*.5f;attacker.mana=0;before=attacker.hp;
+        TickBuild(attacker,1);Require(Mathf.Abs(attacker.hp-before-attacker.maxHp*.012f)<.01f&&attacker.mana==3,"regeneration and mana tick");
+        inventory.Clear();inventory.Add(0);selectedItem=0;battling=true;Equip(board[0]);battling=false;
+        Require(inventory.Count==0&&board[0].items.SequenceEqual(new[]{0}),"board equipment allowed during combat");
+        Save();Require(Load(),"version two save roundtrip");
+        var legacy=JsonUtility.FromJson<SoloSave>(PortablePreviewPrefs.GetString(SaveKey));legacy.version=1;
+        PortablePreviewPrefs.SetString(SaveKey,JsonUtility.ToJson(legacy));Require(Load(),"version one save still loads");
+        artPack=1;Require(ItemNames[12]==LegacyItemNames[12],"original art equipment preserved");artPack=0;
+        fighters.Clear();selectedItem=-1;combatPopups.Clear();placementNoticeUntil=0;
+        Debug.Log("BUILD RULES CHECKED: "+validationChecks);
+    }
+}
+#endif

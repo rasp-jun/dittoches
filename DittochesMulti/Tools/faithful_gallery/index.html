@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>디지몬 · 원작 비교 3D 갤러리</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/build/three.module.js","three/addons/":"./vendor/examples/jsm/"}}</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">D</span><div><strong>디지몬 3D 갤러리</strong><small>원작 이미지와 함께 비교하기</small></div></div>
+    <div class="top-actions"><span id="total-label" class="quiet">모델 목록을 읽는 중</span><button id="reload" title="추가된 모델 목록 새로고침">새로고침</button></div>
+  </header>
+  <main class="layout">
+    <aside class="roster">
+      <label class="search-wrap"><span class="sr-only">캐릭터 검색</span><input id="search" type="search" placeholder="이름 검색" autocomplete="off"></label>
+      <nav id="model-list" aria-label="디지몬 선택"></nav>
+      <p id="list-empty" class="empty-list" hidden>검색 결과가 없습니다.</p>
+      <div class="roster-footer">↑ ↓ 캐릭터 변경<br>마우스로 회전 · 휠로 확대</div>
+    </aside>
+    <section class="studio" aria-label="3D 모델">
+      <div class="studio-heading"><div><span class="eyebrow">3D MODEL</span><h1 id="model-name">모델 준비 중</h1><p id="model-subtitle">표시할 모델을 읽고 있습니다.</p></div><span id="model-number" class="model-number"></span></div>
+      <div id="viewport"><canvas id="canvas" aria-label="드래그하여 회전하는 3D 캐릭터"></canvas><div id="loading" role="status" aria-live="polite"><span class="spinner"></span><span id="loading-text">갤러리를 준비하고 있습니다.</span></div><div id="error-box" role="alert" hidden></div></div>
+      <div class="view-tools"><button id="reset-camera" title="카메라 초기화">전체 보기</button><button id="front-view">정면</button><button id="side-view">측면</button><button id="back-view">후면</button><button id="compare-before" aria-pressed="false" hidden>수정 전 보기</button><label class="toggle"><input type="checkbox" id="auto-rotate">자동 회전</label><label class="toggle"><input type="checkbox" id="wireframe">와이어</label><label class="toggle"><input type="checkbox" id="technique-effects" checked>기술 효과</label><button id="screenshot">이미지 저장</button></div>
+      <div class="demo-bar"><button id="combat-demo" aria-pressed="false">기술 시연</button><button id="demo-toggle" aria-pressed="false">전체 시연</button><span id="demo-status" role="status">34종 · 종마다 10가지 동작</span><button id="demo-next" hidden>다음 캐릭터 →</button></div>
+      <div id="motion-buttons" class="motion-buttons" aria-label="공통 모션 바로 선택"></div>
+      <div class="animation-bar"><span class="animation-title">모션</span><select id="animation-select" aria-label="모션 선택" disabled><option>모션 준비 중</option></select><button id="animation-play" disabled aria-label="모션 재생 또는 정지">일시 정지</button><label class="speed-control">속도 <select id="animation-speed" aria-label="모션 재생 속도"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select></label><label class="toggle"><input type="checkbox" id="animation-repeat">선택 모션 반복</label><span id="animation-note">모션을 불러오고 있습니다.</span></div>
+      <div class="motion-timeline"><button id="frame-back" aria-label="이전 프레임">−1 프레임</button><input id="animation-seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="모션 시간" disabled><output id="animation-time">0.00 / 0.00초</output><button id="frame-next" aria-label="다음 프레임">+1 프레임</button></div>
+    </section>
+    <aside class="comparison">
+      <div class="reference-title"><span class="eyebrow">ORIGINAL REFERENCE</span><h2>원작 참고</h2></div>
+      <a id="reference-link" class="reference-frame" target="_blank" rel="noopener"><img id="reference-image" alt="선택한 디지몬의 공식 참고 이미지"><span id="reference-missing" hidden>참고 이미지 준비 중</span></a>
+      <p class="reference-credit">디지몬 공식 도감 · © BANDAI / Akiyoshi Hongo / Toei Animation</p>
+      <section id="technique-card" class="technique-card" hidden><span class="eyebrow">COMBAT TECHNIQUES</span><h2>공격 기술</h2><div id="technique-attack"><small>일반 공격</small><strong></strong></div><div id="technique-skill"><small>특수 공격</small><strong></strong></div><p id="technique-description"></p><a id="technique-source" target="_blank" rel="noopener">공식 기술 설명 ↗</a></section>
+      <section class="source-card"><h2>모델 정보</h2><dl><div><dt>제작자 / 제공자</dt><dd id="source-author">—</dd></div><div><dt>라이선스</dt><dd id="source-license">—</dd></div></dl><a id="source-link" target="_blank" rel="noopener" hidden>원본 출처 보기 ↗</a><p id="source-notes"></p></section>
+    </aside>
+  </main>
+  <script type="module" src="./gallery.js"></script>
+</body>
+</html>

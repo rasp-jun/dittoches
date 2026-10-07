@@ -1,0 +1,36 @@
+{
+  "stage": "Official reference silhouette revision, manually authored review models",
+  "references": "All 12 official basic-form images visually inspected in ArtSource/Roster/ReferencesV2/board-0.jpg through board-2.jpg; compared with previous model previews. Source page/image mapping is in ReferencesV2/sources.json.",
+  "common_improvements": [
+    "Species-specific proportions and joint locations replace the shared generic body.",
+    "Closed curved petal, feather and bat-ear surfaces replace flat triangular leaves.",
+    "Smooth continuous skin joins preserve materials and up to four interpolated bone weights.",
+    "Individual eye shape, iris colour, smile, claws and flower anatomy are authored per character."
+  ],
+  "verification": {
+    "python_compile": "passed",
+    "blender_geometry": "12 species built and rendered in an isolated temporary folder",
+    "pose_smoke": "32 sampled poses per species across all eight clips completed without Blender errors; this is not the final contact/collision test",
+    "visual_review": "12 new 640-pixel three-quarter views inspected; disconnected bird thighs and hard skin junctions corrected",
+    "runtime": "Root agent performs final generation, export, animation-bound and player checks"
+  },
+  "characters": [
+    {"id":"koromon","reference":"https://digimon.net/reference/detail.php?directory_name=koromon","changes":"Flattened pink body, curling paired antennae, slanted red irises, curved smile and two little fangs.","remaining":"Soft ear width and eye silhouette can be refined further against front/side model sheets."},
+    {"id":"tsunomon","reference":"https://digimon.net/reference/detail.php?directory_name=tunomon","changes":"Orange rounded body, compact cream cheek mask, red eyes, large curved grey horn and short fur tufts.","remaining":"Dense short fur is suggested by geometry rather than a groom or painted fur texture."},
+    {"id":"mochimon","reference":"https://digimon.net/reference/detail.php?directory_name=mochimon","changes":"Tall pudding body, scalloped base, fused mitten arms, grey fingertips and open tongue smile.","remaining":"Original illustration's asymmetric waving pose is represented through the existing generic clip set."},
+    {"id":"tanemon","reference":"https://digimon.net/reference/detail.php?directory_name=tanemon","changes":"Green seed bulb with broad cream face, root toes, pink cheeks and two curved veined leaves.","remaining":"Leaf edge serration is simplified for the small game scale."},
+    {"id":"pyocomon","reference":"https://digimon.net/reference/detail.php?directory_name=pyocomon","changes":"Tapered onion body, green eyes with lashes, root petals, drooping blue flower and curled yellow stamens/orange pistil.","remaining":"Fine petal folds are geometric approximations rather than hand-painted artwork."},
+    {"id":"tokomon","reference":"https://digimon.net/reference/detail.php?directory_name=tokomon","changes":"Cream squat body, four rounded paws, waving long ears, small black eyes and articulated lower tooth row.","remaining":"The extreme expanded tooth-filled mouth shown on the official page needs a dedicated shape-key/attack model; current rig provides a modest jaw opening."},
+    {"id":"piyomon","reference":"https://digimon.net/reference/detail.php?directory_name=piyomon","changes":"Short wing-arms with red hooked fingers, broad red beak, blue-banded spiral crest, cheek feathers, blue-tipped tail, feathered thighs and articulated talons.","remaining":"The active generic wing flutter is not a motion-matched Digimon Masters clip."},
+    {"id":"patamon","reference":"https://digimon.net/reference/detail.php?directory_name=patamon","changes":"Orange barrel body, cream underside/muzzle, four cream legs with dark paws, large closed scalloped bat ears with leading-edge veins.","remaining":"Ear articulation uses the existing two-bone wing chain; membrane bending is not simulated."},
+    {"id":"palmon","reference":"https://digimon.net/reference/detail.php?directory_name=palmon","changes":"Slender plant trunk and root legs, dark glossy eyes, cheek leaves, long fingers with violet tips, winding veins and drooping pink crown flower.","remaining":"Illustration's tangled root detail and fine leaf veins are simplified, and wrist flex needs species-specific animation."},
+    {"id":"togemon","reference":"https://digimon.net/reference/detail.php?directory_name=togemon","changes":"Tall ribbed cactus with grounded broad feet, curved connected arms, recessed dark face openings, fine spines, orange crown and boxing gloves with thumbs/cuffs/seams.","remaining":"Cactus groove width and individual spine density can receive additional art direction."},
+    {"id":"birdramon","reference":"https://digimon.net/reference/detail.php?directory_name=birdramon","changes":"Narrow predatory head, long toothy snout, strong talons, feathered thighs, swept crest and upward orange/red flame tongues across broad wings.","remaining":"Fire is authored opaque geometry; animated translucent fire and a dedicated flying pose remain beyond this silhouette revision."},
+    {"id":"hououmon","reference":"https://digimon.net/reference/detail.php?directory_name=hououmon","changes":"Four layered golden wings, hooked eagle beak, red/gold crest, light breast feathers, golden ankle rings, talons and long ruby-marked golden tail.","remaining":"Separate animation chains for all four wings and painted feather highlights remain to be refined."}
+  ],
+  "limits": [
+    "These are authored stylized models, not game-extracted meshes or final professional sculpts.",
+    "Official illustrations were inspected; Digimon Masters motion was not independently inspected for these 12 species.",
+    "The shared existing eight animation clips are retained; model-specific motion timing and facial shape keys need further iteration."
+  ]
+}

@@ -1,0 +1,72 @@
+"""Check published before/after models at a paused pose in real WebGL."""
+import json,sys,hashlib
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT.parent/'tmp/gallery-test-tools'))
+from playwright.sync_api import sync_playwright
+
+
+def main():
+    out=ROOT/'Builds/FaithfulNaturalValidation';out.mkdir(exist_ok=True)
+    errors=[];checks=[]
+    with sync_playwright() as pw:
+        browser=pw.chromium.launch(executable_path='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless=True,
+            args=['--use-angle=swiftshader','--enable-unsafe-swiftshader'])
+        page=browser.new_page(viewport={'width':1440,'height':950})
+        page.on('pageerror',lambda e:errors.append(str(e)))
+        page.goto('http://127.0.0.1:8766/?motion=Walk#agumon',wait_until='networkidle',timeout=90000)
+        page.wait_for_function('window.faithfulGallery?.state.ready',timeout=90000)
+        assert page.evaluate('faithfulGallery.state.activeClip')=='Walk'
+        for ident,motion in [('greymon','Idle'),('greymon','Skill'),('wargreymon','Skill'),('metalgreymon','Skill'),('lilimon','Skill'),('holyangemon','Skill')]:
+            page.evaluate('(id)=>faithfulGallery.selectModel(id)',ident)
+            page.wait_for_function('(id)=>faithfulGallery.state.ready&&faithfulGallery.state.selected===id',arg=ident,timeout=90000)
+            page.evaluate('(motion)=>{faithfulGallery.playClip(faithfulGallery.state.clips.indexOf(motion),false);faithfulGallery.seekMotion(faithfulGallery.state.animationDuration*.43);}',motion)
+            page.wait_for_timeout(80)
+            progress=page.evaluate('faithfulGallery.state.animationTime/faithfulGallery.state.animationDuration')
+            after=page.evaluate('faithfulGallery.poseSnapshot().positions')
+            page.screenshot(path=str(out/(ident+'-'+motion+'-after.png')))
+            page.locator('#compare-before').click()
+            page.wait_for_function('faithfulGallery.state.ready&&faithfulGallery.state.showPrevious===true',timeout=90000)
+            page.wait_for_function('faithfulGallery.state.animationPaused===true',timeout=90000)
+            assert page.evaluate('faithfulGallery.state.activeClip')==motion
+            assert abs(page.evaluate('faithfulGallery.state.animationTime/faithfulGallery.state.animationDuration')-progress)<.0001
+            before=page.evaluate('faithfulGallery.poseSnapshot().positions')
+            assert len(before)==len(after)
+            difference=max(abs(a-b) for a,b in zip(after,before))
+            if motion in ('Attack','Skill'):assert difference>.001,(ident,'same attack loaded for both views')
+            else:assert difference<.0001,(ident,'preserved motion changed')
+            page.wait_for_function('!faithfulGallery.state.techniqueEffect.active')
+            page.screenshot(path=str(out/(ident+'-'+motion+'-before.png')))
+            page.locator('#compare-before').click()
+            page.wait_for_function('faithfulGallery.state.ready&&faithfulGallery.state.showPrevious===false',timeout=90000)
+            page.wait_for_function('faithfulGallery.state.animationPaused===true',timeout=90000)
+            assert page.evaluate('faithfulGallery.state.activeClip')==motion
+            assert abs(page.evaluate('faithfulGallery.state.animationTime/faithfulGallery.state.animationDuration')-progress)<.0001
+            restored=page.evaluate('faithfulGallery.poseSnapshot().positions')
+            assert max(abs(a-b) for a,b in zip(after,restored))<.0001,(ident,'comparison changed paused pose')
+            checks.append({'id':ident,'clip':motion,'sampled_pose_difference':difference,'restored_pose':True})
+        page.evaluate('faithfulGallery.selectModel("birdramon")')
+        page.wait_for_function('faithfulGallery.state.ready&&faithfulGallery.state.selected==="birdramon"',timeout=90000)
+        assert page.locator('#compare-before').is_visible()
+        assert len(page.evaluate('faithfulGallery.state.clips'))==21
+        page.locator('#compare-before').click()
+        page.wait_for_function('faithfulGallery.state.ready&&faithfulGallery.state.showPrevious===true',timeout=90000)
+        assert len(page.evaluate('faithfulGallery.state.clips'))==21
+        page.locator('#compare-before').click()
+        page.wait_for_function('faithfulGallery.state.ready&&!faithfulGallery.state.showPrevious')
+        page.locator('#combat-demo').click()
+        page.wait_for_function('faithfulGallery.state.demo.active&&faithfulGallery.state.activeClip==="Attack"')
+        assert page.evaluate('faithfulGallery.state.demo.motions')==['Attack','Skill']
+        page.evaluate('faithfulGallery.advanceDemo()')
+        page.wait_for_function('faithfulGallery.state.activeClip==="Skill"')
+        page.locator('#demo-next').click()
+        page.wait_for_function('faithfulGallery.state.ready&&faithfulGallery.state.selected!=="birdramon"&&faithfulGallery.state.activeClip==="Attack"',timeout=90000)
+        page.locator('#combat-demo').click()
+        assert not page.evaluate('faithfulGallery.state.demo.active')
+        browser.close()
+    report={'passed':not errors,'comparisons':checks,'errors':errors,'checks':['matching motion and normalized time in before/after','new paused clip and normalized time restored','current pose restored exactly','unchanged original clips remain available']}
+    (out/'comparison-report.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+    assert report['passed'],report
+    print('PUBLISHED BEFORE/AFTER PASS',len(checks))
+
+if __name__=='__main__':main()

@@ -1,0 +1,47 @@
+{
+  "revision": "20261001-reference-creature-sculpt",
+  "module": "Tools/roster_creature_quality.py",
+  "reference_directory": "ArtSource/Roster/ReferencesV2",
+  "reference_provenance": "Official Digimon Encyclopedia pages and the artwork linked by each page, resolved in ReferencesV2/sources.json. Existing previews and the old three reference boards were visually inspected before modelling. The old greymon and metalgreymon images depicted the 2010 anime forms and were rejected for this revision.",
+  "variant_corrections": {
+    "greymon": "https://digimon.net/reference_en/detail.php?directory_name=greymon-first",
+    "metalgreymon": "https://digimon.net/reference_en/detail.php?directory_name=metalgreymon-v"
+  },
+  "reference_pages": {
+    "gabumon": "https://digimon.net/reference_en/detail.php?directory_name=gabumon",
+    "greymon": "https://digimon.net/reference_en/detail.php?directory_name=greymon-first",
+    "metalgreymon": "https://digimon.net/reference_en/detail.php?directory_name=metalgreymon-v",
+    "garurumon": "https://digimon.net/reference_en/detail.php?directory_name=garurumon",
+    "metalgarurumon": "https://digimon.net/reference_en/detail.php?directory_name=metalgarurumon",
+    "tentomon": "https://digimon.net/reference_en/detail.php?directory_name=tentomon",
+    "kabuterimon": "https://digimon.net/reference_en/detail.php?directory_name=kabuterimon",
+    "atlur": "https://digimon.net/reference_en/detail.php?directory_name=atlurkabuterimon",
+    "herakle": "https://digimon.net/reference_en/detail.php?directory_name=heraklekabuterimon",
+    "kuwagamon": "https://digimon.net/reference_en/detail.php?directory_name=kuwagamon",
+    "shellmon": "https://digimon.net/reference_en/detail.php?directory_name=shellmon"
+  },
+  "changes": {
+    "gabumon": ["Yellow reptile inside a pale striped wolf pelt", "Wolf muzzle, inset red eyes, fangs, swept ears and one ringed forehead horn", "Turquoise belly with red hooked marking", "Hanging pelt side strips, magenta pelt talons and shorter reptile tail"],
+    "greymon": ["Broad forward saurian torso and neck, small forward arms and substantial haunches", "Long squared snout, separate hinged lower jaw, oral cavity and individual teeth", "Open brown crown and cheek helmet with visible red eyes and three correctly oriented horns", "Flush blue tiger markings, ventral scale seams and long articulated counterweight tail"],
+    "metalgreymon": ["Orange Vaccine form rather than blue 2010 form", "Asymmetric silver mechanical arm with enlarged three-pronged claw", "Chest launcher doors, ports and rivets", "Silver cranial panel, red sensor, paired ragged purple membranes and exposed tail vertebrae"],
+    "garurumon": ["Lengthened four-legged ribcage with deep chest and distinct hindquarter proportions", "Long canine muzzle, exposed fangs, inset almond eyes and broad flat pointed ears", "Surface-following indigo coat stripes and irregular layered cheek fur", "Individual paw digits, curved purple claws and articulated bushy tail"],
+    "metalgarurumon": ["Long quadruped body and mechanical canine skull", "Segmented joint armour with fitted bolts and shoulder launcher ports", "Gold dorsal blade wings with vents", "Separate toe claws, cranial panels and mechanical tail segments"],
+    "tentomon": ["Split red beetle shell with black lateral spots", "Large green compound eyes with small convex facets", "Paired articulated antennae, layered mouth plate and ventral ribs", "Six bent chitin limbs with hooked black extremities"],
+    "kabuterimon": ["Dark ribbed helmet-like cranium without humanoid eyeballs", "Large swept nasal horn and lateral helmet spurs", "Toothed recessed jaw and mandible tusks", "Four long framed wing membranes, six segmented limbs and heavy hind claws"],
+    "atlur": ["Red broad carapace with emerald dorsal jewel", "Forked rhino horn and ridged helmet recesses", "Six bent limbs, pincer hands and large hooked toes", "Four veined wings and segmented ventral abdomen"],
+    "herakle": ["Gold broad crest and dual giant curved stag mandibles with inner teeth", "Secondary rhino horn, ribbed head and toothed jaw", "Six segmented appendages and large hook claws", "Four pale veined wings and split gold dorsal shell"],
+    "kuwagamon": ["Orange-red split elytra and heavily framed beetle face", "Large curved paired stag mandibles with inward-facing teeth", "Six articulated appendages with hooked hands and hind feet", "Four narrow veined membranes and segmented abdomen"],
+    "shellmon": ["Low pink amphibian mantle, thick rising neck and broad squared jaw", "Open mouth, distinct teeth and tongue, inset blue almond eyes", "Enlarged conical shell with coiled growth ridge, swept apex, pores and curved spines", "Rounded webbed fingers, turquoise skin flecks and curved green crown tendrils"]
+  },
+  "review": {
+    "temporary_output": "01_CurrentProject/tmp/creature-quality-review",
+    "method": "Rendered all eleven authored geometries in Blender Workbench at 720 pixels, comparing silhouettes to the official reference images; representative models underwent a second visual correction pass. Final integration performs its own animated export and pose validation.",
+    "skin": "Only same-colour organic anatomical volumes are voxel-unified. Armour, markings, horns, shell, face layers and teeth retain separate geometry and bindings."
+  },
+  "limits": [
+    "These remain independently authored stylized 3D interpretations, not exact replicas or extracted original game assets.",
+    "Fine skin texture, painted fur texture, microscopic carapace detail and exact official character facial topology are not reproduced.",
+    "The existing standardized eight-clip motion system remains; species-specific original-game motion capture was not performed by this module.",
+    "Final animated clipping, engine framing and GPU shading must be checked after integration; temporary static renders alone do not certify them."
+  ]
+}

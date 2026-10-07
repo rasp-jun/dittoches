@@ -1,0 +1,111 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+/// <summary>Shared, versioned trait/item data. Numerical effects are game balance, not anime canon.</summary>
+public static class DigimonBuildCatalog
+{
+    [Serializable] public sealed class Bonus
+    {
+        public float health, hp, attack, speed, abilityPower, armor, magicResist, manaRegen, startMana, manaOnAttack, regen,
+            lifesteal, reduction, startShield, lowShield, castHeal, healPower, thirdHit,
+            highHealthDamage, castShield, thirdStun, teamShield, rampSpeed, lowHeal, teamResist;
+        public void Add(Bonus b)
+        {
+            if(b==null)return;
+            health+=b.health;hp+=b.hp;attack+=b.attack;speed+=b.speed;abilityPower+=b.abilityPower;armor+=b.armor;magicResist+=b.magicResist;
+            manaRegen+=b.manaRegen;startMana+=b.startMana;manaOnAttack+=b.manaOnAttack;regen+=b.regen;
+            lifesteal+=b.lifesteal;reduction+=b.reduction;startShield+=b.startShield;lowShield+=b.lowShield;
+            castHeal+=b.castHeal;healPower+=b.healPower;thirdHit+=b.thirdHit;highHealthDamage+=b.highHealthDamage;
+            castShield+=b.castShield;thirdStun+=b.thirdStun;teamShield+=b.teamShield;
+            rampSpeed+=b.rampSpeed;lowHeal+=b.lowHeal;teamResist+=b.teamResist;
+        }
+    }
+    [Serializable] public sealed class Tier { public int count; public string text; public Bonus bonus; }
+    [Serializable] public sealed class Trait
+    {
+        public string id,name,category,description,identity,usage;public Tier[] tiers;public string[] members;
+        public int Level(int count){return tiers.Count(t=>count>=t.count);}
+        public int Target(int count){var next=tiers.FirstOrDefault(t=>count<t.count);return (next??tiers[tiers.Length-1]).count;}
+    }
+    [Serializable] public sealed class Item
+    {public int id,teamSize;public string name,icon,kind,description,source,role,flavor,passive,usage,grantsTrait;public int[] recipe;public Bonus bonus;}
+    public sealed class Member
+    {
+        public string id;public int[] items;
+        public Member(string id,IEnumerable<int> items=null){this.id=id;this.items=items==null?new int[0]:items.ToArray();}
+    }
+    [Serializable] public sealed class Document { public int version;public Trait[] traits;public Item[] items; }
+    static Document data;
+    public static Document Data
+    {
+        get
+        {
+            if(data!=null)return data;
+            var asset=Resources.Load<TextAsset>("DigimonBuilds");
+#if DITTOCHES_PORTABLE_PREVIEW
+            string path=System.IO.Path.Combine(Application.streamingAssetsPath,"DigimonBuilds.json");
+            string json=System.IO.File.Exists(path)?System.IO.File.ReadAllText(path):asset.text;
+#else
+            if(asset==null)throw new InvalidOperationException("Missing Resources/DigimonBuilds.json");
+            string json=asset.text;
+#endif
+            data=JsonUtility.FromJson<Document>(json);return data;
+        }
+    }
+    public static IEnumerable<Trait> ForUnit(string id){return Data.traits.Where(t=>t.members.Contains(id));}
+    public static Trait Find(string name){return Data.traits.FirstOrDefault(t=>t.name==name||t.id==name);}
+    public static bool IsComponent(int id){return id>=0&&id<Data.items.Length&&Data.items[id].kind=="component";}
+    public static IEnumerable<Trait> ForUnit(string id,IEnumerable<int> items){return Data.traits.Where(t=>HasTrait(t,id,items));}
+    public static bool HasTrait(Trait trait,string id,IEnumerable<int> items)
+    {return trait.members.Contains(id)||(items??Enumerable.Empty<int>()).Any(i=>i>=0&&i<Data.items.Length&&Data.items[i].grantsTrait==trait.id);}
+    public static int Count(Trait trait,IEnumerable<string> ids){return Count(trait,ids.Select(id=>new Member(id)));}
+    public static int Count(Trait trait,IEnumerable<Member> team){return team.Where(u=>u!=null&&!string.IsNullOrEmpty(u.id)&&HasTrait(trait,u.id,u.items)).Select(u=>u.id).Distinct().Count();}
+    public static Bonus Resolve(string id,IEnumerable<string> team,IEnumerable<int> equipment)
+    {return Resolve(id,team.Select(uid=>new Member(uid)),equipment);}
+    public static Bonus Resolve(string id,IEnumerable<Member> team,IEnumerable<int> equipment)
+    {
+        var ids=team.ToArray();var gear=equipment.ToArray();var bonus=new Bonus();
+        foreach(var trait in Data.traits)
+        {
+            int level=trait.Level(Count(trait,ids));if(level==0)continue;
+            Bonus active=trait.tiers[level-1].bonus;
+            if(HasTrait(trait,id,gear))bonus.Add(active);
+            // A team aura is applied once, never once per contributing unit.
+            bonus.startShield+=active.teamShield;bonus.armor+=active.teamResist;bonus.magicResist+=active.teamResist;
+        }
+        foreach(int item in gear)if(item>=0&&item<Data.items.Length&&Data.items[item].kind!="utility")bonus.Add(Data.items[item].bonus);
+        return bonus;
+    }
+    public static int Combine(int a,int b)
+    {
+        if(!IsComponent(a)||!IsComponent(b))return -1;
+        var item=Data.items.FirstOrDefault(i=>i.recipe!=null&&i.recipe.Length==2&&
+            ((i.recipe[0]==a&&i.recipe[1]==b)||(i.recipe[0]==b&&i.recipe[1]==a)));
+        return item==null?-1:item.id;
+    }
+    public sealed class EquipmentChange
+    {
+        public bool allowed,removed;public int result=-1;public int[] items;public string message;
+    }
+    public static EquipmentChange PreviewEquipment(IEnumerable<int> equipped,int item,string unitId=null)
+    {
+        var items=equipped.ToList();var change=new EquipmentChange{items=items.ToArray()};
+        if(item<0||item>=Data.items.Length){change.message="유효하지 않은 장비입니다";return change;}
+        if(item==14)
+        {
+            change.allowed=items.Count>0;change.removed=change.allowed;
+            change.message=change.allowed?"장비 "+items.Count+"개를 보관함으로 회수":"회수할 장비가 없습니다";
+            if(change.allowed)change.items=new int[0];return change;
+        }
+        int partner=items.FindIndex(i=>Combine(i,item)>=0),result=partner>=0?Combine(items[partner],item):-1;
+        if(result>=0){items[partner]=result;change.message=Data.items[result].name+" 자동 합성";}
+        else if(items.Count>=2){change.message="장비 2칸이 가득 찼습니다.\n재료 합성 또는 데이터 추출기를 이용하세요.";return change;}
+        else{result=item;items.Add(item);change.message=Data.items[item].name+" 장착";}
+        var granted=Data.items[result].grantsTrait;
+        if(!string.IsNullOrEmpty(granted)&&((unitId!=null&&Find(granted).members.Contains(unitId))||items.Count(i=>Data.items[i].grantsTrait==granted)>1))
+        {change.message="이미 보유한 시너지입니다 · 다른 아군에게 장착하세요";return change;}
+        change.allowed=true;change.result=result;change.items=items.ToArray();return change;
+    }
+}

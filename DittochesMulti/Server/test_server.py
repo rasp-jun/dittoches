@@ -119,9 +119,10 @@ class ServerTests(unittest.TestCase):
         a,b=self.request('/state'),self.request('/state',who=1)
         self.assertEqual(a['room']['frames'],b['room']['frames'])
         self.assertGreater(len(room['frames']),1)
-        with self.assertRaises(Rejected):
-            self.request('/action',{'action':'reroll'})
-        self.now+=9
+        before=room['players'][0]['gold']
+        self.request('/action',{'action':'reroll'})
+        self.assertEqual(room['players'][0]['gold'],before-2)
+        self.now=room['deadline']+.1
         self.request('/state')
         self.assertEqual(room['phase'],'prepare')
         self.assertEqual(room['round'],2)

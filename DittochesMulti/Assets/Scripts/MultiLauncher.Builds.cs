@@ -1,0 +1,32 @@
+using System.Linq;
+using UnityEngine;
+
+public sealed partial class MultiLauncher
+{
+    static DigimonBuildCatalog.Member BuildMember(Unit u){return u==null?null:new DigimonBuildCatalog.Member(u.id,u.items);}
+    int OnlineFormationLimit(Player me){return Mathf.Min(28,me.level+(me.inventory??new int[0]).Concat(me.board.Concat(me.bench).SelectMany(u=>u.items??new int[0])).Sum(i=>DigimonBuildCatalog.Data.items[i].teamSize));}
+    string onlineTrait="";
+    void DrawOnlineTraits(Player me)
+    {
+        Unit unit=SelectedOnlineUnit(me);if(unit!=null){DrawOnlineSkillStats(unit);return;}
+        var ids=me.board.Select(BuildMember).ToArray();
+        var traits=DigimonBuildCatalog.Data.traits.Where(t=>DigimonBuildCatalog.Count(t,ids)>0)
+            .OrderByDescending(t=>t.Level(DigimonBuildCatalog.Count(t,ids))).ThenByDescending(t=>DigimonBuildCatalog.Count(t,ids)).ToArray();
+        Card(new Rect(1305,490,270,430),surface,new Color(.2f,.38f,.43f));
+        GUI.Label(new Rect(1320,500,170,25),"팀 시너지 · 전장만 계산",small);
+        if(Btn(new Rect(1497,498,64,28),"도감"))OpenOnlineTrait(onlineTrait);
+        for(int i=0;i<traits.Length;i++)
+        {
+            var trait=traits[i];int count=DigimonBuildCatalog.Count(trait,ids),tier=trait.Level(count);
+            if(Btn(new Rect(1320,533+i*25,240,23),"     "+trait.name+"    "+count+" / "+trait.Target(count)))OpenOnlineTrait(trait.id);
+            GUI.DrawTexture(new Rect(1322,534+i*25,21,21),DigimonTraitUI.Icon(trait.id));
+        }
+        var selected=DigimonBuildCatalog.Find(onlineTrait)??traits.FirstOrDefault();
+        if(selected!=null)
+        {
+            int tier=selected.Level(DigimonBuildCatalog.Count(selected,ids));
+            var wrap=new GUIStyle(small){wordWrap=true,fontSize=13};
+            GUI.Label(new Rect(1320,818,240,90),selected.name+" · "+(tier>0?"활성":"다음 단계")+"\n"+selected.tiers[Mathf.Max(0,tier-1)].text,wrap);
+        }
+    }
+}

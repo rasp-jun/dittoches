@@ -5,6 +5,7 @@ Shader "Dittoches/ArenaSurface"
         _MainTex ("Texture", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
         _Unlit ("Unlit", Float) = 0
+        _VertexColor ("Vertex color", Float) = 0
         _OutlineColor ("Outline", Color) = (0.5,1,1,1)
         _OutlineWidth ("Outline width", Float) = 0
     }
@@ -21,20 +22,22 @@ Shader "Dittoches/ArenaSurface"
             sampler2D _MainTex;
             fixed4 _Color;
             float _Unlit;
+            float _VertexColor;
             float4 _MainTex_TexelSize;
             fixed4 _OutlineColor;
             float _OutlineWidth;
-            struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; };
-            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float shade:TEXCOORD1; };
+            struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; fixed4 color:COLOR; };
+            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float shade:TEXCOORD1; fixed4 color:COLOR; };
             v2f vert(appdata v)
             {
                 v2f o; o.pos=UnityObjectToClipPos(v.vertex); o.uv=v.uv;
+                o.color=lerp(fixed4(1,1,1,1),v.color,_VertexColor);
                 float diffuse=saturate(dot(UnityObjectToWorldNormal(v.normal),normalize(float3(-.4,1,-.3))));
                 o.shade=lerp(.50+.50*diffuse,1,_Unlit);return o;
             }
             fixed4 frag(v2f i):SV_Target
             {
-                fixed4 color=tex2D(_MainTex,i.uv)*_Color;
+                fixed4 color=tex2D(_MainTex,i.uv)*_Color*i.color;
                 if(_OutlineWidth>0 && color.a<.12)
                 {
                     float2 d=_MainTex_TexelSize.xy*_OutlineWidth;
