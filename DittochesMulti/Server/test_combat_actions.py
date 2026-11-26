@@ -74,6 +74,35 @@ class CombatActionsTests(unittest.TestCase):
         self.assertEqual(self.room['reportWinner'],0)
         self.assertLess(self.enemy['hp'],self.p['hp'])
 
+    def test_live_third_slot_and_full_extraction_preserve_played_frames(self):
+        self.p['board'][3]['items']=[4,12]
+        self.p['inventory']=[8,13,14]
+        self.battle();self.now+=.63
+        before=copy.deepcopy(self.room['frames'])
+        self.equip()
+        event=self.room['equipmentEvents'][-1]
+        self.assertEqual(event['items'],[4,12,8])
+        self.assertEqual(self.p['inventory'],[13,14])
+        self.assertEqual([f for f in before if f['time']<event['time']],
+                         [f for f in self.room['frames'] if f['time']<event['time']])
+        frame=next(f for f in self.room['frames'] if f['time']>=event['time'])
+        prior=next(f for f in before if f['time']>=event['time'])
+        own=next(f for f in frame['units'] if f['side']==0 and f['slot']==3)
+        old=next(f for f in prior['units'] if f['side']==0 and f['slot']==3)
+        self.assertGreater(own['maxHp'],old['maxHp'])
+        self.assertEqual(own['armor'],old['armor']+30)
+        state=copy.deepcopy(self.p);events=copy.deepcopy(self.room['equipmentEvents'])
+        with self.assertRaises(Rejected):self.equip()
+        self.assertEqual(self.p,state)
+        self.assertEqual(self.room['equipmentEvents'],events)
+        before=copy.deepcopy(self.room['frames']);self.equip(slot=1)
+        extraction=self.room['equipmentEvents'][-1]
+        self.assertEqual(extraction['items'],[])
+        self.assertEqual(self.p['board'][3]['items'],[])
+        self.assertEqual(self.p['inventory'],[13,4,12,8])
+        self.assertEqual([f for f in before if f['time']<extraction['time']],
+                         [f for f in self.room['frames'] if f['time']<extraction['time']])
+
     def test_merge_during_combat_keeps_current_fighters_frozen(self):
         uid=self.p['board'][3]['id']
         self.p['bench'][0]=dict(id=uid,star=1,items=[])

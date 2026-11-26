@@ -33,6 +33,12 @@ public static class DigimonSkillUI
         if(v=="seven")
         {d=Ring(x,y,0,0,.12f);for(int i=0;i<6;i++){float a=i*Mathf.PI/3;d=Mathf.Min(d,Ring(x,y,Mathf.Cos(a)*.43f,Mathf.Sin(a)*.43f,.09f));}return d;}
         if(v=="holy")return Mathf.Min(Line(x,y,0,-.55f,0,.58f),Line(x,y,-.36f,.14f,.36f,.14f));
+        if(v=="holyarrow"||v=="javelin")
+        {
+            d=Mathf.Min(Line(x,y,-.4f,-.48f,.38f,.48f),Mathf.Min(Line(x,y,.38f,.48f,.06f,.34f),Line(x,y,.38f,.48f,.32f,.14f)));
+            if(v=="javelin")return Mathf.Min(d,Ring(x,y,-.15f,-.19f,.24f));
+            return Mathf.Min(d,Mathf.Min(Line(x,y,-.4f,-.48f,-.42f,-.19f),Line(x,y,-.4f,-.48f,-.1f,-.43f)));
+        }
         if(v=="horn")return Mathf.Min(Line(x,y,-.35f,-.45f,.12f,.58f),Line(x,y,.12f,.58f,.38f,-.45f));
         if(v=="air"||v=="water")
         {for(int i=-1;i<=1;i++)d=Mathf.Min(d,Mathf.Abs(y-i*.27f-Mathf.Sin(x*5)*.09f)+Mathf.Max(0,Mathf.Abs(x)-.57f));return d;}
@@ -68,35 +74,59 @@ public static class DigimonSkillUI
     static void Fill(Rect r,Color c){Color old=GUI.color;GUI.color=c;GUI.DrawTexture(r,Texture2D.whiteTexture);GUI.color=old;}
     public static string Formula(DigimonSkillCatalog.Entry s,int star)
     {int i=DigimonCombatMath.StarIndex(star);return (s.adRatio[i]>0?"공격력 "+(s.adRatio[i]*100).ToString("0.#")+"%":"")+(s.adRatio[i]>0&&s.apRatio[i]>0?" + ":"")+(s.apRatio[i]>0?"주문력 "+(s.apRatio[i]*100).ToString("0.#")+"%":"");}
-    public static bool DrawDetails(Rect r,DigimonSkillCatalog.Entry s,int star,DigimonSkillCatalog.Stats stats,string context)
+    static GUIStyle detailBody,detailTitle,detailMuted,detailTiny;
+    static readonly string[] statNames={"공격력","주문력","방어력","마법저항력"};
+    static void DetailStyles()
+    {
+        if(detailBody!=null)return;
+        detailBody=new GUIStyle(GUI.skin.label){fontSize=15,wordWrap=true};detailBody.normal.textColor=BattleHudTheme.Text;
+        detailTitle=new GUIStyle(detailBody){fontSize=25,fontStyle=FontStyle.Bold};detailTitle.normal.textColor=BattleHudTheme.Text;
+        detailMuted=new GUIStyle(detailBody){fontSize=13};detailMuted.normal.textColor=BattleHudTheme.Muted;
+        detailTiny=new GUIStyle(detailMuted){fontSize=12};
+    }
+    public static Rect DetailCloseRect(Rect r){return new Rect(r.xMax-50,r.y+17,32,32);}
+    public static bool DrawDetails(Rect r,DigimonSkillCatalog.Entry s,int star,DigimonSkillCatalog.Stats stats,string context,string collection="")
     {
         if(Event.current.type==EventType.KeyDown&&Event.current.keyCode==KeyCode.Escape){Event.current.Use();return false;}
-        Fill(r,new Color(.02f,.037f,.058f,.99f));Fill(new Rect(r.x,r.y,r.width,2),s.Tint);
-        var body=new GUIStyle(GUI.skin.label){fontSize=16,wordWrap=true};body.normal.textColor=new Color(.79f,.86f,.9f);
-        var title=new GUIStyle(body){fontSize=24,fontStyle=FontStyle.Bold};title.normal.textColor=Color.white;
-        var muted=new GUIStyle(body){fontSize=14};muted.normal.textColor=new Color(.55f,.68f,.75f);
-        GUI.DrawTexture(new Rect(r.x+22,r.y+22,66,66),Icon(s));
-        GUI.Label(new Rect(r.x+104,r.y+21,r.width-164,38),s.name,title);
-        GUI.Label(new Rect(r.x+104,r.y+61,r.width-145,32),s.ScalingRole+" · "+s.DamageLabel+" 피해 · "+new string('★',star),body);
-        if(GUI.Button(new Rect(r.xMax-50,r.y+17,32,32),"×"))return false;
-        GUI.Label(new Rect(r.x+22,r.y+105,r.width-44,55),s.description,body);
-        GUI.Label(new Rect(r.x+22,r.y+166,r.width-44,25),context,muted);
-        Fill(new Rect(r.x+18,r.y+199,r.width-36,77),new Color(.06f,.09f,.14f));
-        string[] names={"공격력","주문력","방어력","마법저항력"};float[] values={stats.attack,stats.abilityPower,stats.armor,stats.magicResist};
-        for(int i=0;i<4;i++){float x=r.x+30+i*(r.width-60)/4;GUI.Label(new Rect(x,r.y+207,130,26),names[i],muted);GUI.Label(new Rect(x,r.y+234,130,34),values[i].ToString("0.#"),title);}
-        GUI.Label(new Rect(r.x+22,r.y+290,r.width-44,49),"기본 공격: 공격력 100%의 물리 피해 · "+stats.range+"칸\n"+s.attackStyle+" · 공격 속도 "+stats.speed.ToString("0.00")+"회/초",body);
-        GUI.Label(new Rect(r.x+22,r.y+352,r.width-44,28),Formula(s,star),body);
-        GUI.Label(new Rect(r.x+22,r.y+387,r.width-44,36),"총 "+s.Damage(star,stats.attack,stats.abilityPower).ToString("0.#")+" "+s.DamageLabel+" 피해 / 대상",title);
-        GUI.Label(new Rect(r.x+22,r.y+429,r.width-44,44),s.shots+"회 명중 · 최대 "+s.targets+"명 · 대상당 총합 / 타수\n방어·추가 피해 적용 전 · 물리: 방어력 / 마법: 마법저항력",muted);
+        DetailStyles();var body=detailBody;var title=detailTitle;var muted=detailMuted;
+        BattleHudTheme.Surface(r,false,s.Tint);
+        BattleHudTheme.Round(new Rect(r.x+20,r.y+21,78,78),Color.Lerp(BattleHudTheme.Raised,s.Tint,.17f));
+        GUI.DrawTexture(new Rect(r.x+27,r.y+28,64,64),Icon(s));
+        BattleHudTheme.Label(new Rect(r.x+114,r.y+19,r.width-170,19),"TECHNIQUE  /  "+s.DamageLabel.ToUpper(),10,BattleHudTheme.Teal,true);
+        GUI.Label(new Rect(r.x+111,r.y+40,r.width-174,39),s.name,title);
+        BattleHudTheme.Label(new Rect(r.x+114,r.y+79,r.width-172,21),s.ScalingStats(star)+" 계수  ·  "+new string('★',star),12,BattleHudTheme.Muted);
+        Rect close=DetailCloseRect(r);BattleHudTheme.Round(close,BattleHudTheme.Raised);
+        BattleHudTheme.Label(close,"×",20,BattleHudTheme.Text,false,TextAnchor.MiddleCenter);
+        if(GUI.Button(close,GUIContent.none,GUIStyle.none))return false;
+        GUI.Label(new Rect(r.x+22,r.y+118,r.width-44,48),s.description,body);
+        GUI.Label(new Rect(r.x+22,r.y+174,r.width-44,27),context,muted);
+        float tileWidth=(r.width-62)/4;
+        for(int i=0;i<4;i++){float value=i==0?stats.attack:i==1?stats.abilityPower:i==2?stats.armor:stats.magicResist;BattleHudTheme.StatTile(new Rect(r.x+22+i*(tileWidth+6),r.y+206,tileWidth,65),statNames[i],value.ToString("0.#"),i<2?s.Tint:BattleHudTheme.Text);}
+        BattleHudTheme.Round(new Rect(r.x+22,r.y+287,r.width-44,157),Color.Lerp(BattleHudTheme.Raised,s.Tint,.08f));
+        BattleHudTheme.Label(new Rect(r.x+37,r.y+298,r.width-74,19),"현재 성급의 스킬 피해",11,BattleHudTheme.Muted,true);
+        BattleHudTheme.Label(new Rect(r.x+37,r.y+324,r.width-74,37),s.Damage(star,stats.attack,stats.abilityPower).ToString("0.#")+"  "+s.DamageLabel+" / 대상",27,BattleHudTheme.Text,true);
+        GUI.Label(new Rect(r.x+37,r.y+369,r.width-74,24),Formula(s,star),body);
+        int starIndex=DigimonCombatMath.StarIndex(star);
+        GUI.Label(new Rect(r.x+37,r.y+396,r.width-74,21),"공격력 기여 "+(stats.attack*s.adRatio[starIndex]).ToString("0.#")+" + 주문력 기여 "+(stats.abilityPower*s.apRatio[starIndex]).ToString("0.#"),muted);
+        GUI.Label(new Rect(r.x+37,r.y+419,r.width-74,19),"대상당 "+s.shots+"회 합계 · 최대 "+s.targets+"명 · 방어·조건부 효과 적용 전",detailTiny);
+        BattleHudTheme.Label(new Rect(r.x+22,r.y+455,r.width-44,18),"성급 강화  ·  같은 장비와 시너지 기준 예상치",11,BattleHudTheme.Muted,true);
         for(int i=0;i<3;i++)
         {
             float x=r.x+22+i*(r.width-44)/3,w=(r.width-44)/3-8;
-            Fill(new Rect(x,r.y+484,w,75),i==star-1?new Color(.16f,.15f,.09f):new Color(.045f,.07f,.1f));
-            GUI.Label(new Rect(x+9,r.y+490,w-18,34),new string('★',i+1)+"  "+Formula(s,i+1),new GUIStyle(muted){fontSize=12});
-            float ad=stats.attack/Mathf.Pow(1.5f,star-1)*Mathf.Pow(1.5f,i);
-            GUI.Label(new Rect(x+9,r.y+524,w-18,27),s.Damage(i+1,ad,stats.abilityPower).ToString("0.#")+" 피해",body);
+            Color tint=StarUpgradeUI.Tint(i+1);
+            BattleHudTheme.Round(new Rect(x,r.y+483,w,117),i==star-1?Color.Lerp(BattleHudTheme.Raised,tint,.15f):BattleHudTheme.Raised);
+            Fill(new Rect(x+9,r.y+483,w-18,2),i==star-1?tint:BattleHudTheme.Line);
+            BattleHudTheme.Label(new Rect(x+10,r.y+488,w-20,24),new string('★',i+1)+(i==star-1?"  현재":""),16,tint,true);
+            float ad=StarUpgradeUI.AttackAt(stats,star,i+1),hp=StarUpgradeUI.HealthAt(stats,star,i+1);
+            BattleHudTheme.Label(new Rect(x+10,r.y+515,w-20,20),"체력 "+hp.ToString("0")+" · 공격 "+ad.ToString("0.#"),12,BattleHudTheme.Text);
+            BattleHudTheme.Label(new Rect(x+10,r.y+538,w-20,27),s.Damage(i+1,ad,stats.abilityPower).ToString("0.#")+" 스킬 피해",17,tint,true);
+            BattleHudTheme.Label(new Rect(x+10,r.y+572,w-20,18),i==0?"기본 기물 1개":i==1?"★ 3개 → ★★":"★★ 3개 → ★★★ · 총 9개",11,BattleHudTheme.Muted);
         }
-        GUI.Label(new Rect(r.x+22,r.y+574,r.width-44,47),"성급 비교: 같은 장비·시너지 유지 · 기본 주문력 100\n마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0")+" · 준비 "+s.windup.ToString("0.00")+"초 · 기절 "+s.stun.ToString("0.#")+"초",muted);
+        BattleHudTheme.Label(new Rect(r.x+22,r.y+608,r.width-44,20),"성급당 체력 +80% · 공격력 +50% · 스킬은 성급별 계수 적용",12,BattleHudTheme.Teal);
+        BattleHudTheme.Round(new Rect(r.x+22,r.y+637,r.width-44,62),BattleHudTheme.Raised);
+        GUI.Label(new Rect(r.x+34,r.y+646,r.width-68,46),string.IsNullOrEmpty(collection)?"같은 종·같은 성급 3개로 자동 승급 · 최대 3성\n장비 최대 3개 유지 · 초과분 보관함 반환 · 전투 중 승급은 다음 전투 적용":collection,muted);
+        GUI.Label(new Rect(r.x+22,r.y+710,r.width-44,21),"평타 "+stats.attack.ToString("0.#")+" 물리 · 공격력 100% · "+stats.range+"칸 · "+stats.speed.ToString("0.00")+"회/초 · "+s.attackStyle,detailTiny);
+        GUI.Label(new Rect(r.x+22,r.y+735,r.width-44,25),"마나 "+stats.startMana.ToString("0")+" / "+stats.maxMana.ToString("0")+" · 준비 "+s.windup.ToString("0.00")+"초 · 기절 "+s.stun.ToString("0.#")+"초 · 방어/마저 적용 전 피해",detailTiny);
         return true;
     }
 }

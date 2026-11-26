@@ -1,4 +1,4 @@
-#if DITTOCHES_PORTABLE_PREVIEW
+﻿#if DITTOCHES_PORTABLE_PREVIEW
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -57,7 +57,7 @@ public sealed class EvolutionScaleValidation : MonoBehaviour
                 if(DigimonVisualScale.Stage(a.id)<DigimonVisualScale.Stage(b.id))Require(a.threeStar<b.oneStar,"Evolution hierarchy inverted: "+a.id+" / "+b.id);
         }
         catch(Exception e){report.error=e.ToString();}
-        string[][] lines={new[]{"koromon","agumon","greymon","metalgreymon","wargreymon"},new[]{"tsunomon","gabumon","garurumon","weregarurumon","metalgarurumon"},new[]{"mochimon","tentomon","kabuterimon","atlur","herakle"},new[]{"tanemon","palmon","togemon","lilimon","rosemon"},new[]{"pyocomon","piyomon","birdramon","garudamon","hououmon"},new[]{"tokomon","patamon","angemon","holyangemon","seraphimon"}};
+        string[][] lines={new[]{"koromon","agumon","greymon","metalgreymon","wargreymon"},new[]{"tsunomon","gabumon","garurumon","weregarurumon","metalgarurumon"},new[]{"mochimon","tentomon","kabuterimon","atlur","herakle"},new[]{"tanemon","palmon","togemon","lilimon","rosemon"},new[]{"pyocomon","piyomon","birdramon","garudamon","hououmon"},new[]{"tokomon","patamon","angemon","holyangemon","seraphimon"},new[]{"nyaromon","plotmon","tailmon","angewomon","ophanimon"}};
         if(report.error==null)for(int line=0;line<lines.Length;line++)
         {
             arena.BeginFrame(-1,-1,-1,false);
@@ -68,7 +68,7 @@ public sealed class EvolutionScaleValidation : MonoBehaviour
             arena.Render();var old=RenderTexture.active;RenderTexture.active=arena.Texture;var image=new Texture2D(arena.Texture.width,arena.Texture.height,TextureFormat.RGB24,false);
             image.ReadPixels(new Rect(0,0,image.width,image.height),0,0);image.Apply();File.WriteAllBytes(Path.Combine(output,"line-"+line+".png"),image.EncodeToPNG());Destroy(image);RenderTexture.active=old;yield return null;
         }
-        report.passed=report.error==null&&report.models.Count==34;
+        report.passed=report.error==null&&report.models.Count==47;
         File.WriteAllText(Path.Combine(output,"scale-report.json"),JsonUtility.ToJson(report,true));arena.Dispose();
         Debug.Log("EVOLUTION SCALE RESULT "+report.passed+" / "+report.checks+" checks "+report.error);Application.Quit(report.passed?0:1);
     }

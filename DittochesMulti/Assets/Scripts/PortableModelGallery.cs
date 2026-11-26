@@ -181,7 +181,7 @@ public sealed class PortableModelGallery : MonoBehaviour
         if(!Mathf.Approximately(newYaw,yaw)){yaw=newYaw;if(paused&&selected==Clips.Length)resetPose=true;}
         if(showRoster)
         {
-            GUI.Box(new Rect(650,70,602,352),"전체 디지몬 · 제작 검토 모델");
+            GUI.Box(new Rect(650,70,602,48+Mathf.CeilToInt(DigimonModelLibrary.Roster.Length/4f)*34),"전체 디지몬 · 제작 검토 모델");
             for(int i=0;i<DigimonModelLibrary.Roster.Length;i++)
                 if(GUI.Button(new Rect(662+(i%4)*146,104+(i/4)*34,140,30),DigimonModelLibrary.RosterNames[i]))SelectModel(i);
         }
@@ -265,7 +265,7 @@ public sealed class PortableModelGallery : MonoBehaviour
             }
             Debug.Log("ROSTER CAPTURE PASS: "+ModelId);
         }
-        Debug.Log("ROSTER SMOKE PASS: "+DigimonModelLibrary.Roster.Length+" models; "+checks+" checks; 136 captures.");
+        Debug.Log("ROSTER SMOKE PASS: "+DigimonModelLibrary.Roster.Length+" models; "+checks+" checks; "+(DigimonModelLibrary.Roster.Length*4)+" captures.");
         Application.Quit();
     }
     void OnDestroy()

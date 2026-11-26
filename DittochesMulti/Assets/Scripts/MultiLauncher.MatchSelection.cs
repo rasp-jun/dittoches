@@ -67,7 +67,7 @@ public sealed partial class MultiLauncher
         }
     }
     bool OnlineManagementAllowed(Room room,Player me)
-    {return room!=null&&me!=null&&((room.phase=="battle"&&state!=null&&state.combatActions>=1)||(room.phase=="prepare"&&!me.ready));}
+    {return room!=null&&me!=null&&!me.eliminated&&((room.phase=="battle"&&state!=null&&state.combatActions>=1)||(room.phase=="prepare"&&!me.ready));}
     bool OnlineConnectionFresh()
     {return !connectionError&&!recoveringLogin&&Time.unscaledTime-receivedAt<6;}
     bool CanSellOnline(Room room)

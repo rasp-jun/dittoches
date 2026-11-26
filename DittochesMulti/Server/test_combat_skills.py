@@ -13,7 +13,11 @@ def fighter(key, unit='agumon', side=0, x=3, y=4):
 class CanonicalSkillTests(unittest.TestCase):
     def test_every_playable_unit_and_creep_has_valid_skill(self):
         roster=json.loads((Path(__file__).parent/'roster.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(SKILLS), {u['id'] for u in roster}|{'kuwagamon','shellmon','devimon','etemon'})
+        enemies={'kuwagamon','shellmon','devimon','etemon','monochromon','ogremon','meramon','leomon','andromon','skullgreymon','piedmon','machinedramon'}
+        players={u['id'] for u in roster}
+        self.assertEqual(len(players),47)
+        self.assertTrue(enemies.issubset(players))
+        self.assertEqual(set(SKILLS),players|enemies)
         for s in SKILLS.values():
             with self.subTest(unit=s['id']):
                 self.assertGreater(s['windup'],0)
@@ -21,7 +25,7 @@ class CanonicalSkillTests(unittest.TestCase):
                 self.assertGreater(s['shots'],0)
                 self.assertGreater(s['targets'],0)
                 self.assertLess(duration(s),3)
-                self.assertTrue(s['source'].startswith('https://wikimon.net/'))
+                self.assertTrue(s['source'].startswith(('https://wikimon.net/', 'https://digimon.net/reference_en/detail.php?directory_name=')))
                 self.assertIn(s['shape'],('single','splash','line','cone','radial'))
 
     def test_all_skills_damage_only_on_impact_and_never_heal_or_hit_ally(self):

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from server import Game,Rejected
+from server import Game,Rejected,unit_signature
 
 
 class ConnectionReliabilityTests(unittest.TestCase):
@@ -109,5 +109,64 @@ class ConnectionReliabilityTests(unittest.TestCase):
         for invalid in (17,'short','G'*32):
             with self.assertRaises(Rejected):self.send(dict(self.command('ready'),requestId=invalid))
         self.assertFalse(self.player['ready'])
+
+    def test_stale_sale_rejects_changed_identity_star_and_gear_atomically(self):
+        original=dict(id='agumon',star=1,items=[0])
+        for replacement in [dict(id='gabumon',star=1,items=[0]),dict(original,star=2),dict(original,items=[1])]:
+            with self.subTest(replacement=replacement):
+                self.player['bench'][0]=replacement
+                before=copy.deepcopy(self.room)
+                data=self.command('sell',area='bench',slot=0,expectedUnit=unit_signature(original))
+                with self.assertRaisesRegex(Rejected,'변경'):self.send(data)
+                self.assertEqual(self.room,before)
+
+    def test_move_checks_destination_including_previously_empty_slot(self):
+        self.player['bench'][0]=dict(id='agumon',star=1,items=[])
+        self.player['bench'][1]=dict(id='gabumon',star=1,items=[])
+        for expected in ['-', 'koromon:1:', 17]:
+            before=copy.deepcopy(self.room)
+            data=self.command('move',area='bench',slot=0,targetArea='bench',targetSlot=1,
+                              expectedUnit=unit_signature(self.player['bench'][0]),expectedTarget=expected)
+            with self.assertRaisesRegex(Rejected,'변경'):self.send(data)
+            self.assertEqual(self.room,before)
+
+    def test_valid_swap_retry_does_not_swap_back(self):
+        self.player['bench'][0]=dict(id='agumon',star=1,items=[0])
+        self.player['bench'][1]=dict(id='gabumon',star=2,items=[1])
+        data=self.command('move',area='bench',slot=0,targetArea='bench',targetSlot=1,
+                          expectedUnit=unit_signature(self.player['bench'][0]),expectedTarget=unit_signature(self.player['bench'][1]))
+        self.send(data);before=copy.deepcopy(self.room)
+        self.assertEqual(self.player['bench'][0]['id'],'gabumon')
+        self.assertTrue(self.send(data)['duplicateRequest']);self.assertEqual(self.room,before)
+
+    def test_stale_equip_does_not_consume_component_or_extractor(self):
+        for item in [1,14]:
+            self.player['bench'][0]=dict(id='agumon',star=2,items=[0])
+            self.player['inventory']=[item];before=copy.deepcopy(self.room)
+            data=self.command('equip',area='bench',slot=0,itemSlot=0,
+                              inventoryRevision=self.player['inventoryRevision'],expectedUnit='agumon:1:0')
+            with self.assertRaisesRegex(Rejected,'변경'):self.send(data)
+            self.assertEqual(self.room,before)
+
+    def test_valid_equip_retry_preserves_gear_and_inventory(self):
+        self.player['bench'][0]=dict(id='agumon',star=1,items=[])
+        self.player['inventory']=[0,1]
+        data=self.command('equip',area='bench',slot=0,itemSlot=0,
+                          inventoryRevision=self.player['inventoryRevision'],expectedUnit='agumon:1:')
+        self.send(data);before=copy.deepcopy(self.room)
+        self.assertEqual(self.player['bench'][0]['items'],[0]);self.assertEqual(self.player['inventory'],[1])
+        self.assertTrue(self.send(data)['duplicateRequest']);self.assertEqual(self.room,before)
+
+    def test_valid_sale_retry_returns_gold_and_items_once(self):
+        self.player['bench'][0]=dict(id='agumon',star=1,items=[0])
+        data=self.command('sell',area='bench',slot=0,expectedUnit='agumon:1:0')
+        self.send(data);before=copy.deepcopy(self.room)
+        self.assertIsNone(self.player['bench'][0])
+        self.assertTrue(self.send(data)['duplicateRequest']);self.assertEqual(self.room,before)
+
+    def test_empty_optional_guards_remain_compatible_with_legacy_clients(self):
+        self.player['bench'][0]=dict(id='agumon',star=1,items=[])
+        self.send(self.command('move',area='bench',slot=0,targetArea='bench',targetSlot=1,expectedUnit='',expectedTarget=None))
+        self.assertIsNone(self.player['bench'][0]);self.assertEqual(self.player['bench'][1]['id'],'agumon')
 
 if __name__=='__main__':unittest.main()

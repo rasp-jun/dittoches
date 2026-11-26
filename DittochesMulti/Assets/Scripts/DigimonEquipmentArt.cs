@@ -158,7 +158,7 @@ public static class DigimonEquipmentArt
         if(selected){ArenaInterface.Fill(new Rect(r.x,r.y,r.width,2),Color.white);ArenaInterface.Fill(new Rect(r.x,r.yMax-2,r.width,2),Tint(id));}
     }
     public static string Tooltip(int id)
-    {var item=DigimonBuildCatalog.Data.items[id];return item.name+" · "+item.role+"\n"+item.description+"\n우클릭: 디지털 무장 도감";}
+    {var item=DigimonBuildCatalog.Data.items[id];return item.name+" · "+item.role+"\n"+item.description+"\n우클릭: 조합과 효과 확인";}
     public static bool Button(Rect r,int id,bool selected=false,bool enabled=true,int partner=-1)
     {
         bool previous=GUI.enabled;GUI.enabled=previous&&enabled;Draw(r,id,selected);

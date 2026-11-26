@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>Authored stylized models. Each definition owns its silhouette and anatomical rig.</summary>
 public static class DigimonModelLibrary
@@ -15,8 +15,8 @@ public static class DigimonModelLibrary
     // Work in progress. Enabled only by the explicit model inspection scene until home-PC authoring resumes.
     public static bool PreviewEnabled;
     public static string InspectionClip;
-    public static readonly string[] Roster={"agumon","koromon","tsunomon","mochimon","tanemon","pyocomon","tokomon","gabumon","tentomon","palmon","piyomon","patamon","togemon","garurumon","greymon","kabuterimon","angemon","birdramon","metalgreymon","weregarurumon","lilimon","holyangemon","atlur","garudamon","herakle","hououmon","wargreymon","metalgarurumon","rosemon","seraphimon","kuwagamon","shellmon","devimon","etemon"};
-    public static readonly string[] RosterNames={"아구몬","코로몬","뿔몬","모티몬","시드몬","어니몬","토코몬","파피몬","텐타몬","팔몬","피요몬","파닥몬","니드몬","가루몬","그레이몬","캅테리몬","엔젤몬","버드라몬","메탈그레이몬","워가루몬","릴리몬","홀리엔젤몬","아트라캅테리몬","가루다몬","헤라클레스캅테리몬","피닉스몬","워그레이몬","메탈가루몬","로제몬","세라피몬","쿠가몬","쉘몬","데블몬","에테몬"};
+    public static readonly string[] Roster={"agumon","koromon","tsunomon","mochimon","tanemon","pyocomon","tokomon","gabumon","tentomon","palmon","piyomon","patamon","togemon","garurumon","greymon","kabuterimon","angemon","birdramon","metalgreymon","weregarurumon","lilimon","holyangemon","atlur","garudamon","herakle","hououmon","wargreymon","metalgarurumon","rosemon","seraphimon","kuwagamon","shellmon","devimon","etemon","nyaromon","plotmon","tailmon","angewomon","ophanimon","monochromon","ogremon","meramon","leomon","andromon","skullgreymon","piedmon","machinedramon"};
+    public static readonly string[] RosterNames={"아구몬","코로몬","뿔몬","모티몬","시드몬","어니몬","토코몬","파피몬","텐타몬","팔몬","피요몬","파닥몬","니드몬","가루몬","그레이몬","캅테리몬","엔젤몬","버드라몬","메탈그레이몬","워가루몬","릴리몬","홀리엔젤몬","아트라캅테리몬","가루다몬","헤라클레스캅테리몬","피닉스몬","워그레이몬","메탈가루몬","로제몬","세라피몬","쿠가몬","쉘몬","데블몬","에테몬","야옹몬","플로트몬","가트몬","엔젤우몬","오파니몬","모노크로몬","우가몬","메라몬","레오몬","안드로몬","스컬그레이몬","피에몬","파워드라몬"};
     public static bool HasModel(string id){return PreviewEnabled&&System.Array.IndexOf(Roster,id)>=0;}
     public static Model Build(string id)
     {

@@ -124,14 +124,14 @@ def pose(ident,rig,p,mode,u):
             hand(s,(side*.035*hold,-hit*.065,.065*wind),True)
         if pattern=='wing_electric':hop=.04*hold
     elif pattern in ('holy_punch','cross_claw','death_claw','vine_bind'):
-        dominant='R' if pattern=='holy_punch' else 'L'
+        dominant='R' if pattern=='holy_punch' and ident!='leomon' else 'L'
         if pattern=='cross_claw':
             left=pulse(u,.37,.52,.57,.77);right=pulse(u,.52,.67,.72,.95);twist=-wind*16+left*24-right*22
         else:left=hit;right=hit;twist=(-wind*14+hit*17) if pattern=='holy_punch' else -wind*6+hit*6
         for side,s in [(-1,'L'),(1,'R')]:
             a=left if s=='L' else right
-            if pattern=='holy_punch' and s=='L':
-                hand(s,(0,wind*.02,wind*.03));orientations['HandL']=d['orientations']['HandL'];continue
+            if pattern=='holy_punch' and s!=dominant:
+                hand(s,(0,wind*.02,wind*.03));orientations['Hand'+s]=d['orientations']['Hand'+s];continue
             hand(s,(-side*(wind*.12+a*.18),wind*.04-a*(.40 if pattern=='death_claw' else .33),wind*.34+a*(.48 if pattern=='holy_punch' else .37)))
         if pattern=='vine_bind':
             for s in ('L','R'):rot('Hand'+s,x=-hit*12)
@@ -175,10 +175,19 @@ def pose(ident,rig,p,mode,u):
     elif pattern=='electric_whip':
         twist=wind*13-hit*20;hand('R',(.13*wind-.22*hit,.05*wind-.23*hit,.31*wind+.22*hit))
         hand('L',(-.10*hold,-.05*hold,.10*hold));step=pulse(u,.10,.34,.72,.99)
-    elif pattern in ('four_wing','shadow_wing','starlight'):
+    elif pattern=='scissor':
+        rot('Spine',x=-wind*10+hit*15);rot('Head',x=-wind*12+hit*17)
+        for side,s in [(-1,'L'),(1,'R')]:
+            hand(s,(side*wind*.12-side*hit*.14,-hit*.19,wind*.13-hit*.04))
+            hand(s,(side*wind*.06,-hit*.10,wind*.07),True)
+        step=pulse(u,.10,.35,.72,.98)
+    elif pattern in ('four_wing','shadow_wing','starlight','bird_dive','meteor_wings'):
         flap=wind*25-hit*30 if pattern!='starlight' else wind*30-hit*18
         wings(flap,secondary*10);hop=(.18 if skill else .1)*hold
         rot('Spine',x=-wind*10+hit*16);rot('Head',x=wind*4-hit*5)
+        if pattern=='bird_dive':
+            travel=.16*hit;hop=.13*wind+.04*hit
+            for name in d['feet']:foot_goals[name]=points[name]+Vector((0,-.15*hit,.08*hit))
         if ident=='garudamon':
             for side,s in [(-1,'L'),(1,'R')]:hand(s,(side*wind*.05,-hit*.10,wind*.08+hit*.10))
     else:raise ValueError((ident,mode,'unhandled technique',pattern))

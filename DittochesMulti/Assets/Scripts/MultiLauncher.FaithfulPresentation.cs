@@ -2,39 +2,44 @@ using UnityEngine;
 
 public sealed partial class MultiLauncher
 {
+    readonly WorldMotionTracker<int> faithfulWorldMotion=new WorldMotionTracker<int>();
+    static Vector3 OnlineMotionWorld(Room room,float x,float y)
+    {return BattleSide(room)==1?TacticalArena.CellWorld(6-x,7-y):TacticalArena.CellWorld(x,y);}
     private void RenderOnlineFighter(Room room,Fighter f,int frame,int next,float progress,float remaining)
     {
         float death=0;
         if(f.hp<=0)
         {
             if(artPack!=0||!FaithfulModelData.Available(f.id))return;
-            int deathFrame=frame;
-            while(deathFrame>0)
-            {
-                Fighter prior=System.Array.Find(room.frames[deathFrame-1].units,u=>u.key==f.key);
-                if(prior==null||prior.hp>0)break;deathFrame--;
-            }
+            int deathFrame=FighterDeathFrame(room.frames,frame,f.key);
             float since=CombatTime(room,remaining)-room.frames[deathFrame].time;
             if(since>=2.2f)return;death=Mathf.Max(.0001f,since/2.2f);
         }
-        Fighter to=System.Array.Find(room.frames[next].units,u=>u.key==f.key)??f;
+        Fighter to=FindFighter(room.frames[next],f.key)??f;
         float x=Mathf.Lerp(f.x,to.x,progress-frame),y=Mathf.Lerp(f.y,to.y,progress-frame);
-        if(room.side==1){x=6-x;y=7-y;}
+        if(BattleSide(room)==1){x=6-x;y=7-y;}
         bool focused=f.hp>0&&f.side==room.side&&selectedArea=="board"&&f.slot==selectedSlot;
         if(artPack==0&&focused)arena.HighlightHexAttackRange(x,y,f.attackRange>0?f.attackRange:DigimonSkillCatalog.Find(f.id).attackRange);
-        arena.SetActor("fighter:"+f.key,TacticalArena.CellWorld(x,y),LobbyPortrait(f.id),f.side==room.side?Color.green:Color.red);
+        string actorKey="fighter:"+f.key;
+        Vector3 world=TacticalArena.CellWorld(x,y);
+        arena.SetActor(actorKey,world,LobbyPortrait(f.id),f.side==room.side?Color.green:Color.red);
         if(artPack==0)
         {
-            float playhead=CombatTime(room,remaining),age=ActiveCastAge(room,f.key,playhead);
-            Fighter aim=System.Array.Find(room.frames[frame].units,u=>u.key==f.target);
-            Vector3 facing=new Vector3(to.x-f.x,0,-(to.y-f.y));
-            if(facing.sqrMagnitude<.001f&&aim!=null)facing=new Vector3(aim.x-f.x,0,-(aim.y-f.y));
-            if(room.side==1)facing=-facing;
-            arena.FaceActor("fighter:"+f.key,facing);
-            arena.CombatMotion("fighter:"+f.key,f.attacks,-1,false,f.hitAt);
-            arena.DecorateActor("fighter:"+f.key,focused,0,Mathf.Clamp01(1-(playhead-f.hitAt)/.18f));
-            arena.PoseDigimon("fighter:"+f.key,f.id,Vector2.Distance(new Vector2(f.x,f.y),new Vector2(to.x,to.y))*5,
-                (to.x-f.x)*(room.side==1?-1:1),playhead,age,Mathf.Max(0,.35f-(playhead-f.attackAt)),death,f.star);
+            float playhead=CombatTime(room,remaining),age=ActiveCastAge(room,f,playhead);
+            faithfulWorldMotion.EnsureContext(room.id,room.round*2+room.side);
+            var movement=faithfulWorldMotion.At(f.key,world.x,world.z,playhead);
+            Fighter aim=FindFighter(room.frames[frame],f.target);
+            if(f.attacks>0&&playhead>=f.attackAt&&playhead-f.attackAt<BasicAttackPresentation.Recovery(f.id))aim=BasicAttackTarget(room,f,frame)??aim;
+            float cooldown;Fighter upcoming;
+            bool winding=UpcomingBasicAttack(room,f,frame,playhead,out cooldown,out upcoming);
+            if(winding)aim=upcoming;
+            Vector3 facing=movement.speed>.025f?new Vector3(movement.x,0,movement.z):OnlineMotionWorld(room,to.x,to.y)-world;
+            if(aim!=null&&(winding||age>=0||playhead-f.attackAt<.35f||facing.sqrMagnitude<.001f))facing=OnlineMotionWorld(room,aim.x,aim.y)-world;
+            arena.FaceActor(actorKey,facing);
+            var hit=OnlineHitReaction(room,f,playhead);
+            arena.CombatMotion(actorKey,f.attacks,cooldown,winding,hit.time,hit.direction);
+            arena.DecorateActor(actorKey,focused,0,hit.Flash(playhead));
+            arena.PoseDigimon(actorKey,f.id,movement.speed,movement.x,playhead,age,Mathf.Max(0,.35f-(playhead-f.attackAt)),death,f.star);
         }
     }
 }

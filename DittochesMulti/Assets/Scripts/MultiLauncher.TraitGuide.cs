@@ -9,7 +9,7 @@ public sealed partial class MultiLauncher
     void DrawOnlineTraitGuide()
     {
         if(!showTraitGuide)return;
-        var me=OnlineMe;if(me==null){showTraitGuide=false;return;}
-        showTraitGuide=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,1000),ref onlineTrait,me.board.Select(u=>u.id).ToArray(),me.bench.Select(u=>u.id).ToArray(),me.board.Select(BuildMember).ToArray());
+        var me=ScoutedPlayer;if(me==null){showTraitGuide=false;return;}
+        showTraitGuide=DigimonTraitUI.DrawGuide(new Rect(0,0,1600,1000),ref onlineTrait,me.board.Select(u=>u.id).ToArray(),me.bench.Select(u=>u.id).ToArray(),me.board.Select(BuildMember).ToArray(),me.bench.Select(BuildMember).ToArray(),OnlineScouting?me.name+" · 상대 필드":"내 전장",!OnlineScouting||me.publicBench);
     }
 }

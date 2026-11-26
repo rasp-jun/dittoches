@@ -6,11 +6,14 @@ using UnityEngine;
 /// <summary>Shared, versioned trait/item data. Numerical effects are game balance, not anime canon.</summary>
 public static class DigimonBuildCatalog
 {
+    public const int EquipmentSlots=3;
     [Serializable] public sealed class Bonus
     {
         public float health, hp, attack, speed, abilityPower, armor, magicResist, manaRegen, startMana, manaOnAttack, regen,
             lifesteal, reduction, startShield, lowShield, castHeal, healPower, thirdHit,
-            highHealthDamage, castShield, thirdStun, teamShield, rampSpeed, lowHeal, teamResist;
+            highHealthDamage, castShield, castAllyShield, thirdStun, teamShield, rampSpeed, lowHeal, teamResist,
+            equippedHp, equippedAttack, armorShred, burn, killMana, fullGearShield, lowHealthDamage,
+            openingReduction, thirdSplash, castMana, castAllyMana, teamRally, teamInferno, teamSalvation;
         public void Add(Bonus b)
         {
             if(b==null)return;
@@ -18,8 +21,12 @@ public static class DigimonBuildCatalog
             manaRegen+=b.manaRegen;startMana+=b.startMana;manaOnAttack+=b.manaOnAttack;regen+=b.regen;
             lifesteal+=b.lifesteal;reduction+=b.reduction;startShield+=b.startShield;lowShield+=b.lowShield;
             castHeal+=b.castHeal;healPower+=b.healPower;thirdHit+=b.thirdHit;highHealthDamage+=b.highHealthDamage;
-            castShield+=b.castShield;thirdStun+=b.thirdStun;teamShield+=b.teamShield;
+            castShield+=b.castShield;castAllyShield+=b.castAllyShield;thirdStun+=b.thirdStun;teamShield+=b.teamShield;
             rampSpeed+=b.rampSpeed;lowHeal+=b.lowHeal;teamResist+=b.teamResist;
+            equippedHp+=b.equippedHp;equippedAttack+=b.equippedAttack;
+            armorShred+=b.armorShred;burn+=b.burn;killMana+=b.killMana;fullGearShield+=b.fullGearShield;
+            lowHealthDamage+=b.lowHealthDamage;openingReduction+=b.openingReduction;thirdSplash+=b.thirdSplash;
+            castMana+=b.castMana;castAllyMana+=b.castAllyMana;teamRally+=b.teamRally;teamInferno+=b.teamInferno;teamSalvation+=b.teamSalvation;
         }
     }
     [Serializable] public sealed class Tier { public int count; public string text; public Bonus bonus; }
@@ -43,14 +50,7 @@ public static class DigimonBuildCatalog
         get
         {
             if(data!=null)return data;
-            var asset=Resources.Load<TextAsset>("DigimonBuilds");
-#if DITTOCHES_PORTABLE_PREVIEW
-            string path=System.IO.Path.Combine(Application.streamingAssetsPath,"DigimonBuilds.json");
-            string json=System.IO.File.Exists(path)?System.IO.File.ReadAllText(path):asset.text;
-#else
-            if(asset==null)throw new InvalidOperationException("Missing Resources/DigimonBuilds.json");
-            string json=asset.text;
-#endif
+            string json=DigimonGameData.Read("DigimonBuilds");
             data=JsonUtility.FromJson<Document>(json);return data;
         }
     }
@@ -76,6 +76,9 @@ public static class DigimonBuildCatalog
             bonus.startShield+=active.teamShield;bonus.armor+=active.teamResist;bonus.magicResist+=active.teamResist;
         }
         foreach(int item in gear)if(item>=0&&item<Data.items.Length&&Data.items[item].kind!="utility")bonus.Add(Data.items[item].bonus);
+        int equipped=Math.Min(EquipmentSlots,gear.Count(i=>i>=0&&i<Data.items.Length&&Data.items[i].kind!="utility"));
+        bonus.hp+=bonus.equippedHp*equipped;bonus.attack+=bonus.equippedAttack*equipped;
+        if(equipped==EquipmentSlots)bonus.castShield+=bonus.fullGearShield;
         return bonus;
     }
     public static int Combine(int a,int b)
@@ -101,7 +104,7 @@ public static class DigimonBuildCatalog
         }
         int partner=items.FindIndex(i=>Combine(i,item)>=0),result=partner>=0?Combine(items[partner],item):-1;
         if(result>=0){items[partner]=result;change.message=Data.items[result].name+" 자동 합성";}
-        else if(items.Count>=2){change.message="장비 2칸이 가득 찼습니다.\n재료 합성 또는 데이터 추출기를 이용하세요.";return change;}
+        else if(items.Count>=EquipmentSlots){change.message="장비 "+EquipmentSlots+"칸이 가득 찼습니다.\n재료 합성 또는 데이터 추출기를 이용하세요.";return change;}
         else{result=item;items.Add(item);change.message=Data.items[item].name+" 장착";}
         var granted=Data.items[result].grantsTrait;
         if(!string.IsNullOrEmpty(granted)&&((unitId!=null&&Find(granted).members.Contains(unitId))||items.Count(i=>Data.items[i].grantsTrait==granted)>1))

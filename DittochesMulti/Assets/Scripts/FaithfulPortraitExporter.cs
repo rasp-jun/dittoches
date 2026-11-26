@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -68,15 +68,19 @@ public sealed class FaithfulPortraitExporter : MonoBehaviour
         target=new RenderTexture(768,768,24,RenderTextureFormat.ARGB32){antiAliasing=4};target.Create();view.targetTexture=target;
         var light=new GameObject("Portrait key").AddComponent<Light>();light.type=LightType.Directional;light.intensity=1.3f;light.transform.rotation=Quaternion.Euler(30,-35,0);
         RenderSettings.ambientLight=new Color(.65f,.70f,.78f);
-        foreach(string id in DigimonModelLibrary.Roster)
+        bool lightOnly=Array.IndexOf(Environment.GetCommandLineArgs(),"--light-line-only")>=0;
+        var ids=lightOnly?new[]{"nyaromon","plotmon","tailmon","angewomon","ophanimon"}:DigimonModelLibrary.Roster;
+        bool rebuildOnly=Array.IndexOf(Environment.GetCommandLineArgs(),"--roster-rebuild-only")>=0;
+        foreach(string id in ids)
         {
+            if(rebuildOnly&&Array.IndexOf(new[]{"nyaromon","plotmon","tailmon","angewomon","ophanimon"},id)>=0)continue;
             FaithfulModelActor actor=null;
             try
             {
                 actor=new GameObject(id).AddComponent<FaithfulModelActor>();actor.Initialize(id,0);actor.SetSize(1.8f);actor.Sample("Idle",.18f,true);
                 foreach(var material in actor.Data.materials)if(material.HasProperty("_Unlit"))material.SetFloat("_Unlit",.26f);
                 // A shallow three-quarter view keeps both eyes and the broad shoulder silhouette readable.
-                Vector3 direction=new Vector3(.38f,.16f,1).normalized;
+                Vector3 direction=new Vector3(id=="nyaromon"?-.48f:.38f,.16f,1).normalized;
                 view.transform.rotation=Quaternion.LookRotation(-direction,Vector3.up);
                 var points=Vertices(actor);Vector3 right=view.transform.right,up=view.transform.up;
                 float loX=float.MaxValue,hiX=float.MinValue,loY=float.MaxValue,hiY=float.MinValue;
@@ -90,12 +94,14 @@ public sealed class FaithfulPortraitExporter : MonoBehaviour
                 Vector3 focus=new Vector3(0,1.22f,0);bool headFound=false;
                 foreach(var bone in actor.Nodes)if(bone.name.ToLowerInvariant().Contains("head")){focus=bone.position+Vector3.up*.12f;headFound=true;break;}
                 if(id=="angemon")focus.y-=.22f;
+                if(id=="angewomon")focus.y-=.12f;
+                if(id=="ophanimon")focus.y-=.25f;
                 float crop=.68f;
-                if(Array.IndexOf(new[]{"angemon","holyangemon","rosemon","lilimon","seraphimon","devimon","etemon","wargreymon","weregarurumon"},id)>=0){if(!headFound)focus.y=1.40f;crop=.55f;}
+                if(Array.IndexOf(new[]{"angemon","holyangemon","rosemon","lilimon","seraphimon","devimon","etemon","wargreymon","weregarurumon","angewomon","ophanimon"},id)>=0){if(!headFound)focus.y=1.40f;crop=.55f;}
                 if(id=="greymon"||id=="metalgreymon"){if(!headFound)focus.y=1.30f;crop=.68f;}
                 if(id=="birdramon"||id=="hououmon"||id=="garudamon"){if(!headFound)focus.y=1.22f;crop=.70f;}
                 if(id=="garurumon"||id=="metalgarurumon"){if(!headFound)focus.y=1.08f;crop=.70f;}
-                if(Array.IndexOf(new[]{"koromon","tsunomon","mochimon","tanemon","pyocomon","tokomon","patamon"},id)>=0){focus=center;crop=Mathf.Max(hiX-loX,hiY-loY)*.53f;}
+                if(Array.IndexOf(new[]{"koromon","tsunomon","mochimon","tanemon","pyocomon","tokomon","patamon","nyaromon"},id)>=0){focus=center;crop=Mathf.Max(hiX-loX,hiY-loY)*.53f;}
                 view.orthographicSize=crop;
                 view.transform.position=focus+direction*8;
                 row.bustCoverage=Render(Path.Combine(output,id+"-bust.png"));
@@ -105,8 +111,8 @@ public sealed class FaithfulPortraitExporter : MonoBehaviour
             if(actor!=null)Destroy(actor.gameObject);yield return null;
             if(report.error!=null)break;
         }
-        report.passed=report.error==null&&report.models.Count==DigimonModelLibrary.Roster.Length;
-        File.WriteAllText(Path.Combine(output,"manifest.json"),JsonUtility.ToJson(report,true));
+        report.passed=report.error==null&&report.models.Count==(rebuildOnly?42:ids.Length);
+        File.WriteAllText(Path.Combine(output,rebuildOnly?"roster-rebuild-manifest.json":lightOnly?"light-line-manifest.json":"manifest.json"),JsonUtility.ToJson(report,true));
         view.targetTexture=null;target.Release();Destroy(target);Debug.Log("PORTRAIT EXPORT RESULT "+report.passed);Application.Quit(report.passed?0:1);
     }
 }

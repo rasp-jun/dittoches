@@ -1,6 +1,7 @@
 #if DITTOCHES_PORTABLE_PREVIEW
 using System;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 public sealed partial class NativeGame
@@ -42,7 +43,7 @@ public sealed partial class NativeGame
             Require(review.EffectCount==0&&review.SkillEffectsHealthy(),"all pooled effects hide after casts end");
             Debug.Log("SKILL FINISH RESOURCES "+resources+" / pooled renderers "+pool);
         }
-        foreach(string id in new[]{"greymon","metalgreymon","metalgarurumon","wargreymon"})
+        foreach(string id in new[]{"greymon","metalgreymon","metalgarurumon","wargreymon","monochromon","ogremon","meramon","leomon","andromon","skullgreymon","piedmon","machinedramon"})
         foreach(bool quality in new[]{false,true})
         using(var review=new TacticalArena(new Rect(0,0,960,720),true,quality))
         {
@@ -66,7 +67,7 @@ public sealed partial class NativeGame
                 finally{RenderTexture.active=old;Destroy(texture);}
             }
         }
-        Debug.Log("SKILL FINISH COMPLETE: "+(validationChecks-first)+" checks / 34 techniques / four rendered comparisons");
+        Debug.Log("SKILL FINISH COMPLETE: "+(validationChecks-first)+" checks / "+DigimonSkillCatalog.All.Count()+" techniques / 12 species flight-impact quality comparisons");
     }
 }
 #endif

@@ -6,15 +6,35 @@ public static class CombatStatusUI
 {
     public sealed class Row
     {public string icon,text,detail;public float progress;public bool spent;}
-    public static Row[] Describe(DigimonBuildCatalog.Bonus bonus,float age,int attacks,bool crisisUsed,bool recorded,bool ended)
+    public sealed class State
+    {public float burnRemaining,shredRemaining,battleAge;public int synergyUsed;public bool revived;}
+    public static Row[] Describe(DigimonBuildCatalog.Bonus bonus,float age,int attacks,bool crisisUsed,bool recorded,bool ended,State state=null)
     {
         var rows=new List<Row>();
+        state=recorded&&state!=null?state:new State();
+        for(int i=0;i<3;i++)
+        {
+            int bit=1<<i;float power=i==0?bonus.teamRally:i==1?bonus.teamInferno:bonus.teamSalvation;
+            if(power<=0&&(state.synergyUsed&bit)==0)continue;
+            bool used=(state.synergyUsed&bit)!=0;
+            string name=i==0?"9야수 결집":i==1?"9화염 대폭발":"9성역 기적";
+            rows.Add(new Row{icon=i==0?"friendship":i==1?"love":"light",text=name+" · "+(used?"발동 완료":ended?"미발동":"대기"),spent=used,progress=used?1:0,
+                detail="팀 체력 합계 40% 이하 · 전투당 1회\n전멸하면 발동하지 않습니다. 보호막은 체력에서 제외.\n"+(i==0?"생존 야수 기절 해제 · 체력/보호막 30% · 마나 30":i==1?"모든 적 최대 체력 18% 마법 피해 + 3초 작열":"가장 비싼 사망 아군 1명 체력 40% 부활\n생존 아군 전체 보호막 15% · 동률이면 높은 성급")});
+        }
+        if(state.burnRemaining>0)rows.Add(new Row{icon="love",text="작열 · "+state.burnRemaining.ToString("0.0")+"초",progress=state.burnRemaining/3,detail="매초 최대 체력 비례 마법 피해\n마법 저항·보호막 적용 · 강한 작열 하나만 유지"});
+        if(state.shredRemaining>0)rows.Add(new Row{icon="courage",text="방어 파쇄 · "+state.shredRemaining.ToString("0.0")+"초",progress=state.shredRemaining/4,detail="현재 방어력 수치에 파쇄 반영\n물리 피해에만 영향 · 강한 파쇄 하나만 유지"});
+        if(bonus.openingReduction>0)
+        {
+            float remaining=recorded?Mathf.Max(0,8-state.battleAge):8;
+            rows.Add(new Row{icon="guardian",text=remaining<=0?"개전 방벽 · 종료":"개전 방벽 · "+remaining.ToString("0.0")+"초",progress=remaining/8,spent=remaining<=0,
+                detail="전투 시작 8초 동안 받는 피해 -"+(bonus.openingReduction*100).ToString("0")+"%\n장비 피해 감소와 합산 · 총 감소 상한 60%"});
+        }
         if(bonus.rampSpeed>0)
         {
             float amount=recorded?DigimonCombatMath.RampSpeed(bonus.rampSpeed,age):0;
             int count=Mathf.RoundToInt(amount/bonus.rampSpeed);
             string next=!recorded?"전투 시작 후 3초마다 증가":ended?"최종 기록 · 추가 중첩 정지":count>=5?"최대 중첩 도달":"다음 중첩까지 "+Mathf.Max(0,(count+1)*3-age).ToString("0.0")+"초";
-            rows.Add(new Row{icon="friendship",text="우정 "+count+"/5 · +"+(amount*100).ToString("0.#")+"%p",progress=count/5f,
+            rows.Add(new Row{icon="friendship",text="야수 "+count+"/5 · +"+(amount*100).ToString("0.#")+"%p",progress=count/5f,
                 detail=next+"\n중첩 공속만 표시 · 시작 공속/장비는 능력치에 합산\n생존 중 기절과 기술 동작에도 시간이 흐릅니다."});
         }
         if(bonus.thirdHit>0||bonus.thirdStun>0)
@@ -32,21 +52,31 @@ public static class CombatStatusUI
         return rows.ToArray();
     }
     static GUIStyle label,empty;
+    static Vector2 scroll;
+    static string scrollSignature="";
     public static void Draw(Rect rect,Row[] rows)
     {
         if(label==null)
         {
-            label=new GUIStyle(GUI.skin.label){fontSize=12,wordWrap=false,alignment=TextAnchor.MiddleLeft};label.normal.textColor=new Color(.82f,.91f,.93f);
-            empty=new GUIStyle(label){fontSize=11};empty.normal.textColor=new Color(.51f,.66f,.7f);
+            label=new GUIStyle(GUI.skin.label){fontSize=12,wordWrap=false,alignment=TextAnchor.MiddleLeft};label.normal.textColor=BattleHudTheme.Text;
+            empty=new GUIStyle(label){fontSize=11};empty.normal.textColor=BattleHudTheme.Muted;
         }
-        if(rows.Length==0){GUI.Label(new Rect(rect.x,rect.y,rect.width,24),"누적·1회 효과 없음",empty);return;}
+        if(rows.Length==0){BattleHudTheme.Round(new Rect(rect.x,rect.y,rect.width,24),BattleHudTheme.Panel);GUI.Label(new Rect(rect.x+8,rect.y,rect.width-16,24),"누적·1회 효과 없음",empty);return;}
+        bool overflow=rows.Length*28>rect.height;
+        string signature=string.Join("|",System.Array.ConvertAll(rows,row=>row.icon));
+        if(signature!=scrollSignature){scrollSignature=signature;scroll=Vector2.zero;}
+        if(overflow){scroll=GUI.BeginScrollView(rect,scroll,new Rect(0,0,rect.width-17,rows.Length*28),false,true);rect=new Rect(0,0,rect.width-17,rows.Length*28);}
         for(int i=0;i<rows.Length;i++)
         {
             var row=rows[i];Rect r=new Rect(rect.x,rect.y+i*28,rect.width,25);
-            ArenaInterface.Fill(r,new Color(.043f,.075f,.087f));
-            GUI.DrawTexture(new Rect(r.x+2,r.y+2,20,20),DigimonTraitUI.Icon(row.icon));
-            GUI.Label(new Rect(r.x+27,r.y,r.width-29,23),new GUIContent(row.text,row.detail),label);
-            ArenaInterface.Fill(new Rect(r.x+26,r.yMax-2,(r.width-29)*Mathf.Clamp01(row.progress),2),row.spent?new Color(.45f,.52f,.54f):DigimonTraitUI.ColorFor(row.icon));
+            Color tint=row.spent?BattleHudTheme.Muted:DigimonTraitUI.ColorFor(row.icon);
+            BattleHudTheme.Round(r,Color.Lerp(BattleHudTheme.Raised,tint,row.spent?.02f:.07f));
+            GUI.DrawTexture(new Rect(r.x+4,r.y+2,20,20),DigimonTraitUI.Icon(row.icon));
+            BattleHudTheme.FitLabel(new Rect(r.x+30,r.y,r.width-36,20),row.text,12,row.spent?BattleHudTheme.Muted:BattleHudTheme.Text,false);
+            BattleHudTheme.Round(new Rect(r.x+30,r.yMax-4,r.width-37,2),BattleHudTheme.Line);
+            BattleHudTheme.Round(new Rect(r.x+30,r.yMax-4,(r.width-37)*Mathf.Clamp01(row.progress),2),tint);
+            GUI.Label(r,new GUIContent("",row.detail),GUIStyle.none);
         }
+        if(overflow)GUI.EndScrollView();
     }
 }

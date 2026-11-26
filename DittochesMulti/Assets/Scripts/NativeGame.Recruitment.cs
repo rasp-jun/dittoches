@@ -3,6 +3,12 @@ using UnityEngine;
 
 public sealed partial class NativeGame
 {
+    PurchaseForecast PreviewPurchase(UnitDef definition)
+    {
+        var pieces=board.Select((u,i)=>u==null?null:new PurchaseForecast.Piece(u.def.id,true,i,u.star,u.items))
+            .Concat(bench.Select((u,i)=>u==null?null:new PurchaseForecast.Piece(u.def.id,false,i,u.star,u.items))).Where(p=>p!=null);
+        return PurchaseForecast.Create(definition.id,pieces,bench.Length,gold,definition.cost,shop.Any(d=>d!=null&&d.id==definition.id));
+    }
     int PlacementTarget()
     {
         if(!draggingUnit&&artPack==0)return PickFormationTarget(Event.current.mousePosition);

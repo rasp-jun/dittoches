@@ -111,7 +111,7 @@ public sealed partial class NativeGame
         far.enemy=false;Require(SelectTarget(source)==null,"allies excluded");fighters.Clear();
         foreach(string id in new[]{"agumon","weregarurumon","wargreymon"})
         {
-            var unit=new Unit(RosterById[id]){star=2};unit.items.Add(0);unit.items.Add(3);
+            var unit=new Unit(RosterById[id]){star=2};unit.items.Add(0);unit.items.Add(3);unit.items.Add(10);
             Array.Clear(board,0,board.Length);board[0]=unit;board[1]=new Unit(RosterById["koromon"]);
             int[] old=unit.items.ToArray();var team=board.Where(u=>u!=null).Select(u=>u.def.id);
             var preview=DigimonEquipmentPreview.Create(id,unit.star,team,unit.items,1);
@@ -123,7 +123,7 @@ public sealed partial class NativeGame
             Require(Mathf.Abs(skill.Damage(unit.star,actual.attack,actual.abilityPower)-preview.damageAfter)<.001f,"skill preview matches equipped damage "+id);
             Require(!DigimonEquipmentPreview.Create(id,2,team,unit.items,8).change.allowed,"full slots reject before consumption");
             var remove=DigimonEquipmentPreview.Create(id,2,team,unit.items,14);
-            Require(remove.change.allowed&&remove.change.removed&&remove.change.items.Length==0,"remover preview clears both slots");
+            Require(remove.change.allowed&&remove.change.removed&&remove.change.items.Length==0,"remover preview clears all three slots");
         }
         Require(!DigimonBuildCatalog.PreviewEquipment(new int[0],14).allowed,"empty remover preview rejects");
         Array.Clear(board,0,board.Length);inventory.Clear();selectedItem=-1;placementNoticeUntil=0;
@@ -170,8 +170,8 @@ public sealed partial class NativeGame
             Require(equipmentImages.Add(Convert.ToBase64String(icon.EncodeToPNG())),"equipment silhouette is unique "+item.id);
             Require(!string.IsNullOrEmpty(item.usage)&&!string.IsNullOrEmpty(DigimonEquipmentUI.Stats(item.id)),"runtime equipment presentation catalog loaded "+item.id);
         }
-        Require(DigimonBuildCatalog.Data.traits.Length==11,"eleven new traits");
-        foreach(var unit in Roster)Require(DigimonBuildCatalog.ForUnit(unit.id).Count()==2,"two tags "+unit.id);
+        Require(DigimonBuildCatalog.Data.traits.Length==13,"eight families and five combat roles");
+        foreach(var unit in Roster)Require(DigimonBuildCatalog.ForUnit(unit.id).Count()==(OpenRosterTripleIds.Contains(unit.id)?3:2),"two or three innate tags "+unit.id);
         foreach(var trait in DigimonBuildCatalog.Data.traits)
         {
             for(int count=0;count<=trait.members.Length;count++)
@@ -196,20 +196,23 @@ public sealed partial class NativeGame
             inventory.Clear();inventory.Add(a);inventory.Add(b);selectedItem=-1;
             SelectInventoryItem(0);SelectInventoryItem(1);
             Require(inventory.SequenceEqual(new[]{result}),"inventory combine consumes exactly two");
-            Unit equipped=new Unit(Roster[0]);bench[8]=equipped;equipped.items.Add(a);equipped.items.Add(4);
+            Unit equipped=new Unit(Roster[0]);bench[8]=equipped;equipped.items.Add(a);equipped.items.Add(4);equipped.items.Add(10);
             inventory.Clear();inventory.Add(b);selectedItem=0;Equip(equipped);
-            Require(equipped.items.SequenceEqual(new[]{result,4})&&inventory.Count==0,"auto combine on full equipment slots");
+            Require(equipped.items.SequenceEqual(new[]{result,4,10})&&inventory.Count==0,"auto combine on full equipment slots");
         }
         Unit original=LoadUnit(new UnitSave{id="agumon",star=2,items=new[]{12,13}});bench[8]=original;
         Require(original.items.SequenceEqual(new[]{12,13})&&!ItemNames[12].Contains("캡슐")&&!ItemNames[13].Contains("캡슐"),"legacy capsule ids map to equipment");
         inventory.Clear();inventory.Add(0);selectedItem=0;Equip(original);
-        Require(inventory.Count==1&&original.items.Count==2,"full slots reject without consuming");
+        Require(inventory.Count==0&&original.items.SequenceEqual(new[]{12,13,0}),"third slot accepts equipment from an existing two-slot save");
+        Require(LoadUnit(SaveUnit(original)).items.SequenceEqual(original.items),"save roundtrip preserves all three slots");
+        inventory.Add(8);selectedItem=0;Equip(original);
+        Require(inventory.SequenceEqual(new[]{8})&&original.items.SequenceEqual(new[]{12,13,0}),"fourth slot rejects without consuming");
         inventory.Clear();inventory.Add(14);selectedItem=0;Equip(original);
-        Require(original.items.Count==0&&inventory.SequenceEqual(new[]{12,13}),"remover returns equipment");
+        Require(original.items.Count==0&&inventory.SequenceEqual(new[]{12,13,0}),"remover returns equipment");
         Array.Clear(board,0,board.Length);board[0]=new Unit(RosterById["agumon"]);board[1]=new Unit(RosterById["koromon"]);
         fighters.Clear();var attacker=CreateFighter(board[0],false,new Vector2(3,4));var target=CreateFighter(new Unit(RosterById["gabumon"]),true,new Vector2(3,3));
         fighters.Add(attacker);fighters.Add(CreateFighter(board[1],false,new Vector2(2,4)));fighters.Add(target);InitializeBuildBonuses();
-        Require(Mathf.Abs(attacker.build.attack-.10f)<.0001f&&attacker.build.hp==.08f&&attacker.build.lifesteal==.10f&&target.build.attack==0,"side independent courage and fighter effects");
+        Require(Mathf.Abs(attacker.build.attack-.08f)<.0001f&&attacker.build.hp==.06f&&attacker.build.lifesteal==.08f&&target.build.attack==0,"side independent courage and fighter effects");
         attacker.build=new DigimonBuildCatalog.Bonus{lifesteal=.5f};attacker.hp=attacker.maxHp*.5f;attacker.attacks=1;
         float before=attacker.hp;target.hp=20;target.shield=100;target.build=new DigimonBuildCatalog.Bonus();
         DealDamage(attacker,target,100);Require(attacker.hp==before,"no lifesteal from shields");

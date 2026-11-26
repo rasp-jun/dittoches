@@ -1,4 +1,4 @@
-#if DITTOCHES_PORTABLE_PREVIEW
+﻿#if DITTOCHES_PORTABLE_PREVIEW
 using System;
 using System.Collections;
 using System.IO;
@@ -37,7 +37,7 @@ public sealed partial class MultiLauncher
             portraitCards=page==Mathf.CeilToInt(catalog.units.Length/15f);codexPage=page;yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();
             var capture=ScreenCapture.CaptureScreenshotAsTexture();File.WriteAllBytes(Path.Combine(output,"codex-"+page+".png"),capture.EncodeToPNG());Destroy(capture);
         }
-        bool passed=count==34&&portraitRepaints>0;
+        bool passed=count==47&&portraitRepaints>0;
         File.WriteAllText(Path.Combine(output,"ui-report.json"),"{\"passed\":"+passed.ToString().ToLowerInvariant()+",\"portraits\":"+count+",\"repaints\":"+portraitRepaints+"}");
         Debug.Log("PORTRAIT UI RESULT "+passed);Application.Quit(passed?0:1);
     }

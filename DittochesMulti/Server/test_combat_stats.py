@@ -14,7 +14,8 @@ def unit(uid,items=(),star=1,team=None):
 
 class StatScalingTests(unittest.TestCase):
     def test_all_profiles_are_explicit_and_complete(self):
-        self.assertEqual(len(stats.SKILLS),34)
+        self.assertEqual(len(stats.SKILLS),47)
+        self.assertTrue({'monochromon','ogremon','meramon','leomon','andromon','skullgreymon','piedmon','machinedramon'}.issubset(DEFS))
         for s in stats.SKILLS.values():
             self.assertIn(s['damageType'],('physical','magic'))
             self.assertNotIn('multiplier',s)
@@ -45,9 +46,9 @@ class StatScalingTests(unittest.TestCase):
         self.assertEqual(stats.skill_damage(base),606)
         self.assertAlmostEqual(stats.skill_damage(ad),636.72)
         self.assertEqual(stats.skill_damage(ap),648)
-        # Courage adds attack; Fighter adds sustain; Knowledge adds mana instead of AP.
+        # Dragon and equipment attack stack additively; Fighter grants pursuit, not flat attack.
         buff=unit('agumon',[0,3],team=['agumon','koromon'])
-        self.assertAlmostEqual(stats.attack(buff),48*1.22)
+        self.assertAlmostEqual(stats.attack(buff),48*1.20)
         mage=unit('tentomon',[3],team=['tentomon','mochimon'])
         self.assertEqual(stats.ability_power(mage),112)
         self.assertAlmostEqual(stats.skill_damage(mage),100.8)

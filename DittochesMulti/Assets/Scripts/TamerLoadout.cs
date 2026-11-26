@@ -9,12 +9,13 @@ public sealed class TamerLoadout
 {
     public int version=1,tamer,field,finisher;
     public const string Key="dittoches.tamerLoadout.v1";
-    public static readonly string[] Tamers={"비트몬","코로몬","토코몬","어니몬"};
-    public static readonly string[] Models={"","koromon","tokomon","pyocomon"};
+    public static readonly string[] Tamers={"비트몬","코로몬","토코몬","어니몬","모티몬","뿔몬","시드몬","아구몬","파피몬","텐타몬","팔몬","파닥몬"};
+    public static readonly string[] Models={"","koromon","tokomon","pyocomon","mochimon","tsunomon","tanemon","agumon","gabumon","tentomon","palmon","patamon"};
+    public static string Family(int id){return id==0?"오리지널":id<7?"작은 파트너":"모험 파트너";}
     public static readonly string[] Fields={"파일 아일랜드","프로스트 서버","황혼의 디지코어"};
     public static readonly string[] Finishers={"데이터 펄스","가이아 임팩트","홀리 게이트"};
     public TamerLoadout Copy(){return new TamerLoadout{tamer=tamer,field=field,finisher=finisher};}
-    public void Normalize(){version=1;tamer=Mathf.Clamp(tamer,0,3);field=Mathf.Clamp(field,0,2);finisher=Mathf.Clamp(finisher,0,2);}
+    public void Normalize(){version=1;tamer=Mathf.Clamp(tamer,0,Tamers.Length-1);field=Mathf.Clamp(field,0,Fields.Length-1);finisher=Mathf.Clamp(finisher,0,Finishers.Length-1);}
     public static TamerLoadout Load(int legacy=-1)
     {
         TamerLoadout result=null;
@@ -29,7 +30,7 @@ public sealed class TamerLoadout
     static Texture2D bitmon;
     public static Texture2D Portrait(int id)
     {
-        id=Mathf.Clamp(id,0,3);
+        id=Mathf.Clamp(id,0,Tamers.Length-1);
         if(id>0)return FaithfulPortraits.Get(Models[id]);
         if(bitmon==null)bitmon=Resources.Load<Texture2D>("ArtVariants/Legends/Bitmon-v1");
 #if DITTOCHES_PORTABLE_PREVIEW

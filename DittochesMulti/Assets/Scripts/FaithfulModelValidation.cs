@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -85,16 +85,21 @@ public sealed class FaithfulModelValidation : MonoBehaviour
                     actor.Pose(0,0,Vector3.forward,spec,-1,0,0,0);
                     Require(actor.Motion=="Idle","Replay reset retained death: "+id);
                 }
-                actor.Sample("Idle",0,true);Image(id+"-Idle");
-                actor.Sample("Skill",actor.Data.clips["Skill"].duration*.57f,true);Image(id+"-Skill");
                 report.models.Add(row);Debug.Log("FAITHFUL RUNTIME PASS "+id+" "+row.clips+" clips");
             }
             catch(Exception error){report.error=error.ToString();Debug.LogException(error);}
+            if(report.error==null&&actor!=null)
+            {
+                // Each skinned pose gets its own rendered frame; same-frame GPU skin caches
+                // can otherwise make the second capture repeat the first pose.
+                actor.Sample("Idle",0,true);yield return null;Image(id+"-Idle");
+                actor.Sample("Skill",actor.Data.clips["Skill"].duration*actor.Data.technique.skillRelease,true);yield return null;Image(id+"-Skill");
+            }
             if(actor!=null)Destroy(actor.gameObject);
             yield return null;
             if(report.error!=null)break;
         }
-        report.passed=report.error==null&&report.models.Count==34&&clips==352;report.checks=checks;report.clips=clips;
+        report.passed=report.error==null&&report.models.Count==47&&clips==470;report.checks=checks;report.clips=clips;
         File.WriteAllText(Path.Combine(output,"runtime-report.json"),JsonUtility.ToJson(report,true));
         Debug.Log("FAITHFUL RUNTIME RESULT "+report.passed+" "+clips+" clips / "+checks+" checks");
         Application.Quit(report.passed?0:1);

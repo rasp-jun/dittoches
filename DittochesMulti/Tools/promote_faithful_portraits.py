@@ -16,7 +16,7 @@ def main():
     manifest=json.loads((source/'manifest.json').read_text(encoding='utf-8'))
     models=json.loads((root/'Assets/StreamingAssets/FaithfulModels/manifest.json').read_text(encoding='utf-8'))
     expected={row['id']:row['source_sha256'] for row in models['models']}
-    assert manifest['passed'] and len(manifest['models'])==len(expected)==34
+    assert expected and manifest['passed'] and len(manifest['models'])==len(expected)
     assert {row['id'] for row in manifest['models']}==set(expected)
     files={}
     for row in manifest['models']:

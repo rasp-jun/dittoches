@@ -1,0 +1,1178 @@
+{
+  "version": 7,
+  "notes": "47종 공동 모집 · 계열 8종/역할 5종. 2/4/6, 3/6/9, 2/3/5, 2/3/4, 2/4/6/8의 다섯 성장 방식. 디지몬 외형·기술·진화 계열을 참고한 게임용 분류이며 원작 공식 분류와 동일하지 않습니다. 기존 인장 ID/합성식 유지. 작열·파쇄·포격·마나 공명·9종 위기 효과는 실제 전투 이벤트로 처리합니다. 위기 조건은 생존 여부와 팀 현재 체력/최대 체력 합계이며 보호막은 제외합니다.",
+  "traits": [
+    {
+      "id": "courage",
+      "name": "용족",
+      "category": "계열",
+      "members": [
+        "koromon",
+        "agumon",
+        "greymon",
+        "metalgreymon",
+        "wargreymon",
+        "monochromon",
+        "skullgreymon"
+      ],
+      "description": "용족은 공격력과 높은 체력의 적에 대한 피해가 증가합니다. 기술에 맞은 적은 4초 동안 방어력이 감소합니다. 파쇄는 가장 강한 효과만 적용됩니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격력 +8% · 체력 70% 이상 적 피해 +8% · 기술 적중 시 방어력 12% 파쇄",
+          "bonus": {
+            "attack": 0.08,
+            "highHealthDamage": 0.08,
+            "armorShred": 0.12
+          }
+        },
+        {
+          "count": 4,
+          "text": "공격력 +16% · 체력 70% 이상 적 피해 +16% · 기술 적중 시 방어력 22% 파쇄",
+          "bonus": {
+            "attack": 0.16,
+            "highHealthDamage": 0.16,
+            "armorShred": 0.22
+          }
+        },
+        {
+          "count": 6,
+          "text": "공격력 +25% · 체력 70% 이상 적 피해 +26% · 기술 적중 시 방어력 35% 파쇄",
+          "bonus": {
+            "attack": 0.25,
+            "highHealthDamage": 0.26,
+            "armorShred": 0.35
+          }
+        }
+      ],
+      "identity": "용의 파쇄",
+      "usage": "용족의 기술로 방어를 깨고 투사·포격수의 물리 공격을 집중하세요."
+    },
+    {
+      "id": "friendship",
+      "name": "야수",
+      "category": "계열",
+      "members": [
+        "tsunomon",
+        "gabumon",
+        "garurumon",
+        "weregarurumon",
+        "metalgarurumon",
+        "nyaromon",
+        "plotmon",
+        "tailmon",
+        "leomon"
+      ],
+      "description": "야수는 3초마다 공속이 증가해 최대 5중첩됩니다. 9야수는 팀 현재 체력이 최대 체력 합계의 40% 이하가 되면 한 번 결집합니다.",
+      "tiers": [
+        {
+          "count": 3,
+          "bonus": {
+            "speed": 0.15,
+            "rampSpeed": 0.03
+          },
+          "text": "공속 +15% · 3초마다 +3%p (최대 총 +30%)"
+        },
+        {
+          "count": 6,
+          "bonus": {
+            "speed": 0.3,
+            "rampSpeed": 0.06
+          },
+          "text": "공속 +30% · 3초마다 +6%p (최대 총 +60%)"
+        },
+        {
+          "count": 9,
+          "bonus": {
+            "speed": 0.5,
+            "rampSpeed": 0.1,
+            "teamRally": 0.3
+          },
+          "text": "공속 +50% · 3초마다 +10%p / 위기 1회: 야수 회복·보호막 30%, 기절 해제, 마나 +30"
+        }
+      ],
+      "identity": "무리의 결집",
+      "usage": "9야수 결집: 살아 있는 야수의 기절을 해제하고 최대 체력 30% 회복·30% 보호막·마나 30을 얻습니다. 전멸 뒤에는 발동하지 않습니다."
+    },
+    {
+      "id": "knowledge",
+      "name": "곤충",
+      "category": "계열",
+      "members": [
+        "mochimon",
+        "tentomon",
+        "kabuterimon",
+        "atlur",
+        "herakle",
+        "kuwagamon"
+      ],
+      "description": "곤충은 방어·마저와 공격 시 추가 마나를 얻습니다. 기술을 사용할 때마다 갑각을 탈피해 자신의 최대 체력에 비례한 보호막을 얻습니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "bonus": {
+            "armor": 8,
+            "magicResist": 8,
+            "manaOnAttack": 2,
+            "castShield": 0.06
+          },
+          "text": "방어·마저 +8 · 공격 시 마나 +2 · 시전 시 자신 보호막 6%"
+        },
+        {
+          "count": 4,
+          "bonus": {
+            "armor": 18,
+            "magicResist": 18,
+            "manaOnAttack": 4,
+            "castShield": 0.12
+          },
+          "text": "방어·마저 +18 · 공격 시 마나 +4 · 시전 시 자신 보호막 12%"
+        },
+        {
+          "count": 6,
+          "bonus": {
+            "armor": 30,
+            "magicResist": 30,
+            "manaOnAttack": 7,
+            "castShield": 0.2
+          },
+          "text": "방어·마저 +30 · 공격 시 마나 +7 · 시전 시 자신 보호막 20%"
+        }
+      ],
+      "identity": "전하 탈피",
+      "usage": "쿠가몬과 캅테리몬이 반복해서 공격·시전하도록 배치하세요. 탈피 보호막은 최대 체력 50%까지만 쌓입니다."
+    },
+    {
+      "id": "sincerity",
+      "name": "자연",
+      "category": "계열",
+      "members": [
+        "tanemon",
+        "palmon",
+        "togemon",
+        "lilimon",
+        "rosemon",
+        "shellmon"
+      ],
+      "description": "자연은 체력·회복량과 초당 자가 회복을 얻습니다. 기술을 쓰면 체력 비율이 가장 낮은 아군을 대상 최대 체력에 비례해 회복합니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "bonus": {
+            "hp": 0.05,
+            "regen": 0.006,
+            "healPower": 0.1,
+            "castHeal": 0.02
+          },
+          "text": "체력 +5% · 초당 회복 0.6% · 시전 시 아군 회복 2% · 회복량 +10%"
+        },
+        {
+          "count": 3,
+          "bonus": {
+            "hp": 0.12,
+            "regen": 0.012,
+            "healPower": 0.2,
+            "castHeal": 0.04
+          },
+          "text": "체력 +12% · 초당 회복 1.2% · 시전 시 아군 회복 4% · 회복량 +20%"
+        },
+        {
+          "count": 5,
+          "bonus": {
+            "hp": 0.2,
+            "regen": 0.018,
+            "healPower": 0.3,
+            "castHeal": 0.07
+          },
+          "text": "체력 +20% · 초당 회복 1.8% · 시전 시 아군 회복 7% · 회복량 +30%"
+        }
+      ],
+      "identity": "생명의 순환",
+      "usage": "자연 3종으로 회복 기반을 만들고, 릴리몬·로제몬까지 5종을 모아 장기전을 지배하세요."
+    },
+    {
+      "id": "love",
+      "name": "화염",
+      "category": "계열",
+      "members": [
+        "pyocomon",
+        "piyomon",
+        "birdramon",
+        "garudamon",
+        "hououmon",
+        "meramon",
+        "agumon",
+        "greymon",
+        "monochromon"
+      ],
+      "description": "화염의 기술은 적을 3초간 불태웁니다. 작열은 중첩되지 않고 가장 강한 효과를 유지합니다. 9화염은 팀 체력 40% 이하에서 전투당 한 번 대폭발합니다.",
+      "tiers": [
+        {
+          "count": 3,
+          "bonus": {
+            "abilityPower": 15,
+            "burn": 0.012,
+            "teamInferno": 0
+          },
+          "text": "주문력 +15 · 기술 적중 시 작열: 초당 대상 최대 체력 1.2% 마법 피해"
+        },
+        {
+          "count": 6,
+          "bonus": {
+            "abilityPower": 35,
+            "burn": 0.022,
+            "teamInferno": 0
+          },
+          "text": "주문력 +35 · 기술 적중 시 작열: 초당 대상 최대 체력 2.2% 마법 피해"
+        },
+        {
+          "count": 9,
+          "bonus": {
+            "abilityPower": 65,
+            "burn": 0.035,
+            "teamInferno": 0.18
+          },
+          "text": "주문력 +65 · 작열 3.5% / 위기 1회: 모든 적에게 최대 체력 18% 마법 피해"
+        }
+      ],
+      "identity": "작열과 대폭발",
+      "usage": "9화염 대폭발은 모든 생존 적에게 대상 최대 체력 18%의 마법 피해와 작열을 줍니다. 마법 저항·피해 감소·보호막으로 대응할 수 있습니다."
+    },
+    {
+      "id": "hope",
+      "name": "심연",
+      "category": "계열",
+      "members": [
+        "devimon",
+        "etemon",
+        "piedmon",
+        "skullgreymon",
+        "machinedramon",
+        "ogremon"
+      ],
+      "description": "심연은 기본 공격으로 흡혈하고 적 처치 시 마나를 얻습니다. 체력 35% 이하로 생존하면 한 번 회복·보호막을 얻어 반격합니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "흡혈 5% · 위기 회복 6% / 보호막 8% (최대 체력 비례) · 처치 마나 +10",
+          "bonus": {
+            "lowHeal": 0.06,
+            "lowShield": 0.08,
+            "lifesteal": 0.05,
+            "killMana": 10
+          }
+        },
+        {
+          "count": 4,
+          "text": "흡혈 10% · 위기 회복 12% / 보호막 16% (최대 체력 비례) · 처치 마나 +20",
+          "bonus": {
+            "lowHeal": 0.12,
+            "lowShield": 0.16,
+            "lifesteal": 0.1,
+            "killMana": 20
+          }
+        },
+        {
+          "count": 6,
+          "text": "흡혈 15% · 위기 회복 20% / 보호막 25% (최대 체력 비례) · 처치 마나 +35",
+          "bonus": {
+            "lowHeal": 0.2,
+            "lowShield": 0.25,
+            "lifesteal": 0.15,
+            "killMana": 35
+          }
+        }
+      ],
+      "identity": "영혼 수확",
+      "usage": "우가몬·데블몬이 첫 처치 후 기술을 이어 가게 하세요. 작열·포격으로 처치해도 수확하지만 쓰러진 시전자는 마나를 얻지 않습니다."
+    },
+    {
+      "id": "light",
+      "name": "성역",
+      "category": "계열",
+      "members": [
+        "tokomon",
+        "patamon",
+        "angemon",
+        "holyangemon",
+        "seraphimon",
+        "plotmon",
+        "tailmon",
+        "angewomon",
+        "ophanimon"
+      ],
+      "description": "성역은 시작 마나를 얻고 시전 시 가장 위태로운 아군에게 보호막을 줍니다. 9성역은 팀 체력 40% 이하에서 전투당 한 번 기적을 일으킵니다.",
+      "tiers": [
+        {
+          "count": 3,
+          "bonus": {
+            "startMana": 10,
+            "castAllyShield": 0.035
+          },
+          "text": "시작 마나 +10 · 시전 시 아군 보호막 3.5%"
+        },
+        {
+          "count": 6,
+          "bonus": {
+            "startMana": 25,
+            "castAllyShield": 0.07
+          },
+          "text": "시작 마나 +25 · 시전 시 아군 보호막 7%"
+        },
+        {
+          "count": 9,
+          "bonus": {
+            "startMana": 45,
+            "castAllyShield": 0.12,
+            "teamSalvation": 0.4
+          },
+          "text": "시작 마나 +45 · 시전 보호막 12% / 위기 1회: 아군 1명 체력 40%로 부활 + 전체 보호막 15%"
+        }
+      ],
+      "identity": "수호와 기적",
+      "usage": "9성역 기적: 쓰러진 아군 중 최고 코스트 1명을 체력 40%로 부활시키고, 생존 아군 전체에 보호막 15%를 줍니다. 전멸 후에는 발동하지 않습니다."
+    },
+    {
+      "id": "machine",
+      "name": "기계",
+      "category": "계열",
+      "members": [
+        "metalgreymon",
+        "metalgarurumon",
+        "andromon",
+        "machinedramon"
+      ],
+      "identity": "개조와 과부하",
+      "description": "기계는 방어·마저와 장비 1개당 체력·공격력을 얻습니다. 장비 3칸을 채우면 시전할 때마다 자신에게 보호막을 만듭니다. 재료·인장도 장비로 셉니다.",
+      "usage": "2기계는 장비를 나누어 안정적으로 시작하고, 4기계는 3칸을 완성한 주력 기물의 연속 과부하를 노리세요.",
+      "tiers": [
+        {
+          "count": 2,
+          "bonus": {
+            "armor": 8,
+            "magicResist": 8,
+            "equippedHp": 0.04,
+            "equippedAttack": 0.04,
+            "fullGearShield": 0.04
+          },
+          "text": "방어·마저 +8 · 장착 장비 1개당 체력·공격력 +4% (최대 3개) · 3칸 완성 시 시전 보호막 4%"
+        },
+        {
+          "count": 3,
+          "bonus": {
+            "armor": 16,
+            "magicResist": 16,
+            "equippedHp": 0.07,
+            "equippedAttack": 0.07,
+            "fullGearShield": 0.07
+          },
+          "text": "방어·마저 +16 · 장착 장비 1개당 체력·공격력 +7% (최대 3개) · 3칸 완성 시 시전 보호막 7%"
+        },
+        {
+          "count": 4,
+          "bonus": {
+            "armor": 25,
+            "magicResist": 25,
+            "equippedHp": 0.1,
+            "equippedAttack": 0.1,
+            "fullGearShield": 0.12
+          },
+          "text": "방어·마저 +25 · 장착 장비 1개당 체력·공격력 +10% (최대 3개) · 3칸 완성 시 시전 보호막 12%"
+        }
+      ]
+    },
+    {
+      "id": "fighter",
+      "name": "투사",
+      "category": "전투",
+      "members": [
+        "koromon",
+        "agumon",
+        "garurumon",
+        "angemon",
+        "weregarurumon",
+        "wargreymon",
+        "tailmon",
+        "kuwagamon",
+        "devimon",
+        "ogremon",
+        "leomon"
+      ],
+      "description": "투사는 체력과 기본 공격 흡혈을 얻습니다. 체력이 35% 이하인 적에게 기본 공격·기술의 피해가 증가합니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "체력 +6% · 흡혈 8% · 체력 35% 이하인 적에게 피해 +12%",
+          "bonus": {
+            "hp": 0.06,
+            "lifesteal": 0.08,
+            "lowHealthDamage": 0.12
+          }
+        },
+        {
+          "count": 4,
+          "text": "체력 +14% · 흡혈 16% · 체력 35% 이하인 적에게 피해 +22%",
+          "bonus": {
+            "hp": 0.14,
+            "lifesteal": 0.16,
+            "lowHealthDamage": 0.22
+          }
+        },
+        {
+          "count": 6,
+          "text": "체력 +24% · 흡혈 24% · 체력 35% 이하인 적에게 피해 +35%",
+          "bonus": {
+            "hp": 0.24,
+            "lifesteal": 0.24,
+            "lowHealthDamage": 0.35
+          }
+        }
+      ],
+      "identity": "끝까지 추격",
+      "usage": "전열이 버티는 동안 투사가 약해진 적을 마무리하도록 공격을 집중하세요. 보호막 피해에는 흡혈하지 않습니다."
+    },
+    {
+      "id": "guardian",
+      "name": "수호자",
+      "category": "전투",
+      "members": [
+        "mochimon",
+        "tentomon",
+        "togemon",
+        "greymon",
+        "atlur",
+        "herakle",
+        "plotmon",
+        "shellmon",
+        "monochromon",
+        "andromon"
+      ],
+      "description": "수호자는 체력·방어·마저를 얻고, 전투 시작 8초 동안 추가 피해 감소로 첫 집중 공격을 견딥니다. 이후 피해 감소 효과는 사라집니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "체력 +10% · 방어·마저 +8 · 첫 8초 받는 피해 -20%",
+          "bonus": {
+            "hp": 0.1,
+            "armor": 8,
+            "magicResist": 8,
+            "openingReduction": 0.2
+          }
+        },
+        {
+          "count": 4,
+          "text": "체력 +20% · 방어·마저 +16 · 첫 8초 받는 피해 -30%",
+          "bonus": {
+            "hp": 0.2,
+            "armor": 16,
+            "magicResist": 16,
+            "openingReduction": 0.3
+          }
+        },
+        {
+          "count": 6,
+          "text": "체력 +35% · 방어·마저 +24 · 첫 8초 받는 피해 -45%",
+          "bonus": {
+            "hp": 0.35,
+            "armor": 24,
+            "magicResist": 24,
+            "openingReduction": 0.45
+          }
+        }
+      ],
+      "identity": "개전 방벽",
+      "usage": "수호자로 첫 기술을 받아 내며 후열이 준비할 시간을 버세요. 장비 피해 감소와 합산하되 총 60%를 넘지 않습니다."
+    },
+    {
+      "id": "artillery",
+      "name": "포격수",
+      "category": "전투",
+      "members": [
+        "tsunomon",
+        "gabumon",
+        "birdramon",
+        "metalgreymon",
+        "garudamon",
+        "metalgarurumon",
+        "angewomon",
+        "skullgreymon",
+        "machinedramon"
+      ],
+      "description": "포격수는 매 세 번째 기본 공격을 강화하고 대상 주변 1칸의 다른 적 최대 2명에게 추가 물리 피해를 줍니다. 흩어진 적은 폭발을 피할 수 있습니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "공격력 +6% · 세 번째 타격 +15% AD · 주변 최대 2명에 25% AD",
+          "bonus": {
+            "attack": 0.06,
+            "thirdHit": 0.15,
+            "thirdSplash": 0.25
+          }
+        },
+        {
+          "count": 4,
+          "text": "공격력 +12% · 세 번째 타격 +30% AD · 주변 최대 2명에 45% AD",
+          "bonus": {
+            "attack": 0.12,
+            "thirdHit": 0.3,
+            "thirdSplash": 0.45
+          }
+        },
+        {
+          "count": 6,
+          "text": "공격력 +20% · 세 번째 타격 +50% AD · 주변 최대 2명에 70% AD",
+          "bonus": {
+            "attack": 0.2,
+            "thirdHit": 0.5,
+            "thirdSplash": 0.7
+          }
+        }
+      ],
+      "identity": "연쇄 포격",
+      "usage": "스컬그레이몬·파워드라몬의 공격 속도를 높여 뭉친 전열을 폭격하세요. 폭발은 추가 기본 공격으로 재발동하지 않습니다."
+    },
+    {
+      "id": "caster",
+      "name": "술사",
+      "category": "전투",
+      "members": [
+        "pyocomon",
+        "piyomon",
+        "kabuterimon",
+        "holyangemon",
+        "hououmon",
+        "seraphimon",
+        "ophanimon",
+        "meramon",
+        "piedmon"
+      ],
+      "description": "술사는 주문력이 증가하고 기술을 사용할 때 소모한 마나 일부를 즉시 돌려받습니다. 환급 마나는 최대 마나를 넘지 않습니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "주문력 +18 · 기술 사용 후 마나 5 환급",
+          "bonus": {
+            "abilityPower": 18,
+            "castMana": 5
+          }
+        },
+        {
+          "count": 4,
+          "text": "주문력 +36 · 기술 사용 후 마나 10 환급",
+          "bonus": {
+            "abilityPower": 36,
+            "castMana": 10
+          }
+        },
+        {
+          "count": 6,
+          "text": "주문력 +60 · 기술 사용 후 마나 18 환급",
+          "bonus": {
+            "abilityPower": 60,
+            "castMana": 18
+          }
+        },
+        {
+          "count": 8,
+          "text": "주문력 +90 · 기술 사용 후 마나 30 환급",
+          "bonus": {
+            "abilityPower": 90,
+            "castMana": 30
+          }
+        }
+      ],
+      "identity": "마력 순환",
+      "usage": "8술사의 높은 환급을 조율자의 마나 지원과 연결하세요. 전열을 확보해야 연속 시전을 이어 갈 수 있습니다."
+    },
+    {
+      "id": "harmonizer",
+      "name": "조율자",
+      "category": "전투",
+      "members": [
+        "tanemon",
+        "tokomon",
+        "palmon",
+        "patamon",
+        "lilimon",
+        "rosemon",
+        "nyaromon",
+        "etemon"
+      ],
+      "description": "조율자가 시전하면 자신을 제외하고 마나 비율이 가장 낮은 아군 2명이 마나를 얻습니다. 전체 아군 시작 보호막·저항은 한 번만 적용됩니다.",
+      "tiers": [
+        {
+          "count": 2,
+          "text": "전체 아군 보호막 3.5% · 방어·마저 +5 / 조율자 회복량 +10% · 시전 시 아군 2명 마나 +4",
+          "bonus": {
+            "teamShield": 0.035,
+            "teamResist": 5,
+            "healPower": 0.1,
+            "castAllyMana": 4
+          }
+        },
+        {
+          "count": 3,
+          "text": "전체 아군 보호막 6% · 방어·마저 +10 / 조율자 회복량 +20% · 시전 시 아군 2명 마나 +8",
+          "bonus": {
+            "teamShield": 0.06,
+            "teamResist": 10,
+            "healPower": 0.2,
+            "castAllyMana": 8
+          }
+        },
+        {
+          "count": 5,
+          "text": "전체 아군 보호막 9% · 방어·마저 +16 / 조율자 회복량 +30% · 시전 시 아군 2명 마나 +14",
+          "bonus": {
+            "teamShield": 0.09,
+            "teamResist": 16,
+            "healPower": 0.3,
+            "castAllyMana": 14
+          }
+        }
+      ],
+      "identity": "공명 전파",
+      "usage": "에테몬·릴리몬·파닥몬의 시전으로 다른 계열의 주력 기술을 당겨 쓰세요. 이미 마나가 가득 찬 아군은 공명 대상에서 제외됩니다."
+    }
+  ],
+  "items": [
+    {
+      "id": 0,
+      "name": "크롬디지조이드",
+      "icon": "철",
+      "kind": "component",
+      "role": "공격 재료",
+      "flavor": "디지몬의 무장에 쓰이는 가상 초금속.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "공격력 +12%",
+      "bonus": {
+        "attack": 0.12
+      },
+      "recipe": [],
+      "passive": "",
+      "usage": "물리 공격을 강화하는 무장 재료. 돌파·흡혈·연사 무장으로 융합합니다."
+    },
+    {
+      "id": 1,
+      "name": "레드디지조이드",
+      "icon": "적",
+      "kind": "component",
+      "role": "방어 재료",
+      "flavor": "높은 경도로 정제한 붉은 디지조이드.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
+      "description": "체력 +120 · 방어력 +15",
+      "bonus": {
+        "health": 120,
+        "armor": 15
+      },
+      "recipe": [],
+      "passive": "",
+      "usage": "전방에서 버티는 무장 재료. 위기 보호막·선봉·재생 무장으로 융합합니다."
+    },
+    {
+      "id": 2,
+      "name": "블루디지조이드",
+      "icon": "청",
+      "kind": "component",
+      "role": "공속 재료",
+      "flavor": "가벼움과 기동성이 특징인 푸른 희소 금속.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon",
+      "description": "공격 속도 +12%",
+      "bonus": {
+        "speed": 0.12
+      },
+      "recipe": [],
+      "passive": "",
+      "usage": "공격 빈도를 높이는 무장 재료. 연사·마나 수급·첫 시전 무장으로 융합합니다."
+    },
+    {
+      "id": 3,
+      "name": "디지코어",
+      "icon": "핵",
+      "kind": "component",
+      "role": "스킬 재료",
+      "flavor": "디지몬의 핵을 소재로 한 스킬 강화 재료.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=chaosdramon",
+      "description": "시작 마나 +15 · 주문력 +12",
+      "bonus": {
+        "startMana": 15,
+        "abilityPower": 12.0
+      },
+      "recipe": [],
+      "passive": "",
+      "usage": "스킬 준비와 위력을 높이는 코어. 주문력·재생·시전 보호막에 활용합니다."
+    },
+    {
+      "id": 4,
+      "name": "드라몬 킬러",
+      "icon": "용",
+      "kind": "completed",
+      "role": "공격 · 돌파",
+      "flavor": "양팔에 장착하는 대룡 무장.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "공격력 +35% · 체력 70% 이상인 적에게 피해 +15%",
+      "bonus": {
+        "attack": 0.35,
+        "highHealthDamage": 0.15
+      },
+      "recipe": [
+        0,
+        0
+      ],
+      "passive": "체력 70% 이상인 적에게 주는 피해 +15%.",
+      "usage": "체력이 높은 적을 먼저 깎는 공격수에게. 공격력 계수 스킬도 함께 강화합니다."
+    },
+    {
+      "id": 5,
+      "name": "그레이 소드",
+      "icon": "검",
+      "kind": "completed",
+      "role": "공격 · 흡혈",
+      "flavor": "그레이몬 쪽 팔에서 전개되는 검.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
+      "description": "공격력 +25% · 체력 +120 · 기본 공격 흡혈 12%",
+      "bonus": {
+        "attack": 0.25,
+        "health": 120,
+        "lifesteal": 0.12
+      },
+      "recipe": [
+        0,
+        1
+      ],
+      "passive": "기본 공격으로 준 실제 체력 피해의 12% 회복.",
+      "usage": "지속적으로 기본 공격하는 근접 공격수에게. 스킬 피해에는 흡혈이 적용되지 않습니다."
+    },
+    {
+      "id": 6,
+      "name": "가루루 캐논",
+      "icon": "빙",
+      "kind": "completed",
+      "role": "연사 · 제어",
+      "flavor": "가루몬 쪽 팔에서 펼쳐지는 포신.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=omegamon",
+      "description": "공격력 +15% · 공격 속도 +20% · 기본 공격 3회마다 0.4초 기절",
+      "bonus": {
+        "attack": 0.15,
+        "speed": 0.2,
+        "thirdStun": 0.4
+      },
+      "recipe": [
+        0,
+        2
+      ],
+      "passive": "기본 공격 3회마다 대상을 0.4초 기절.",
+      "usage": "빠른 기본 공격으로 적의 행동을 끊는 공격수에게. 장시간 전투에서 기절을 반복합니다."
+    },
+    {
+      "id": 7,
+      "name": "성창 그람",
+      "icon": "창",
+      "kind": "completed",
+      "role": "공격 · 스킬",
+      "flavor": "크롬디지조이드 갑주와 함께 쓰이는 성스러운 창.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
+      "description": "공격력 +20% · 주문력 +25 · 기본 공격 흡혈 8%",
+      "bonus": {
+        "attack": 0.2,
+        "lifesteal": 0.08,
+        "abilityPower": 25.0
+      },
+      "recipe": [
+        0,
+        3
+      ],
+      "passive": "기본 공격으로 준 실제 체력 피해의 8% 회복.",
+      "usage": "공격력과 주문력을 함께 쓰는 혼합 공격수에게. 기본 공격으로 체력을 회복합니다."
+    },
+    {
+      "id": 8,
+      "name": "브레이브 실드",
+      "icon": "방",
+      "kind": "completed",
+      "role": "수호 · 위기 대응",
+      "flavor": "등 뒤의 장갑을 하나로 모아 펼치는 방패.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=wargreymon",
+      "description": "체력 +300 · 받는 피해 -12% · 체력 35% 이하 생존 시 보호막 25% (전투당 1회) · 방어력 +30",
+      "bonus": {
+        "health": 300,
+        "reduction": 0.12,
+        "lowShield": 0.25,
+        "armor": 30
+      },
+      "recipe": [
+        1,
+        1
+      ],
+      "passive": "받는 피해 12% 감소. 체력 35% 이하로 생존하면 최대 체력 25% 보호막 (전투당 1회).",
+      "usage": "집중 공격을 받는 전방 탱커에게. 위기 보호막은 즉사 피해를 막지 않습니다."
+    },
+    {
+      "id": 9,
+      "name": "성순 이지스",
+      "icon": "성",
+      "kind": "completed",
+      "role": "수호 · 선봉",
+      "flavor": "정화의 빛을 발하는 성스러운 방패.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=dukemon",
+      "description": "체력 +220 · 공격 속도 +15% · 시작 보호막 최대 체력의 20% · 마법저항력 +30",
+      "bonus": {
+        "health": 220,
+        "speed": 0.15,
+        "startShield": 0.2,
+        "magicResist": 30
+      },
+      "recipe": [
+        1,
+        2
+      ],
+      "passive": "전투 시작 시 최대 체력 20% 보호막.",
+      "usage": "개전 직후 공격을 받아내는 선봉에게. 마법 저항과 시작 보호막을 함께 확보합니다."
+    },
+    {
+      "id": 10,
+      "name": "티파레트",
+      "icon": "꽃",
+      "kind": "completed",
+      "role": "재생 · 회복",
+      "flavor": "가슴을 장식하는 작은 보석.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=rosemon",
+      "description": "체력 +220 · 초당 최대 체력 1.5% 재생 · 회복량 +20%",
+      "bonus": {
+        "health": 220,
+        "regen": 0.015,
+        "healPower": 0.2
+      },
+      "recipe": [
+        1,
+        3
+      ],
+      "passive": "매초 최대 체력 1.5% 재생. 자신이 발생시키는 회복량 +20%.",
+      "usage": "전투를 오래 버티며 체력을 회복하는 유닛에게. 회복을 발생시키는 스킬과도 조합합니다."
+    },
+    {
+      "id": 11,
+      "name": "베렌헤나",
+      "icon": "총",
+      "kind": "completed",
+      "role": "연사 · 마나 수급",
+      "flavor": "더블 임팩트를 펼치는 한 쌍의 총.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=beelzebumon",
+      "description": "공격 속도 +40% · 기본 공격 마나 +4",
+      "bonus": {
+        "speed": 0.4,
+        "manaOnAttack": 4
+      },
+      "recipe": [
+        2,
+        2
+      ],
+      "passive": "기본 공격마다 마나 +4 추가 수급.",
+      "usage": "기본 공격을 자주 하고 스킬을 반복하는 유닛에게. 공격 속도와 마나 수급을 함께 강화합니다."
+    },
+    {
+      "id": 12,
+      "name": "성검 엑스칼리버",
+      "icon": "빛",
+      "kind": "completed",
+      "role": "스킬 · 첫 시전",
+      "flavor": "오른팔에 장착하는 성검.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=holyangemon",
+      "description": "주문력 +45 · 시작 마나 +20",
+      "bonus": {
+        "startMana": 20,
+        "abilityPower": 45.0
+      },
+      "recipe": [
+        2,
+        3
+      ],
+      "passive": "시작 마나로 첫 스킬 준비를 앞당깁니다.",
+      "usage": "주문력 계수가 높고 첫 스킬이 중요한 유닛에게. 마나가 가득 차면 스킬을 사용합니다."
+    },
+    {
+      "id": 13,
+      "name": "V 브레이슬릿",
+      "icon": "V",
+      "kind": "completed",
+      "role": "스킬 · 보호막",
+      "flavor": "검과 방패를 전개하는 팔찌.",
+      "source": "https://digimon.net/reference_en/detail.php?directory_name=ulforcevdramon",
+      "description": "체력 +180 · 주문력 +35 · 시전 시 자신에게 최대 체력 12% 보호막 · 마법저항력 +20",
+      "bonus": {
+        "health": 180,
+        "castShield": 0.12,
+        "abilityPower": 35.0,
+        "magicResist": 20
+      },
+      "recipe": [
+        3,
+        3
+      ],
+      "passive": "스킬 시전 시 자신에게 최대 체력 12% 보호막.",
+      "usage": "공격을 받으며 스킬을 반복하는 유닛에게. 주문력·체력·마법 저항·시전 보호막을 함께 확보합니다."
+    },
+    {
+      "id": 14,
+      "name": "데이터 추출기",
+      "icon": "↩",
+      "kind": "utility",
+      "role": "장비 회수",
+      "flavor": "장착 데이터를 추출해 보관함으로 되돌립니다.",
+      "source": "",
+      "description": "장비를 모두 보관함으로 회수하는 소모품 · 합성 불가",
+      "bonus": {},
+      "recipe": [],
+      "passive": "장착 장비 전부 반환. 실제 회수할 장비가 있을 때만 1개 소모. 합성 불가.",
+      "usage": "주력 유닛을 교체할 때 사용하세요. 반환된 완성 장비와 재료를 다른 아군에게 다시 장착할 수 있습니다."
+    },
+    {
+      "id": 15,
+      "name": "디지바이스",
+      "icon": "DV",
+      "kind": "component",
+      "recipe": [],
+      "bonus": {},
+      "source": "디지몬 소재를 참고한 게임용 장비",
+      "role": "시너지 융합 재료",
+      "description": "다른 재료와 합성해 시너지를 부여하는 장비를 만듭니다.",
+      "passive": "단독 장착 시 능력치 없음 · 재료와 자동 합성",
+      "usage": "보관함에서 재료 2개를 클릭하거나, 재료를 장착한 아군에게 추가 장착하세요.",
+      "flavor": "문장의 힘을 다른 동료에게 잇는 테이머의 도구."
+    },
+    {
+      "id": 16,
+      "name": "D-3",
+      "icon": "D3",
+      "kind": "component",
+      "recipe": [],
+      "bonus": {},
+      "source": "디지몬 소재를 참고한 게임용 장비",
+      "role": "시너지 융합 재료",
+      "description": "다른 재료와 합성해 시너지를 부여하는 장비를 만듭니다.",
+      "passive": "단독 장착 시 능력치 없음 · 재료와 자동 합성",
+      "usage": "보관함에서 재료 2개를 클릭하거나, 재료를 장착한 아군에게 추가 장착하세요.",
+      "flavor": "전투 역할을 확장하는 새로운 디지털 링크."
+    },
+    {
+      "id": 17,
+      "name": "용족의 인장",
+      "icon": "용족",
+      "kind": "emblem",
+      "grantsTrait": "courage",
+      "recipe": [
+        15,
+        0
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "용족 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 용족 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 18,
+      "name": "야수의 인장",
+      "icon": "야수",
+      "kind": "emblem",
+      "grantsTrait": "friendship",
+      "recipe": [
+        15,
+        1
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "야수 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 야수 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 19,
+      "name": "화염의 인장",
+      "icon": "화염",
+      "kind": "emblem",
+      "grantsTrait": "love",
+      "recipe": [
+        15,
+        2
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "화염 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 화염 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 20,
+      "name": "곤충의 인장",
+      "icon": "곤충",
+      "kind": "emblem",
+      "grantsTrait": "knowledge",
+      "recipe": [
+        15,
+        3
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "곤충 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 곤충 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 21,
+      "name": "투사의 인장",
+      "icon": "투사",
+      "kind": "emblem",
+      "grantsTrait": "fighter",
+      "recipe": [
+        16,
+        0
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "투사 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 투사 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 22,
+      "name": "수호자의 인장",
+      "icon": "수호자",
+      "kind": "emblem",
+      "grantsTrait": "guardian",
+      "recipe": [
+        16,
+        1
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "수호자 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 수호자 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 23,
+      "name": "포격수의 인장",
+      "icon": "포격수",
+      "kind": "emblem",
+      "grantsTrait": "artillery",
+      "recipe": [
+        16,
+        2
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "포격수 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 포격수 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 24,
+      "name": "술사의 인장",
+      "icon": "술사",
+      "kind": "emblem",
+      "grantsTrait": "caster",
+      "recipe": [
+        16,
+        3
+      ],
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 시너지 장비",
+      "role": "술사 시너지 부여",
+      "description": "최대 체력 +100 · 장착 유닛이 술사 시너지에 참여합니다.",
+      "passive": "전장에 배치하면 해당 시너지 집계와 효과에 참여 · 동일 종류는 1회 집계",
+      "usage": "원래 해당 시너지가 없는 아군에게 장착하세요. 대기석은 팀 시너지에 포함되지 않습니다.",
+      "flavor": "이미 가진 시너지와 동일한 인장은 장착할 수 없습니다."
+    },
+    {
+      "id": 25,
+      "name": "테이머의 유대",
+      "icon": "+1",
+      "kind": "tactician",
+      "recipe": [
+        15,
+        15
+      ],
+      "teamSize": 1,
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 테이머 장비",
+      "role": "최대 배치 인원 +1",
+      "description": "보유 중 최대 배치 인원 +1 · 장착 시 최대 체력 +100",
+      "passive": "보관함·전장·대기석 어디서든 인원 +1 · 여러 개 보유 시 중첩",
+      "usage": "합성 즉시 배치 한도가 늘어납니다. 전투 중 합성하면 추가 유닛은 다음 준비 단계에서 배치하세요.",
+      "flavor": "함께 성장한 테이머와 파트너의 유대."
+    },
+    {
+      "id": 26,
+      "name": "디지털 게이트",
+      "icon": "+1",
+      "kind": "tactician",
+      "recipe": [
+        15,
+        16
+      ],
+      "teamSize": 1,
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 테이머 장비",
+      "role": "최대 배치 인원 +1",
+      "description": "보유 중 최대 배치 인원 +1 · 장착 시 최대 체력 +100",
+      "passive": "보관함·전장·대기석 어디서든 인원 +1 · 여러 개 보유 시 중첩",
+      "usage": "합성 즉시 배치 한도가 늘어납니다. 전투 중 합성하면 추가 유닛은 다음 준비 단계에서 배치하세요.",
+      "flavor": "디지바이스와 D-3를 연결해 동료를 맞이하는 게이트."
+    },
+    {
+      "id": 27,
+      "name": "D-터미널",
+      "icon": "+1",
+      "kind": "tactician",
+      "recipe": [
+        16,
+        16
+      ],
+      "teamSize": 1,
+      "bonus": {
+        "health": 100
+      },
+      "source": "디토체스 테이머 장비",
+      "role": "최대 배치 인원 +1",
+      "description": "보유 중 최대 배치 인원 +1 · 장착 시 최대 체력 +100",
+      "passive": "보관함·전장·대기석 어디서든 인원 +1 · 여러 개 보유 시 중첩",
+      "usage": "합성 즉시 배치 한도가 늘어납니다. 전투 중 합성하면 추가 유닛은 다음 준비 단계에서 배치하세요.",
+      "flavor": "D-3 사이의 통신을 이어주는 테이머의 단말기."
+    }
+  ]
+}

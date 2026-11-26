@@ -11,7 +11,7 @@ public sealed partial class NativeGame
         public Vector2 origin,aim;
         public float age,power;
         public int hits,presentationId;
-        public bool released,cancelled;
+        public bool released,cancelled,soundPlayed;
     }
     private readonly List<SkillCast> skillCasts=new List<SkillCast>();
     private bool applyingSkillDamage;
@@ -67,6 +67,7 @@ public sealed partial class NativeGame
             foreach(Fighter victim in victims.OrderBy(f=>Vector2.Distance(f.pos,cast.aim)).Take(s.targets).ToArray())
             {
                 DealDamage(cast.caster,victim,cast.power/s.shots,s.damageType);
+                ApplySkillTraits(cast.caster,victim);
                 if(!victim.dead)victim.stun=Mathf.Max(victim.stun,s.stun);
                 if(!victim.dead&&s.visual=="gate")victim.pos=Vector2.MoveTowards(victim.pos,cast.aim,.45f);
             }
@@ -76,7 +77,11 @@ public sealed partial class NativeGame
     private void DrawDigimonSkills()
     {
         foreach(SkillCast cast in skillCasts)if(!cast.cancelled)
+        {
+            ObserveNativeSkillSound(cast);
+            string id=cast.target==null?null:cast.target.unit.def.id;int star=cast.target==null?1:cast.target.unit.star;
             arena.DrawSkill(cast.skill,TacticalArena.CellWorld(cast.origin.x,cast.origin.y),
-                TacticalArena.CellWorld(cast.aim.x,cast.aim.y),cast.age,cast.presentationId);
+                TacticalArena.CellWorld(cast.aim.x,cast.aim.y),cast.age,cast.presentationId,id,star,arena.ContactSurface(cast.target,CombatContactPresentation.Height(id,star),CombatContactPresentation.Surface(id,star)));
+        }
     }
 }

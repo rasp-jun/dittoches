@@ -32,7 +32,7 @@ class EmblemTests(unittest.TestCase):
         for item in builds.ITEMS[17:25]:
             trait=next(t for t in builds.TRAITS if t['id']==item['grantsTrait'])
             owner=next(uid for uid in sorted(roster) if uid not in trait['members'])
-            team=[dict(id=trait['members'][0],items=[]),dict(id=owner,items=[item['id']])]
+            team=[dict(id=uid,items=[]) for uid in trait['members'][:trait['tiers'][0]['count']-1]]+[dict(id=owner,items=[item['id']])]
             self.assertEqual(builds.level(trait,team),1)
             self.assertEqual(builds.level(trait,team+[team[-1]]),1)
             bonus=builds.resolve(owner,team,[item['id']])
@@ -40,7 +40,7 @@ class EmblemTests(unittest.TestCase):
             self.assertGreaterEqual(bonus['health'],100)
 
     def test_natural_trait_rejection_is_atomic_even_auto_combining(self):
-        self.p['board'][3]=dict(id='agumon',star=1,items=[0])
+        self.p['board'][3]=dict(id='agumon',star=1,items=[0,8,12])
         self.p['inventory']=[15];before=copy.deepcopy(self.p)
         with self.assertRaises(Rejected):self.equip()
         self.assertEqual(self.p,before)
@@ -49,9 +49,9 @@ class EmblemTests(unittest.TestCase):
         self.assertEqual(self.p,before)
 
     def test_auto_combine_on_full_slots_and_extractor(self):
-        self.p['board'][3]=dict(id='gabumon',star=1,items=[15,8]);self.p['inventory']=[0]
-        self.equip();self.assertEqual(self.p['board'][3]['items'],[17,8])
-        self.p['inventory']=[14];self.equip();self.assertEqual(self.p['inventory'],[17,8])
+        self.p['board'][3]=dict(id='gabumon',star=1,items=[15,8,12]);self.p['inventory']=[0]
+        self.equip();self.assertEqual(self.p['board'][3]['items'],[17,8,12])
+        self.p['inventory']=[14];self.equip();self.assertEqual(self.p['inventory'],[17,8,12])
 
     def test_capacity_is_owned_once_in_inventory_board_and_bench(self):
         self.p['inventory']=[25,26,27];self.assertEqual(formation_limit(self.p),self.p['level']+3)

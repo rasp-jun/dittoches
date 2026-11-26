@@ -15,8 +15,12 @@ from pathlib import Path
 from combat_skills import simulate
 from combat_builds import combine, ITEMS
 from combat_stats import SKILLS
+from league import LeagueMixin
+import tamer_motion
 
 ROOT = Path(__file__).resolve().parent
+# This server hosts the Digimon modes; the legacy solo rules stay in the client.
+MAX_EQUIPMENT = 3
 def formation_limit(player):
     items=list(player.get('inventory', []))
     for unit in player['board']+player['bench']:
@@ -39,7 +43,19 @@ def index(value, size):
     require(type(value) is int and 0 <= value < size, '잘못된 슬롯입니다.')
     return value
 
-class Game:
+
+def unit_signature(unit):
+    return '-' if unit is None else f"{unit['id']}:{unit['star']}:"+','.join(map(str,unit.get('items',[])))
+
+
+def require_unit_snapshot(data, field, unit):
+    # Optional for older clients. Compare before any inventory, pool or gold mutation.
+    expected=data.get(field)
+    if expected is None or expected=='':return
+    require(isinstance(expected,str) and expected==unit_signature(unit),
+            '유닛 또는 배치가 변경되었습니다. 현재 필드에서 다시 선택하세요.')
+
+class Game(LeagueMixin):
     def __init__(self, database=ROOT / 'ratings.sqlite3', clock=time.time):
         self.clock = clock
         self.db = sqlite3.connect(str(database), check_same_thread=False)
@@ -47,7 +63,7 @@ class Game:
         self.db.commit()
         self.lock = threading.RLock()
         self.sessions, self.accounts, self.rooms = {}, {}, {}
-        self.queues = {'normal': [], 'ranked': []}
+        self.queues = {'normal': [], 'ranked': [], 'normal8': [], 'ranked8': []}
 
     def login(self, data):
         name, key = data.get('name', ''), data.get('key', '')
@@ -80,7 +96,7 @@ class Game:
     @staticmethod
     def cosmetics(data):
         result={}
-        for key,limit in (('tamer',4),('field',3),('finisher',3)):
+        for key,limit in (('tamer',12),('field',3),('finisher',3)):
             value=data.get(key,0)
             require(type(value) is int and 0<=value<limit,'잘못된 외형 선택입니다.')
             result[key]=value
@@ -94,7 +110,9 @@ class Game:
                 and 0<=x<=6 and 4<=y<=7,'자신의 전장 안에서만 이동할 수 있습니다.')
         require(self.clock()-session.get('last_tamer_move',0)>=.08,'잠시 후 다시 이동하세요.')
         player=next(p for p in room['players'] if p['id']==session['id'])
-        session['last_tamer_move']=self.clock();player['tamerX']=float(x);player['tamerY']=float(y)
+        require(not player.get('placement'), '탈락 후에는 필드 정찰만 가능합니다.')
+        session['last_tamer_move']=self.clock()
+        tamer_motion.begin_move(player,x,y,self.clock(),player.get('tamerSequence',0)+1)
 
     def cancel(self, session):
         for queue in self.queues.values():
@@ -104,20 +122,23 @@ class Game:
 
     def match(self, mode):
         queue = self.queues[mode]
-        while len(queue) >= 2:
-            left, right = (self.sessions[queue.pop(0)] for _ in range(2))
+        size = 8 if mode.endswith('8') else 2
+        while len(queue) >= size:
+            sessions = [self.sessions[queue.pop(0)] for _ in range(size)]
             room_id = secrets.token_hex(8)
-            players = [self.player(left), self.player(right)]
-            room = dict(id=room_id, mode=mode, players=players, tokens=[left['token'],right['token']],
+            players = [self.player(s) for s in sessions]
+            room = dict(id=room_id, mode=mode, players=players, tokens=[s['token'] for s in sessions], league=size==8,
                         phase='prepare', round=1, deadline=self.clock()+40, pool={u['id']:POOL[u['cost']] for u in ROSTER},
                         frames=[], winner='', message='', ratingDelta=0, created=self.clock())
             self.rooms[room_id] = room
-            for session, player in zip((left,right),players):
+            for session, player in zip(sessions,players):
                 session['queue']=''
                 session['room']=room_id
                 player['board'][3]={'id':'koromon','star':1,'items':[]}
                 room['pool']['koromon']-=1
                 self.roll(room,player)
+            if size == 8:
+                self.schedule_league(room)
 
     def roll(self, room, player):
         for unit_id in player['shop']:
@@ -155,7 +176,7 @@ class Game:
         kept=[];returned=[];grants=set()
         for item in equipment:
             grant=ITEMS[item].get('grantsTrait')
-            if len(kept)>=2 or grant and grant in grants:returned.append(item)
+            if len(kept)>=MAX_EQUIPMENT or grant and grant in grants:returned.append(item)
             else:
                 kept.append(item)
                 if grant:grants.add(grant)
@@ -166,6 +187,9 @@ class Game:
 
     def action(self, session, data):
         room=self.rooms.get(session['room'])
+        if self.is_league(room):
+            player=next(p for p in room['players'] if p['id']==session['id'])
+            require(not player.get('placement'), '탈락 후에는 필드 정찰만 가능합니다.')
         action=data.get('action')
         if action=='shop_lock':
             require(room is not None and room['phase'] in ('prepare','battle'),'지금은 상점을 잠글 수 없습니다.')
@@ -213,7 +237,8 @@ class Game:
             elif action in ('equip','combine_items'):
                 live_equip=combat and action=='equip' and data.get('area')=='board'
                 if live_equip:
-                    require(len(room.get('equipmentEvents',[]))<256,'이번 전투의 장비 변경 한도에 도달했습니다.')
+                    combat_room=self.league_battle(room,room['players'].index(player)) if self.is_league(room) else room
+                    require(combat_room is not None and len(combat_room.get('equipmentEvents',[]))<256,'이번 전투의 장비 변경 한도에 도달했습니다.')
                 self.equipment_action(player,data)
                 if live_equip:
                     self.update_combat_equipment(room,player,data['slot'])
@@ -224,6 +249,7 @@ class Game:
                 source=player[area]
                 i=index(data.get('slot'),len(source))
                 require(source[i] is not None,'빈 슬롯입니다.')
+                require_unit_snapshot(data,'expectedUnit',source[i])
                 if action=='sell':
                     unit=source[i]
                     copies=3**(unit['star']-1)
@@ -239,16 +265,19 @@ class Game:
                     require(not combat or target_area=='bench','전투 중에는 대기석 안에서만 이동할 수 있습니다.')
                     target=player[target_area]
                     j=index(data.get('targetSlot'),len(target))
+                    require_unit_snapshot(data,'expectedTarget',target[j])
                     count=sum(u is not None for u in player['board'])
                     increase=area=='bench' and target_area=='board' and target[j] is None
                     require(not increase or count<formation_limit(player),'배치 한도를 초과합니다.')
                     source[i],target[j]=target[j],source[i]
             else:
                 raise Rejected('알 수 없는 행동입니다.')
-        if not combat and all(p['ready'] for p in room['players']):
+        if not combat and all(p['ready'] for p in room['players'] if not p.get('placement')):
             self.fight(room)
 
     def sync_combat_equipment(self,room,player):
+        if self.is_league(room):
+            return self.league_equipment(room,player)
         side=room['players'].index(player)
         changes=[]
         for fighter in room['initialFighters']:
@@ -262,6 +291,8 @@ class Game:
         if changes:self.recompute_combat(room)
 
     def update_combat_equipment(self,room,player,slot,items=None,when=None,recompute=True):
+        if self.is_league(room):
+            return self.league_equipment(room,player,slot,items,when,recompute)
         side=room['players'].index(player)
         fighter=next((f for f in room['initialFighters'] if f['side']==side and f['slot']==slot),None)
         if fighter is None:return
@@ -304,6 +335,7 @@ class Game:
             slot=index(data.get('slot'),len(player[area]))
             unit=player[area][slot]
             require(unit is not None,'장비를 장착할 유닛이 없습니다.')
+            require_unit_snapshot(data,'expectedUnit',unit)
             equipped=list(unit.get('items',[]))
             if item==14:
                 require(equipped,'회수할 장비가 없습니다.')
@@ -312,7 +344,7 @@ class Game:
                 unit['items']=[]
             else:
                 partner=next((j for j,value in enumerate(equipped) if combine(value,item) is not None),None)
-                require(partner is not None or len(equipped)<2,'장비 슬롯이 가득 찼습니다.')
+                require(partner is not None or len(equipped)<MAX_EQUIPMENT,'장비 3칸이 가득 찼습니다.')
                 if partner is not None:
                     equipped[partner]=combine(equipped[partner],item)
                 else:
@@ -335,6 +367,8 @@ class Game:
             player['xp']=0
 
     def fight(self, room):
+        if self.is_league(room):
+            return self.league_fight(room)
         if room['phase']!='prepare':
             return
         fighters=[]
@@ -353,6 +387,8 @@ class Game:
         room.update(phase='battle',deadline=room['battleStartedAt']+playback_duration,frames=frames,skillEvents=skill_events,battleDuration=playback_duration,roundWinner=winner)
 
     def settle(self, room):
+        if self.is_league(room):
+            return self.league_settle(room)
         if room['phase']!='battle':
             return
         # Only publish a completed round. The report survives preparation/reconnects
@@ -399,6 +435,8 @@ class Game:
                     self.roll(room,p)
 
     def finish(self, room, winner):
+        if self.is_league(room):
+            return self.league_finish(room,winner)
         if room['phase']=='finished':
             return
         room.update(phase='finished',winner=winner,deadline=self.clock(),finishedAt=self.clock())
@@ -428,6 +466,9 @@ class Game:
                             self.sessions[token]['room']=''
                     del self.rooms[room['id']]
                 continue
+            if self.is_league(room):
+                self.league_tick(room,now)
+                continue
             absent=[i for i,t in enumerate(room['tokens']) if now-self.sessions[t]['seen']>60]
             if absent:
                 self.finish(room,'' if len(absent)==2 else room['players'][1-absent[0]]['id'])
@@ -445,17 +486,19 @@ class Game:
 
     def snapshot(self, session):
         response=dict(token=session['token'],name=session['name'],rating=session['rating'],queue=session['queue'],
-                      waiting=len(self.queues.get(session['queue'],[])),room=None,error='',reliableCommands=1,combatActions=1)
+                      waiting=len(self.queues.get(session['queue'],[])),queueTarget=8 if session['queue'].endswith('8') else 2,
+                      leagueVersion=1,tamerSyncVersion=1,tamerCount=12,tamers=None,room=None,error='',reliableCommands=1,combatActions=1)
         room=self.rooms.get(session['room'])
         if room:
             side=next(i for i,p in enumerate(room['players']) if p['id']==session['id'])
+            response['tamers']=tamer_motion.snapshot(room,side,self.clock())
             players=[]
             for i,p in enumerate(room['players']):
                 age=max(0,self.clock()-self.sessions[room['tokens'][i]]['seen'])
                 players.append(dict(connectionKnown=True,connected=age<8,reconnectRemaining=max(0,60-age),name=p['name'],rating=p['rating'],hp=p['hp'],gold=p['gold'] if i==side else 0,
                                     tamer=p.get('tamer',0),field=p.get('field',0),finisher=p.get('finisher',0),tamerX=p.get('tamerX',3.),tamerY=p.get('tamerY',7.),
                                     level=p['level'],xp=p['xp'] if i==side else 0,ready=p['ready'],board=self.units(p['board']),
-                                    bench=self.units(p['bench']) if i==side else [],shop=[u or '' for u in p['shop']] if i==side else [],
+                                    publicBench=True,bench=self.units(p['bench']),shop=[u or '' for u in p['shop']] if i==side else [],
                                     shopLocked=p.get('shopLocked',False) if i==side else False,
                                     inventory=list(p['inventory']) if i==side else [],inventoryRevision=p['inventoryRevision'] if i==side else 0))
             result='' if room['phase']!='finished' else ('무승부' if not room['winner'] else ('승리' if room['winner']==session['id'] else '패배'))
@@ -464,6 +507,8 @@ class Game:
                                   ratingDelta=room['ratingDelta']*(1 if side==0 else -1),frames=room['frames'] if room['phase']=='battle' else [],
                                   lastCombat=room.get('lastCombat',[]),reportRound=room.get('reportRound',0),roundWinner=room.get('reportWinner',-1),
                                   roundResult=dict(room['roundResults'][side]) if room.get('roundResults') else None)
+            if self.is_league(room):
+                return self.league_snapshot(room,side,response)
         return response
 
     def request(self, path, data, token=''):
@@ -474,6 +519,19 @@ class Game:
             require(token in self.sessions,'인증이 만료되었습니다. 다시 접속하세요.')
             session=self.sessions[token]
             session['seen']=self.clock()
+            if path=='/tamer-sync':
+                room=self.rooms.get(session['room'])
+                require(room is not None and data.get('expectedRoom')==room['id'],'경기가 변경되었습니다. 최신 상태를 확인하세요.')
+                side=next(i for i,p in enumerate(room['players']) if p['id']==session['id'])
+                if data.get('tamerMove'):
+                    sequence=data.get('tamerSequence')
+                    require(type(sequence) is int and 0<sequence<2147483647,'이동 순서가 잘못되었습니다.')
+                    player=room['players'][side]
+                    # A lost response can be retried without restarting the journey.
+                    if sequence>player.get('tamerSequence',0):
+                        self.move_tamer(session,data)
+                        player['tamerSequence']=sequence
+                return tamer_motion.snapshot(room,side,self.clock())
             if path=='/state':
                 return self.snapshot(session)
             request_id=data.get('requestId','')
@@ -530,8 +588,12 @@ class Game:
             self.cancel(session)
             room=self.rooms.get(session['room'])
             if room and room['phase']!='finished':
-                self.finish(room,next(p['id'] for p in room['players'] if p['id']!=session['id']))
-                room['message']='상대가 경기를 포기했습니다.'
+                if self.is_league(room):
+                    self.league_eliminate(room,[next(i for i,p in enumerate(room['players']) if p['id']==session['id'])])
+                    if room['phase']=='prepare':self.schedule_league(room)
+                else:
+                    self.finish(room,next(p['id'] for p in room['players'] if p['id']!=session['id']))
+                    room['message']='상대가 경기를 포기했습니다.'
             session['room']=''
         elif path=='/tamer-move':
             self.move_tamer(session,data)

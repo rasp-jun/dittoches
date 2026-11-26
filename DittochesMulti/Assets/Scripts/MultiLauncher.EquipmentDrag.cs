@@ -4,9 +4,11 @@ using UnityEngine;
 public sealed partial class MultiLauncher
 {
     readonly EquipmentDrag onlineEquipmentDrag=new EquipmentDrag();
+    readonly EquipmentInventoryView onlineInventoryView=new EquipmentInventoryView();
     void OnApplicationFocus(bool focused){if(!focused){onlineEquipmentDrag.Reset();ResetEquipmentSelection();ResetOnlineDrag();arenaPointer.Reset();}}
-    void OnDisable(){onlineEquipmentDrag.Reset();ResetEquipmentSelection();ResetOnlineDrag();arenaPointer.Reset();}
-    Rect OnlineInventoryRect(int slot){return new Rect(39+slot%4*57,695+slot/4*43,39,39);}
+    void OnDisable(){ClearOnlineCombatAudio();StarUpgradeAudio.Cancel();onlineMergeArrivals.Clear();onlineEquipmentDrag.Reset();ResetEquipmentSelection();ResetOnlineDrag();arenaPointer.Reset();}
+    Rect OnlineInventoryTabs { get { return new Rect(39,687,229,25); } }
+    Rect OnlineInventoryRect(int slot){return new Rect(39+slot%4*57,(artPack==0?720:695)+slot/4*43,39,39);}
     Rect onlineEquipmentTargetRect;
     Rect OnlinePieceRect(string id,int star,Vector3 ground)
     {
@@ -19,7 +21,7 @@ public sealed partial class MultiLauncher
         float progress=CombatProgress(room,remaining);int frame=Mathf.FloorToInt(progress),next=Mathf.Min(frame+1,room.frames.Length-1);
         var to=System.Array.Find(room.frames[next].units,u=>u.key==f.key)??f;
         float x=Mathf.Lerp(f.x,to.x,progress-frame),y=Mathf.Lerp(f.y,to.y,progress-frame);
-        if(room.side==1){x=6-x;y=7-y;}
+        if(BattleSide(room)==1){x=6-x;y=7-y;}
         return OnlinePieceRect(f.id,f.star,TacticalArena.CellWorld(x,y));
     }
     Unit OnlineCombatEquipmentOwner(Fighter f,out string blocked)
@@ -32,7 +34,9 @@ public sealed partial class MultiLauncher
     }
     Unit OnlineEquipmentTarget(out string area,out int slot,out Fighter live,out string blocked)
     {
-        area="";slot=-1;live=null;blocked="";onlineEquipmentTargetRect=new Rect();var me=OnlineMe;var room=state.room;
+        area="";slot=-1;live=null;blocked="";onlineEquipmentTargetRect=new Rect();
+        if(OnlineScouting){blocked="내 필드에서 장착하세요";return null;}
+        var me=OnlineMe;var room=state.room;
         Vector2 p=Event.current.mousePosition;int seat=arena.HitBench(p),cell=arena.HitCell(p);
         var current=room.phase=="battle"?VisibleCombatFrame(room,Mathf.Max(0,room.remaining-(Time.unscaledTime-receivedAt))):null;
         if(current!=null)foreach(var row in onlineCombatLabels)
@@ -50,7 +54,7 @@ public sealed partial class MultiLauncher
         if(seat>=0){area="bench";slot=seat;var unit=At(me.bench,seat);if(unit!=null)onlineEquipmentTargetRect=OnlinePieceRect(unit.id,unit.star,TacticalArena.BenchWorld(seat));return unit;}
         if(room.phase=="prepare")
         {
-            foreach(bool own in new[]{true,false})foreach(var unit in room.players[own?room.side:1-room.side].board.OrderByDescending(u=>own?u.slot/7:3-u.slot/7))
+            foreach(bool own in new[]{true,false})foreach(var unit in room.players[own?room.side:OpponentSide(room)].board.OrderByDescending(u=>own?u.slot/7:3-u.slot/7))
             {
                 int x=own?unit.slot%7:6-unit.slot%7,y=own?unit.slot/7+4:3-unit.slot/7;
                 var r=OnlinePieceRect(unit.id,unit.star,TacticalArena.CellWorld(x,y));if(!r.Contains(p))continue;
@@ -81,8 +85,10 @@ public sealed partial class MultiLauncher
     {
         if(artPack!=0)return;
         Event e=Event.current;int hovered=-1;
-        for(int i=0;i<12;i++)if(OnlineInventoryRect(i).Contains(e.mousePosition))hovered=onlineItemPage*12+i;
-        var result=onlineEquipmentDrag.Update(e,hovered,me.inventory,room.id+":"+room.round+":"+room.phase+":"+me.inventoryRevision,
+        onlineInventoryView.Sync(me.inventory,ref onlineItemPage);
+        onlineInventoryView.Scroll(e,new Rect(37,687,235,183),GUI.enabled,onlineEquipmentDrag.Slot>=0,ref onlineItemPage);
+        for(int i=0;i<12;i++)if(OnlineInventoryRect(i).Contains(e.mousePosition))hovered=onlineInventoryView.Index(onlineItemPage,i);
+        var result=onlineEquipmentDrag.Update(e,hovered,me.inventory,room.id+":"+room.round+":"+room.phase+":"+me.inventoryRevision+":"+onlineInventoryView.Filter+":"+onlineItemPage,
             editable&&!busy&&GUI.enabled);
         if(onlineEquipmentDrag.Dragging)
         {onlineItem=onlineEquipmentDrag.Slot;onlineItemRevision=me.inventoryRevision;ClearOnlineUnitSelection();arenaPointer.Reset();}

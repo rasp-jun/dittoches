@@ -1,4 +1,4 @@
-#if DITTOCHES_PORTABLE_PREVIEW
+﻿#if DITTOCHES_PORTABLE_PREVIEW
 using System;
 using System.Collections;
 using System.IO;
@@ -24,7 +24,7 @@ public sealed partial class NativeGame
             GUI.enabled=true;gold=0;
             Event.current=new Event{type=EventType.MouseDown,button=1,mousePosition=new Vector2(249+156,893+22)};
             DrawArenaHudShop();
-            Require(skillDetailUnit!=null&&skillDetailUnit.def==offer&&skillDetailFromShop,"shop icon opens basic skill inspection without gold");
+            Require(skillDetailUnit!=null&&skillDetailUnit.def==offer&&skillDetailFromShop,"shop icon opens basic skill inspection without gold (drag="+draggingUnit+", pointer="+Event.current.mousePosition+", event="+Event.current.type+", skill="+(skillDetailUnit==null?"none":skillDetailUnit.def.id)+", enabled="+GUI.enabled+")");
             Require(gold==0&&shop[0]==offer&&board.Concat(bench).Count(u=>u!=null)==count,"shop inspection cannot buy or consume gold");
             skillDetailUnit=null;
             Event.current=new Event{type=EventType.MouseDown,button=1,mousePosition=new Vector2(290,1025)};
@@ -32,7 +32,7 @@ public sealed partial class NativeGame
             Require(skillDetailUnit!=null&&skillDetailUnit.def==offer&&Event.current.type==EventType.Used,"whole card right click opens details and consumes input");
             Require(gold==0&&shop[0]==offer,"whole card inspection never purchases");
             var inspectedSkill=skillDetailUnit;skillDetailUnit=null;OpenEquipmentGuide(8);gold=50;var bag=inventory.ToArray();
-            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space})
+            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space,KeyCode.Return,KeyCode.Q,KeyCode.R,KeyCode.W,KeyCode.E})
             {
                 Event.current=new Event{type=EventType.KeyDown,keyCode=key};DrawGame();
                 Require(gold==50&&!battling&&inventory.SequenceEqual(bag),"equipment guide blocks underlying gameplay shortcut "+key);
@@ -40,7 +40,7 @@ public sealed partial class NativeGame
             Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.Escape};DrawBuildRecipeGuide();
             Require(!showRecipeGuide&&Event.current.type==EventType.Used,"equipment guide closes with Escape");
             skillDetailUnit=null;OpenTeamPlan();
-            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space})
+            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space,KeyCode.Return,KeyCode.Q,KeyCode.R,KeyCode.W,KeyCode.E})
             {
                 Event.current=new Event{type=EventType.KeyDown,keyCode=key};DrawGame();
                 Require(gold==50&&!battling&&inventory.SequenceEqual(bag),"team planner blocks gameplay shortcut "+key);
@@ -48,14 +48,14 @@ public sealed partial class NativeGame
             Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.Escape};DrawTeamPlan();
             Require(!showTeamPlan&&Event.current.type==EventType.Used,"team planner Escape closes without passing input through");
             OpenTraitGuide("friendship");
-            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space})
+            foreach(KeyCode key in new[]{KeyCode.D,KeyCode.F,KeyCode.Space,KeyCode.Return,KeyCode.Q,KeyCode.R,KeyCode.W,KeyCode.E})
             {
                 Event.current=new Event{type=EventType.KeyDown,keyCode=key};DrawGame();
                 Require(gold==50&&!battling&&inventory.SequenceEqual(bag),"trait guide blocks gameplay shortcut "+key);
             }
             Event.current=new Event{type=EventType.KeyDown,keyCode=KeyCode.Escape};DrawBuildTraitGuide();
             Require(traitFocus==null&&Event.current.type==EventType.Used,"trait guide Escape consumes input");
-            ValidateEquipmentDragInGUI();skillDetailUnit=inspectedSkill;
+            ValidateInventoryBrowserInGUI();ValidateEquipmentDragInGUI();ValidateEquipmentPopupInGUI();ValidateScoutingInGUI();skillDetailUnit=inspectedSkill;
         }
         finally{Event.current=saved;GUI.enabled=enabled;gold=savedGold;}
     }
@@ -92,10 +92,10 @@ public sealed partial class NativeGame
         DrawRect(new Rect(150,90,1620,900),new Color(.02f,.04f,.065f));int i=0;
         foreach(var s in DigimonSkillCatalog.All)
         {
-            float x=180+i%6*260,y=118+i/6*145;
+            float x=180+i%7*224,y=118+i/7*145;
             GUI.DrawTexture(new Rect(x,y,72,72),DigimonSkillUI.Icon(s));
-            GUI.Label(new Rect(x+84,y,163,46),s.name,new GUIStyle(label){wordWrap=true});
-            GUI.Label(new Rect(x+84,y+49,165,50),s.ScalingRole+"\n기본 공격 "+s.attackRange+"칸",label);i++;
+            GUI.Label(new Rect(x+84,y,136,46),s.name,new GUIStyle(label){wordWrap=true});
+            GUI.Label(new Rect(x+84,y+49,136,50),s.ScalingRole+"\n기본 공격 "+s.attackRange+"칸",label);i++;
         }
     }
     void Require(bool condition,string message)
@@ -149,7 +149,7 @@ public sealed partial class NativeGame
             shop[0]=def;
             Require(Buy(0)&&gold==9&&shop[0]==null,"native purchase succeeds once at rank "+rank);
             Require(FindUnits(def.id,rank).Count==1,"native result has expected final rank "+rank);
-            Require(inventory.Count==(rank==3?6:rank==2?2:0),"native purchase returns exact overflow "+rank);
+            Require(inventory.Count==(rank==3?5:rank==2?1:0),"native purchase returns exact overflow "+rank);
             Require(placementNotice==RecruitmentAdvice.Result(UnitName(def),rank,1,inventory.Count),"native receipt keeps final stars/cost/overflow "+rank);
             string prior=placementNotice;Require(!Buy(0)&&gold==9&&placementNotice==prior,"repeat empty purchase adds no new receipt");
         }
@@ -198,18 +198,36 @@ public sealed partial class NativeGame
     {
         Application.runInBackground=true;
         yield return null;
+        if(PortablePreview.HasArgument("--planner-host-only"))
+        {artPack=0;lobby=false;ResetGame();EnsureArena();yield return ValidateNativePlannerInspection();Debug.Log("PLANNER HOST FOCUSED COMPLETE");Application.Quit();yield break;}
+        if(PortablePreview.HasArgument("--synergy-events-only")){ValidateSynergyEvents();Debug.Log("SYNERGY FOCUSED COMPLETE");Application.Quit();yield break;}
         ValidateBuildRules();
         ValidateSynergyRules();
+        ValidateTraitOverview();
+        ValidateTraitHudCache();
+        ValidateEquipmentClarity();
         ValidateScalingRules();
+        ValidateLightLineRules();
+        ValidateOpenRosterRules();
+        ValidateSynergyEvents();
         ValidateTacticalRules();
         ValidateReportRules();
         ValidateFormationRules();
         ValidateCombatLabels();
         ValidateHudPerformance();
         ValidateRecruitmentResults();
+        ValidateStarUpgrades();
         ValidateArenaVisualQuality();
-        ValidateImpactMotion();
+        using(var performanceArena=new TacticalArena(new Rect(0,0,960,540)))performanceArena.ValidateRenderWork(Require);
+        ValidateImpactMotion();ValidateHitReactions();
+        ValidateLocomotion();
+        ValidateWorldMotion();
+        if(PortablePreview.HasArgument("--world-motion-capture"))yield return CaptureWorldMotionReview();
+        if(PortablePreview.HasArgument("--locomotion-capture"))yield return CaptureLocomotionReview();
+        ValidateBasicAttacks();
+        ValidateAttackTiming();
         ValidateSkillFinish();
+        ValidateCombatFinishRules();ValidateSkillRibbons();ValidateContactFinish();ValidateImpactAccents();ValidateNativeCombatAudio();
         ValidateCombatManagementRules();
         ValidateEmblems();
         Require(RecruitmentAdvice.Interest(9)==0&&RecruitmentAdvice.Interest(10)==1&&RecruitmentAdvice.Interest(50)==5&&RecruitmentAdvice.Interest(99)==5,"interest thresholds and cap");
@@ -227,6 +245,7 @@ public sealed partial class NativeGame
         bench[0]=new Unit(RosterById["koromon"]);bench[3]=new Unit(RosterById["agumon"]);
         inventory.AddRange(new[]{0,1,2,3});RebuildPool();RollShop();EnsureArena();
         board[3].items.Add(8);board[17].items.Add(10);board[2].items.Add(4);board[16].items.AddRange(new[]{6,8});
+        ValidateSharedInspectionStats();
         Require(!DigimonModelLibrary.PreviewEnabled,"unfinished model must be opt-in");
         for(int row=0;row<8;row++)for(int col=0;col<7;col++)
         {
@@ -237,19 +256,37 @@ public sealed partial class NativeGame
         for(int i=0;i<9;i++)Require(arena.HitBench(arena.Project(TacticalArena.BenchWorld(i)))==i,"bench picking "+i);
         Require(!SoloArenaViewport.Contains(SellDropZone.center),"sell target cannot also place on board");
         yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();CaptureRuntime("01-prepare");
+        ShowRivalBoard(NextRivalIndex);yield return new WaitForEndOfFrame();CaptureRuntime("scout-next-rival");
+        ValidateSharedInspectionStats();
+        inspectedUnit=scoutBoard.First(u=>u!=null);yield return new WaitForEndOfFrame();CaptureRuntime("scout-rival-details");ReturnToOwnField();
+        yield return ValidateEquipmentUXInput();
+        yield return ValidateConvenienceInput();
+        var inventoryBeforeReview=inventory.ToArray();
+        inventory.AddRange(new[]{14,15,16,8,18,26});inventoryView.SetFilter(1,ref inventoryPage);selectedItem=5;
+        validationPointer=InventorySlotRect(5).center;
+        yield return new WaitForEndOfFrame();CaptureRuntime("inventory-combine-preview");
+        selectedItem=-1;validationPointer=null;inventory.Clear();inventory.AddRange(Enumerable.Range(0,28));
+        inventoryView.SetFilter(2,ref inventoryPage);
+        yield return new WaitForEndOfFrame();CaptureRuntime("inventory-equipment-filter");
+        inventoryPage=1;
+        yield return new WaitForEndOfFrame();CaptureRuntime("inventory-second-page");
+        inventory.Clear();inventory.AddRange(inventoryBeforeReview);inventoryView.SetFilter(0,ref inventoryPage);
         int forecastGold=gold;var forecastOffer=shop[0];gold=20;shop[0]=RosterById["agumon"];
         validationPointer=new Vector2(360,970);
         yield return new WaitForSeconds(.6f);yield return new WaitForEndOfFrame();CaptureRuntime("24-purchase-forecast");
         validationPointer=new Vector2(120,950);
         yield return new WaitForSeconds(.6f);yield return new WaitForEndOfFrame();CaptureRuntime("25-level-forecast");
         validationPointer=null;gold=forecastGold;shop[0]=forecastOffer;
-        traitFocus=TeamTraits().First(t=>t.key=="용기");traitGuideUntil=Time.unscaledTime+60;
+        traitFocus=TeamTraits().First(t=>t.key=="용족");traitGuideUntil=Time.unscaledTime+60;
         yield return new WaitForEndOfFrame();CaptureRuntime("08-synergies");traitFocus=null;
         foreach(var trait in DigimonBuildCatalog.Data.traits)
         {
             OpenTraitGuide(trait.id);yield return new WaitForEndOfFrame();CaptureRuntime("synergy-"+trait.id);
         }
         traitFocus=null;
+        yield return CaptureNewSynergyReview();
+        yield return CaptureStarUpgradeReview();
+        yield return CaptureEquipmentClarityReview();
         recipeFocus=1;showRecipeGuide=true;recipeGuideUntil=Time.unscaledTime+60;
         yield return new WaitForEndOfFrame();CaptureRuntime("09-recipes");showRecipeGuide=false;
         OpenEquipmentGuide(8);yield return new WaitForEndOfFrame();CaptureRuntime("26-shield-guide");
@@ -272,7 +309,7 @@ public sealed partial class NativeGame
         OpenSkillDetails(new Unit(RosterById["wargreymon"]){star=2});yield return new WaitForEndOfFrame();CaptureRuntime("11-skill-hybrid");skillDetailUnit=null;
         validationIconGallery=true;yield return new WaitForEndOfFrame();CaptureRuntime("12-skill-icons");validationIconGallery=false;inspectedUnit=null;
         validationIconGallery=validationEquipmentGallery=true;yield return new WaitForEndOfFrame();CaptureRuntime("28-all-equipment");validationIconGallery=validationEquipmentGallery=false;
-        showTeamPlan=true;yield return new WaitForEndOfFrame();CaptureRuntime("31-team-planner");showTeamPlan=false;
+        yield return ValidateNativePlannerInspection();
         selectedBench=0;selectedBoard=-1;validationPointer=arena.Project(TacticalArena.CellWorld(3,6));
         yield return new WaitForEndOfFrame();CaptureRuntime("19-synergy-swap");
         validationPointer=arena.Project(TacticalArena.CellWorld(6,7));
@@ -285,7 +322,7 @@ public sealed partial class NativeGame
         dragFromBoard=false;dragSource=0;draggingUnit=true;validationPointer=left;
         yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();Vector3 first=formationPositions[held];
         validationPointer=right;yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();
-        Require(formationPositions[held].x-first.x>.2f,"held unit follows pointer continuously within one hex");
+        Require(formationPositions[held].x-first.x>.2f,"held unit follows pointer continuously within one hex (first="+first+", now="+formationPositions[held]+", dragging="+draggingUnit+", source="+dragSource+", help="+showPlayHelp+", skill="+(skillDetailUnit!=null)+", focus="+Application.isFocused+")");
         Require(bench[0]==held&&board[17]==swapped,"drag preview leaves formation unchanged");
         CaptureRuntime("22-drag-follow");validationPointer=SellDropZone.center;yield return new WaitForEndOfFrame();CaptureRuntime("34-shop-sale");validationPointer=right;DropDraggedUnit(right);draggingUnit=false;dragSource=-1;validationPointer=null;
         yield return new WaitForSeconds(.4f);yield return new WaitForEndOfFrame();
@@ -294,6 +331,7 @@ public sealed partial class NativeGame
         CaptureRuntime("23-drop-settle");board[17]=swapped;bench[0]=held;inspectedUnit=null;
         StartCoroutine(Battle());
         foreach(Fighter fighter in fighters)fighter.mana=fighter.maxMana;
+        ValidateSharedInspectionStats();
         inspectedUnit=fighters.First(f=>!f.enemy&&f.sourceSlot==18).unit;
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("04-combat");
         yield return new WaitForSeconds(2f);yield return new WaitForEndOfFrame();CaptureRuntime("05-skills");
@@ -306,15 +344,23 @@ public sealed partial class NativeGame
         Require(lastBattleReport.Sum(f=>f.casts)>0,"canonical skills actually cast in runtime");
         Require(lastBattleReport.All(f=>Mathf.Abs(f.damageDone-f.basicDamageDone-f.skillDamageDone)<.1f),"completed native report damage totals reconcile");
         Require(lastBattleReport.All(f=>!board.Contains(f.unit)),"completed report unit records are detached from preparation board");
+        ValidateSharedInspectionStats();
         Require(skillCasts.Count==0||skillCasts.All(c=>c.hits>=c.skill.shots),"no unprocessed released hits");
         yield return new WaitForEndOfFrame();CaptureRuntime("06-result");
         inspectedUnit=lastBattleReport.OrderByDescending(f=>f.damageDone).First().unit;
         yield return new WaitForEndOfFrame();CaptureRuntime("18-last-combat-unit");inspectedUnit=null;
         Require(Time.unscaledTime-finisherStarted<2.2f,"round settlement starts finisher");
+        Require(nativeFinisher!=null&&nativeFinisher.RivalName==currentOpponent&&nativeFinisher.RivalTamer==System.Array.IndexOf(RivalNames,currentOpponent)%TamerLoadout.Tamers.Length,"solo finisher keeps the fought rival after the round advances");
+        Require(nativeFinisher.Target==(win?RivalTamerPosition:LegacyWorld(legendPos)),"solo effect ends at the losing tamer's visible position");
         yield return new WaitForSeconds(.8f);yield return new WaitForEndOfFrame();CaptureRuntime("29-round-finisher");
         Require(arena.EffectCount>0,"finisher renders in actual solo arena");
+        var completedShot=nativeFinisher;string foughtOpponent=currentOpponent;currentOpponent="";StartNativeFinisher();
+        Require(nativeFinisher==null,"creep rounds cannot execute an unrelated tamer");
+        currentOpponent=foughtOpponent;nativeFinisher=completedShot;
         lobby=true;tamerLoadout=new TamerLoadout{tamer=1,field=2,finisher=2};legend=1;
         yield return new WaitForSeconds(.5f);yield return new WaitForEndOfFrame();CaptureRuntime("30-solo-loadout-lobby");
+        yield return ValidateSoloLobbyPolish();
+        yield return ValidateRewardAndGameOverScreens();
         lobby=false;
         artPack=1;EnsureArena();Require(SoloArenaViewport==TacticalArena.SoloViewport,"original layout retained");
         yield return new WaitForEndOfFrame();CaptureRuntime("07-original");

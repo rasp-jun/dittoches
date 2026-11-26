@@ -8,12 +8,12 @@ public static class DigimonVisualScale
     {
         switch(id)
         {
-            case "koromon":case "tsunomon":case "mochimon":case "tanemon":case "pyocomon":case "tokomon":return Evolution.Baby;
-            case "agumon":case "gabumon":case "tentomon":case "palmon":case "piyomon":case "patamon":return Evolution.Rookie;
+            case "koromon":case "tsunomon":case "mochimon":case "tanemon":case "pyocomon":case "tokomon":case "nyaromon":return Evolution.Baby;
+            case "agumon":case "gabumon":case "tentomon":case "palmon":case "piyomon":case "patamon":case "plotmon":return Evolution.Rookie;
             case "togemon":case "garurumon":case "greymon":case "kabuterimon":case "angemon":case "birdramon":
-            case "kuwagamon":case "shellmon":case "devimon":return Evolution.Champion;
-            case "metalgreymon":case "weregarurumon":case "lilimon":case "holyangemon":case "atlur":case "garudamon":case "etemon":return Evolution.Ultimate;
-            case "herakle":case "hououmon":case "wargreymon":case "metalgarurumon":case "rosemon":case "seraphimon":return Evolution.Mega;
+            case "kuwagamon":case "shellmon":case "devimon":case "tailmon":case "monochromon":case "ogremon":case "meramon":case "leomon":return Evolution.Champion;
+            case "metalgreymon":case "weregarurumon":case "lilimon":case "holyangemon":case "atlur":case "garudamon":case "etemon":case "angewomon":case "andromon":case "skullgreymon":return Evolution.Ultimate;
+            case "herakle":case "hououmon":case "wargreymon":case "metalgarurumon":case "rosemon":case "seraphimon":case "ophanimon":case "piedmon":case "machinedramon":return Evolution.Mega;
             default:return Evolution.Unknown;
         }
     }
@@ -31,7 +31,7 @@ public static class DigimonVisualScale
         switch(id)
         {
             case "birdramon":case "angemon":height*=1.07f;break;
-            case "holyangemon":case "garudamon":case "seraphimon":case "hououmon":height*=1.04f;break;
+            case "holyangemon":case "garudamon":case "seraphimon":case "hououmon":case "angewomon":case "ophanimon":height*=1.04f;break;
             case "koromon":case "mochimon":height*=.96f;break;
         }
         // Star upgrades remain subtle; even a 3-star lower stage stays below the next stage.

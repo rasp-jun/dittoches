@@ -31,8 +31,8 @@ public sealed partial class NativeGame
             EquipmentGesture(EventType.MouseDown,start);EquipmentGesture(EventType.MouseDrag,target);EquipmentGesture(EventType.MouseUp,target);
             Require(bench[0].items.SequenceEqual(new[]{8})&&inventory.SequenceEqual(new[]{12,14}),"bench drop equips exactly once");
             EquipmentGesture(EventType.MouseUp,target);Require(inventory.Count==2,"duplicate mouse release does not equip again");
-            bench[0].items.Add(10);EquipmentGesture(EventType.MouseDown,start);EquipmentGesture(EventType.MouseDrag,target);EquipmentGesture(EventType.MouseUp,target);
-            Require(inventory.SequenceEqual(new[]{12,14})&&bench[0].items.SequenceEqual(new[]{8,10}),"full slots reject drop without loss");
+            bench[0].items.Add(10);bench[0].items.Add(13);EquipmentGesture(EventType.MouseDown,start);EquipmentGesture(EventType.MouseDrag,target);EquipmentGesture(EventType.MouseUp,target);
+            Require(inventory.SequenceEqual(new[]{12,14})&&bench[0].items.SequenceEqual(new[]{8,10,13}),"full slots reject drop without loss");
             EquipmentGesture(EventType.MouseDown,start);EquipmentGesture(EventType.MouseDrag,target);inventory.Insert(0,1);EquipmentGesture(EventType.MouseUp,target);
             Require(inventory.SequenceEqual(new[]{1,12,14}),"inventory change cancels stale slot");
             EquipmentGesture(EventType.MouseDown,start);EquipmentGesture(EventType.MouseDrag,target);round++;EquipmentGesture(EventType.MouseUp,target);

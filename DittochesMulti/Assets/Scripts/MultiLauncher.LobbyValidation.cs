@@ -1,0 +1,153 @@
+#if DITTOCHES_PORTABLE_PREVIEW
+using System;
+using System.Collections;
+using System.Linq;
+using UnityEngine;
+
+public sealed partial class MultiLauncher
+{
+    public void BeginLobbySmoke(){StartCoroutine(LobbySmoke());}
+    IEnumerator LobbySmoke()
+    {
+        onlineValidationPointer=Vector2.zero;yield return null;
+        string[] args=Environment.GetCommandLineArgs();int argument=Array.IndexOf(args,"--test-server");
+        OnlineRequire(argument>=0&&new Uri(args[argument+1]).IsLoopback,"lobby review uses isolated loopback server");
+        string previousPlan=JsonUtility.ToJson(TeamPlan.Data),previousLoadout=PortablePreviewPrefs.GetString(TamerLoadout.Key,"");
+        int previousMode=PortablePreviewPrefs.GetInt("multi.lobby.mode",0);
+        TeamPlan.Restore("");token="";state=null;ResetConnectionRecovery();server=args[argument+1];nickname="파일 아일랜드 테이머";
+        lobbyMode=0;lobbyLoadout=new TamerLoadout();SetLobbyTab(0);
+        OnlineRequire(SeasonLobbyArt.Scene!=null&&SeasonLobbyArt.Scene.width>=1500&&SeasonLobbyArt.Scene.name=="File Island observatory lobby","the new observatory lobby background loads from the player assets");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-01-home");
+        yield return ValidateConvenienceHelp(false);
+        yield return OnlineClick(LobbyNavRect(1).center.x,LobbyNavRect(1).center.y);OnlineRequire(lobbyTab==1,"fixed sidebar opens play preparation");
+        yield return new WaitForEndOfFrame();OnlineRequire(lobbyShowcase!=null&&lobbyShowcase.ActorCount==1,"play lobby renders the actual equipped tamer");
+        OnlineCapture("lobby-02-solo-mode");
+        yield return OnlineClick(LobbyModeOpenRect.center.x,LobbyModeOpenRect.center.y);
+        OnlineRequire(lobbyModeOpen,"right action panel opens mode selection overlay");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-15-mode-picker");
+        yield return OnlineClick(LobbyNavRect(0).center.x,LobbyNavRect(0).center.y);OnlineRequire(lobbyTab==1&&lobbyModeOpen,"mode overlay blocks underlying navigation");
+        yield return OnlineClick(LobbyModeRect(1).center.x,LobbyModeRect(1).center.y);OnlineRequire(lobbyMode==1,"mode card selects normal without joining queue");
+        OnlineRequire(state==null&&!busy,"offline mode selection never starts a network request");
+        yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);
+        OnlineRequire(lobbyTab==3&&lobbyShowcase==null,"offline online CTA opens connection and disposes stage");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-03-connection");
+        yield return OnlineClick(470,474);yield return new WaitForEndOfFrame();
+        OnlineRequire(lobbyFocusedControl=="lobby-server","connection input receives focus through its visible field");OnlineCapture("lobby-20-connection-focus");
+        yield return OnlineClick(LobbyServerActionRect.center.x,LobbyServerActionRect.center.y);yield return AwaitEquipmentAction();
+        OnlineRequire(state!=null&&token.Length>0&&state.name==nickname,"connect button logs into temporary server with entered name");
+        yield return OnlineClick(LobbyNavRect(1).center.x,LobbyNavRect(1).center.y);yield return OnlineClick(LobbyModeOpenRect.center.x,LobbyModeOpenRect.center.y);yield return OnlineClick(LobbyModeRect(2).center.x,LobbyModeRect(2).center.y);
+        OnlineRequire(lobbyMode==2&&PortablePreviewPrefs.GetInt("multi.lobby.mode",-1)==2,"ranked selection is retained for next launch");
+        yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);yield return AwaitEquipmentAction();
+        OnlineRequire(LobbyQueued&&state.queue=="ranked8"&&state.waiting==1&&state.room==null,"play button joins real eight-player ranked queue once");
+        var peers=new State[2];
+        for(int i=0;i<2;i++)
+        {
+            smokePeer=null;yield return PeerRequest("/login",new Command{name="로비 검증 "+i,key=Guid.NewGuid().ToString("N")+Guid.NewGuid().ToString("N")});
+            yield return PeerRequest("/queue",new Command{mode="ranked8"});peers[i]=smokePeer;
+        }
+        yield return SmokeRequest("/state");OnlineRequire(state.waiting==3&&state.queueTarget==8,"queue display reports real server participation");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-04-matchmaking");
+        yield return OnlineClick(LobbyModeOpenRect.center.x,LobbyModeOpenRect.center.y);OnlineRequire(!lobbyModeOpen&&lobbyMode==2&&state.queue=="ranked8","queue prevents switching to solo");
+        yield return OnlineClick(LobbyNavRect(3).center.x,LobbyNavRect(3).center.y);OnlineRequire(lobbyTab==4,"customization can be inspected while waiting");
+        var equipped=lobbyLoadout.Copy();loadoutStudio.Preview(new TamerLoadout{tamer=2,field=1,finisher=2},0);
+        yield return OnlineClick(LoadoutStudio.ApplyRect(LobbyStudioRect).center.x,LoadoutStudio.ApplyRect(LobbyStudioRect).center.y);OnlineRequire(lobbyLoadout.Summary==equipped.Summary,"queued customization cannot change match loadout");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-05-queued-customization");
+        yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);yield return AwaitEquipmentAction();
+        OnlineRequire(!LobbyQueued&&state.room==null,"persistent cancel works from customization screen");
+        for(int i=0;i<2;i++){smokePeer=peers[i];yield return PeerRequest("/cancel",new Command());}
+        yield return OnlineClick(LoadoutStudio.ApplyRect(LobbyStudioRect).center.x,LoadoutStudio.ApplyRect(LobbyStudioRect).center.y);
+        OnlineRequire(lobbyLoadout.tamer==2&&lobbyLoadout.field==1&&lobbyLoadout.finisher==2&&TamerLoadout.Load().Summary==lobbyLoadout.Summary,"apply persists all three cosmetic choices after cancellation");
+        OnlineRequire(loadoutStudio.PendingChanges(lobbyLoadout)==0,"applying clears the unsaved-change state across every category");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-16-loadout-saved");
+        loadoutStudio.Preview(new TamerLoadout{tamer=1,field=2,finisher=0},2);
+        OnlineRequire(loadoutStudio.PendingChanges(lobbyLoadout)==3,"preview counts all three unapplied categories");
+        yield return OnlineClick(LoadoutStudio.RevertRect(LobbyStudioRect).center.x,LoadoutStudio.RevertRect(LobbyStudioRect).center.y);
+        OnlineRequire(loadoutStudio.PendingChanges(lobbyLoadout)==0&&TamerLoadout.Load().Summary==lobbyLoadout.Summary,"revert discards the draft while preserving the saved configuration");
+        loadoutStudio.Preview(lobbyLoadout,0);yield return new WaitForEndOfFrame();OnlineCapture("lobby-17-tamer-studio");
+        OnlineRequire(loadoutStudio.MatchCount==12&&state.tamerCount==12,"gallery and server advertise twelve available tamers");
+        loadoutStudio.Search="파닥";yield return null;
+        OnlineRequire(loadoutStudio.MatchCount==1&&loadoutStudio.MatchedChoice(0)==11,"Korean tamer search returns the exact new model");
+        Rect newTamer=LoadoutStudio.ChoiceRect(LobbyStudioRect,0,0);yield return OnlineClick(newTamer.center.x,newTamer.center.y);
+        OnlineRequire(loadoutStudio.Draft.tamer==11&&lobbyLoadout.tamer==2,"filtered card previews the new tamer without equipping it");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-18-tamer-search");
+        yield return OnlineClick(LoadoutStudio.ApplyRect(LobbyStudioRect).center.x,LoadoutStudio.ApplyRect(LobbyStudioRect).center.y);
+        OnlineRequire(lobbyLoadout.tamer==11&&TamerLoadout.Load().tamer==11,"new tamer card selection persists on explicit apply");
+        int supported=state.tamerCount;state.tamerCount=0;OnlineRequire(!LobbyTamerSupported,"old servers cannot accept a new tamer silently");
+        yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);OnlineRequire(!busy&&!LobbyQueued,"incompatible server queue action is disabled");state.tamerCount=supported;
+        loadoutStudio.Search="";loadoutStudio.Group=2;yield return null;OnlineRequire(loadoutStudio.MatchCount==5&&loadoutStudio.MatchedChoice(0)==7,"adventure category maps filtered cards to stable identifiers");
+        loadoutStudio.Search="no-such-tamer";yield return null;OnlineRequire(loadoutStudio.MatchCount==0&&loadoutStudio.Draft.tamer==11,"empty search preserves equipped preview and has no stale selectable card");
+        loadoutStudio.Preview(lobbyLoadout,0);yield return new WaitForEndOfFrame();OnlineCapture("lobby-19-twelve-tamers");
+        string selectedCosmetics=loadoutStudio.Draft.Summary;
+        yield return OnlineClick(LoadoutStudio.TabRect(LobbyStudioRect,1).center.x,LoadoutStudio.TabRect(LobbyStudioRect,1).center.y);
+        OnlineRequire(loadoutStudio.Tab==1&&loadoutStudio.Draft.Summary==selectedCosmetics,"arena tab opens through its visible button without discarding selected cosmetics");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-06-arena-customization");
+        yield return OnlineClick(LoadoutStudio.TabRect(LobbyStudioRect,2).center.x,LoadoutStudio.TabRect(LobbyStudioRect,2).center.y);
+        OnlineRequire(loadoutStudio.Tab==2&&loadoutStudio.Draft.Summary==selectedCosmetics,"finisher tab opens through its visible button without discarding selected cosmetics");
+        yield return new WaitForSeconds(.85f);yield return new WaitForEndOfFrame();OnlineCapture("lobby-07-finisher-preview");
+        yield return OnlineClick(LoadoutStudio.TabRect(LobbyStudioRect,0).center.x,LoadoutStudio.TabRect(LobbyStudioRect,0).center.y);
+        OnlineRequire(loadoutStudio.Tab==0&&loadoutStudio.Draft.Summary==selectedCosmetics,"tamer tab returns through its visible button and retains the selected loadout");
+        Rect studioBrowser=LoadoutStudio.BrowserRect(LobbyStudioRect);yield return OnlineClick(studioBrowser.x+160,studioBrowser.y+53);yield return new WaitForEndOfFrame();
+        OnlineRequire(lobbyFocusedControl=="cosmetic-search","studio search receives focus through the reconstructed input field");OnlineCapture("lobby-21-studio-focus");
+        yield return OnlineClick(LobbyNavRect(2).center.x,LobbyNavRect(2).center.y);OnlineRequire(lobbyTab==2,"collection navigation opens");
+        yield return OnlineClick(420,230);yield return new WaitForEndOfFrame();
+        OnlineRequire(lobbyFocusedControl=="lobby-codex-search","collection search receives focus through its visible field");OnlineCapture("lobby-22-collection-focus");
+        yield return OnlineClick(CollectionCardRect(0).center.x,CollectionCardRect(0).center.y);OnlineRequire(collectionFocus=="koromon","collection card selects exact unit");
+        yield return OnlineClick(CollectionAddRect.center.x,CollectionAddRect.center.y);OnlineRequire(TeamPlan.Contains("koromon"),"collection adds unit to the real team plan");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-08-collection");
+        yield return OnlineClick(CollectionSkillRect.center.x,CollectionSkillRect.center.y);OnlineRequire(onlineSkillId=="koromon","collection opens selected skill details");
+        yield return OnlineClick(LobbyNavRect(0).center.x,LobbyNavRect(0).center.y);OnlineRequire(lobbyTab==2,"skill modal blocks navigation underneath");
+        yield return OnlineKey(KeyCode.Escape);OnlineRequire(string.IsNullOrEmpty(onlineSkillId),"skill modal closes with Escape");
+        lobbySearch="야수";yield return null;
+        OnlineRequire(collectionMatches.Length>0&&collectionMatches.All(u=>DigimonBuildCatalog.HasTrait(DigimonBuildCatalog.Find("friendship"),u.id,null)),"Korean trait search returns only matching species");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-09-trait-search");
+        lobbySearch="가이아 포스";yield return null;yield return new WaitForEndOfFrame();OnlineRequire(collectionMatches.Any(u=>u.id=="wargreymon"),"skill-name search finds the correct digimon");
+        lobbySearch="없는디지몬999";yield return null;yield return new WaitForEndOfFrame();OnlineRequire(collectionMatches.Length==0&&collectionFocus=="","empty search clears stale selection");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-10-empty-search");
+        yield return OnlineClick(CollectionResetRect.center.x,CollectionResetRect.center.y);yield return OnlineClick(CollectionNextRect.center.x,CollectionNextRect.center.y);
+        OnlineRequire(collectionPage==1&&collectionMatches.Length==catalog.units.Length,"reset and next page expose remaining roster");
+        yield return OnlineClick(CollectionCostRect(3).center.x,CollectionCostRect(3).center.y);
+        OnlineRequire(lobbyCost==3&&collectionPage==0&&collectionMatches.Length>0&&collectionMatches.All(u=>u.cost==3),"cost filter resets page and only displays the chosen rarity");
+        yield return OnlineClick(CollectionResetRect.center.x,CollectionResetRect.center.y);
+        yield return OnlineClick(LobbyPlannerRect.center.x,LobbyPlannerRect.center.y);OnlineRequire(showTeamPlan,"persistent planner opens from collection");
+        yield return OnlineKey(KeyCode.Escape);OnlineRequire(!showTeamPlan,"planner returns to collection");
+        SetLobbyTab(0);Screen.SetResolution(1280,800,false);yield return new WaitForSeconds(.5f);yield return new WaitForEndOfFrame();OnlineCapture("lobby-11-home-1280");
+        OnlineRequire(Screen.width==1280&&Screen.height==800,"small-window lobby rendered at 1280 by 800");
+        yield return OnlineClick(LobbyNavRect(2).center.x,LobbyNavRect(2).center.y);OnlineRequire(lobbyTab==2,"scaled navigation opens collection");
+        yield return OnlineClick(CollectionCostRect(2).center.x,CollectionCostRect(2).center.y);
+        OnlineRequire(lobbyCost==2&&collectionMatches.Length>0&&collectionMatches.All(u=>u.cost==2),"scaled collection cost filter applies through the displayed button");
+        yield return OnlineClick(CollectionCardRect(0).center.x,CollectionCardRect(0).center.y);
+        OnlineRequire(collectionFocus==collectionMatches[0].id,"scaled collection card selects the partner under the pointer");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-23-collection-1280");
+        yield return OnlineClick(CollectionResetRect.center.x,CollectionResetRect.center.y);
+        yield return OnlineClick(LobbyNavRect(0).center.x,LobbyNavRect(0).center.y);OnlineRequire(lobbyTab==0,"scaled navigation returns home");
+        yield return OnlineClick(LobbyHomeActionRect.center.x,LobbyHomeActionRect.center.y);OnlineRequire(lobbyTab==1,"home hero enters the actual matchmaking lobby");
+        yield return OnlineClick(LobbyModeOpenRect.center.x,LobbyModeOpenRect.center.y);yield return OnlineKey(KeyCode.Escape);OnlineRequire(!lobbyModeOpen,"Escape closes mode picker without changing selection");
+        Screen.SetResolution(1440,810,false);yield return new WaitForSeconds(.3f);yield return new WaitForEndOfFrame();OnlineCapture("lobby-13-default-window");
+        OnlineRequire(Screen.width==1440&&Screen.height==810,"default launcher aspect ratio is verified");
+        yield return OnlineClick(LobbyLoadoutRect(1).center.x,LobbyLoadoutRect(1).center.y);OnlineRequire(lobbyTab==4&&loadoutStudio.Tab==1,"arena loadout tile opens its matching customization category at default scale");
+        yield return OnlineClick(LobbyNavRect(3).center.x,LobbyNavRect(3).center.y);
+        loadoutStudio.Preview(new TamerLoadout{tamer=7,field=lobbyLoadout.field,finisher=lobbyLoadout.finisher},0);yield return null;
+        Rect lastCard=LoadoutStudio.ChoiceRect(LobbyStudioRect,0,11);yield return OnlineClick(lastCard.center.x,lastCard.center.y);
+        OnlineRequire(loadoutStudio.Draft.tamer==11&&loadoutStudio.PendingChanges(lobbyLoadout)==0,"twelfth card can be picked at the default launcher resolution");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-14-customization-default");
+        Screen.SetResolution(1600,1000,false);yield return new WaitForSeconds(.3f);
+        SetLobbyMode(0);yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);
+        OnlineRequire(solo&&soloGame!=null,"solo CTA enters native preparation");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-12-solo-preparation");
+        ReturnToMulti();OnlineRequire(!solo&&lobbyLoadout.Summary==TamerLoadout.Load().Summary,"return from solo reloads applied cosmetics");
+        OnlineRequire(token.Length==0&&state==null&&notice.StartsWith("오프라인 모드"),"return from offline play clears the previous server-connected notice");
+        SetLobbyTab(1);yield return OnlineClick(LobbyModeOpenRect.center.x,LobbyModeOpenRect.center.y);
+        yield return OnlineClick(LobbyModeRect(3).center.x,LobbyModeRect(3).center.y);
+        OnlineRequire(lobbyMode==3&&!lobbyModeOpen,"fourth mode card selects Agumon trials");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-24-trials-mode");
+        yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);
+        OnlineRequire(solo&&soloGame.TrialsMode&&soloGame.TrialLives>=0,"trial CTA enters independent PvE mode without a server");
+        yield return new WaitForEndOfFrame();OnlineCapture("lobby-25-trials-preparation");
+        ReturnToMulti();SetLobbyMode(0);yield return OnlineClick(LobbyPrimaryRect.center.x,LobbyPrimaryRect.center.y);
+        OnlineRequire(solo&&!soloGame.TrialsMode,"ordinary solo entry restores ordinary save after trial mode");
+        ReturnToMulti();
+        TeamPlan.Restore(previousPlan);PortablePreviewPrefs.SetString(TamerLoadout.Key,previousLoadout);PortablePreviewPrefs.SetInt("multi.lobby.mode",previousMode);PortablePreviewPrefs.Save();
+        Debug.Log("LOBBY SMOKE COMPLETE: "+onlineChecks+" checks");Application.Quit();
+    }
+}
+#endif

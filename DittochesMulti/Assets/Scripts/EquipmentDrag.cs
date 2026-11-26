@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -12,15 +13,19 @@ public sealed class EquipmentDrag
     string context;
     Vector2 origin;
     public void Reset(){Slot=-1;Dragging=false;inventory=null;context=null;}
-    public Result Update(Event e,int hovered,int[] current,string currentContext,bool allowed)
+    public Result Update(Event e,int hovered,IList<int> current,string currentContext,bool allowed)
     {
         if(Slot>=0&&(!allowed||context!=currentContext||!inventory.SequenceEqual(current)))
-        {Reset();return Result.Cancel;}
+        {
+            Reset();
+            if(e.type==EventType.MouseUp||e.type==EventType.MouseDrag)e.Use();
+            return Result.Cancel;
+        }
         if(!allowed)return Result.None;
         if(Slot>=0&&((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)||(e.type==EventType.MouseDown&&e.button==1)))
         {Reset();e.Use();return Result.Cancel;}
-        if(e.type==EventType.MouseDown&&e.button==0&&hovered>=0&&hovered<current.Length)
-        {Slot=hovered;inventory=(int[])current.Clone();context=currentContext;origin=e.mousePosition;Dragging=false;e.Use();}
+        if(e.type==EventType.MouseDown&&e.button==0&&hovered>=0&&hovered<current.Count)
+        {Slot=hovered;inventory=current.ToArray();context=currentContext;origin=e.mousePosition;Dragging=false;e.Use();}
         else if(Slot>=0&&e.type==EventType.MouseDrag)
         {if(Vector2.Distance(origin,e.mousePosition)>8)Dragging=true;e.Use();}
         else if(Slot>=0&&e.type==EventType.MouseUp&&e.button==0)

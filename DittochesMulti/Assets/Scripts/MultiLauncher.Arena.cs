@@ -2,6 +2,12 @@ using UnityEngine;
 
 public sealed partial class MultiLauncher
 {
+    void DrawOnlineArenaCaption(Rect rect,string text)
+    {
+        float width=Mathf.Min(rect.width,centered.CalcSize(new GUIContent(text)).x+28);
+        ArenaInterface.Fill(new Rect(rect.center.x-width*.5f,rect.y,width,rect.height),new Color(.015f,.035f,.052f,.88f));
+        GUI.Label(rect,text,centered);
+    }
     int DrawOnlineCombatSignals(Room room,float remaining)
     {
         var current=VisibleCombatFrame(room,remaining);if(current==null)return 0;
@@ -12,7 +18,7 @@ public sealed partial class MultiLauncher
             var signal=OnlineCombatSignal(f,time);if(signal.kind==0)continue;
             var to=System.Array.Find(room.frames[next].units,u=>u.key==f.key)??f;
             float x=Mathf.Lerp(f.x,to.x,fraction),y=Mathf.Lerp(f.y,to.y,fraction);
-            if(room.side==1){x=6-x;y=7-y;}
+            if(BattleSide(room)==1){x=6-x;y=7-y;}
             arena.DrawCombatSignal(TacticalArena.CellWorld(x,y),signal,TacticalArena.DigimonHeadHeight(f.id,f.star));count++;
         }
         return count;
@@ -23,13 +29,17 @@ public sealed partial class MultiLauncher
     void DrawPerspectiveMatch(Room room, Player me, Player enemy, bool editable, float remaining)
     {
         if(arena==null)arena=new TacticalArena(TacticalArena.MultiViewport,artPack==0);
+        if(Event.current.type==EventType.Repaint)ObserveOnlineCombatAudio(room,remaining);
+        if(!OnlineScouting)InspectOnlineFieldUnit(room,me);
+        if(OnlineScouting){DrawScoutedField(room,remaining);return;}
         bool combat=room.phase=="battle";
+        var mergeFocus=OnlineRecruitHover(room,me,Event.current.mousePosition,GUI.enabled&&editable);
         Event e=Event.current;
         int hit=arena.HitCell(e.mousePosition),seat=arena.HitBench(e.mousePosition);
         HandleOnlineEquipmentDrag(room,me,editable);
         HandleOnlineEquipmentClick(editable);
         if(artPack==0)HandleOnlineDrag(room,me,editable,hit,seat);
-        if(artPack==0&&GUI.enabled&&!busy&&e.type==EventType.MouseDown&&e.button==1&&hit>=28&&room.phase!="finished")
+        if(artPack==0&&GUI.enabled&&e.type==EventType.MouseDown&&e.button==1&&hit>=28&&room.phase!="finished")
         {selectedSlot=-1;selectedArea="";ResetEquipmentSelection();arenaPointer.Reset();MoveOnlineTamer(hit);e.Use();}
         if(GUI.enabled&&((e.type==EventType.KeyDown&&e.keyCode==KeyCode.Escape)
             ||(e.type==EventType.MouseDown&&e.button==1&&TacticalArena.MultiViewport.Contains(e.mousePosition))))
@@ -65,23 +75,26 @@ public sealed partial class MultiLauncher
                     {
                         string key=(own?"own:":"enemy:")+slot;
                         arena.SetActor(key,TacticalArena.CellWorld(col,row),LobbyPortrait(unit.id),own?Color.green:Color.red);
-                        if(artPack==0){arena.FaceActor(key,own?Vector3.forward:Vector3.back);arena.PoseDigimon(key,unit.id,0,0,Time.unscaledTime,star:unit.star);arena.DecorateActor(key,false,own?OnlinePromotion(unit,"board"):0);}
+                        if(artPack==0){arena.FaceActor(key,own?Vector3.forward:Vector3.back);arena.PoseDigimon(key,unit.id,0,0,Time.unscaledTime,star:unit.star);float promotion=own?OnlinePromotion(unit,"board"):0;arena.DecorateActor(key,false,promotion);arena.DrawPromotion(key,unit.star,promotion,TacticalArena.DigimonHeadHeight(unit.id,unit.star));}
                     }
                 }
             }
-            for(int i=0;i<9;i++){Unit unit=At(me.bench,i);if(unit!=null){arena.SetActor("bench:"+i,TacticalArena.BenchWorld(i),LobbyPortrait(unit.id),gold,.85f);if(artPack==0){arena.PoseDigimon("bench:"+i,unit.id,0,0,Time.unscaledTime,star:unit.star);arena.DecorateActor("bench:"+i,false,combat?0:OnlinePromotion(unit,"bench"));}}}
-            if(combat&&artPack==0){DrawMatchSkills(room,remaining);DrawOnlineCombatSignals(room,remaining);}
+            for(int i=0;i<9;i++){Unit unit=At(me.bench,i);if(unit!=null){arena.SetActor("bench:"+i,TacticalArena.BenchWorld(i),LobbyPortrait(unit.id),gold,.85f);if(artPack==0){arena.PoseDigimon("bench:"+i,unit.id,0,0,Time.unscaledTime,star:unit.star);float promotion=OnlinePromotion(unit,"bench");arena.DecorateActor("bench:"+i,false,promotion);arena.DrawPromotion("bench:"+i,unit.star,promotion,TacticalArena.DigimonHeadHeight(unit.id,unit.star)*.85f);}}}
+            if(combat&&artPack==0){DrawOnlineBasicAttacks(room,remaining);DrawMatchSkills(room,remaining);DrawOnlineCombatSignals(room,remaining);}
             if(artPack==0)DrawMatchTamers(room,me,enemy);
+            DrawOnlineMergeArrivals(room,me);
+            MergeFocusUI.Ground(arena,mergeFocus,combat,MergeFocusUI.Position);
             arena.Render();
         }
         GUI.DrawTexture(TacticalArena.MultiViewport,arena.Texture,ScaleMode.StretchToFill,false);
+        if(artPack==0&&MatchFinisherActive)matchFinisher.Labels(arena,Time.unscaledTime,TacticalArena.MultiViewport);
         if(artPack==0)
         {
             string rangeHint=OnlineRangeHint(room,me,remaining);
-            if(rangeHint.Length>0)GUI.Label(new Rect(350,176,880,26),rangeHint,centered);
-            if(combat)GUI.Label(new Rect(350,143,880,28),OnlineCombatSummary(room,remaining),centered);
+            if(rangeHint.Length>0)DrawOnlineArenaCaption(new Rect(350,176,880,26),rangeHint);
+            if(combat)DrawOnlineArenaCaption(new Rect(350,143,880,28),OnlineCombatSummary(room,remaining));
         }
-        if(!combat)GUI.Label(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":onlineItem>=0?"장비를 받을 아군 선택 · ESC / 우클릭 취소":"유닛 선택 → 이동할 칸 선택  ·  우클릭: 테이머 이동  ·  ESC: 취소",centered);
+        if(!combat&&!(artPack==0&&MatchFinisherActive))DrawOnlineArenaCaption(new Rect(350,143,880,28),me.ready?"준비 완료 · 상대 테이머를 기다리는 중":onlineItem>=0?"장비를 받을 아군 선택 · ESC / 우클릭 취소":"빈 필드 우클릭: 테이머 이동 · 유닛 W 배치/회수 · E 판매 · ESC 취소");
         if(combat)DrawCombat(room,remaining);
         else for(int row=0;row<8;row++)for(int col=0;col<7;col++)
         {
@@ -98,5 +111,6 @@ public sealed partial class MultiLauncher
             if(unit!=null)DrawUnitItemBadges(unit,TacticalArena.BenchWorld(i));
             if(editable&&!busy&&GUI.enabled&&arenaPointer.Released==56+i&&Event.current.type==EventType.MouseUp&&Event.current.button==0){ClickSlot("bench",i,unit);Event.current.Use();}
         }
+        if(mergeFocus!=null)MergeFocusUI.Labels(arena,TacticalArena.MultiViewport,mergeFocus,Def(mergeFocus.result.id).name,combat,MergeFocusUI.Position);
     }
 }

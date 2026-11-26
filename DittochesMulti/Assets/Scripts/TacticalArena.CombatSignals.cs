@@ -8,7 +8,23 @@ public sealed partial class TacticalArena
         float t=signal.age/CombatSignals.Duration(signal.kind),fade=1-t;
         Color color=signal.Color;Vector3 p=point+Vector3.up*.08f;
         Halo(p,.3f+t*.65f,color*fade);
-        if(signal.kind==1)
+        if(signal.kind==5)
+        {
+            Vector3 center=p+Vector3.up*(height*.8f+t*.5f);
+            Stroke(center-Vector3.up*.4f,center+Vector3.up*.4f,.065f*fade,color);
+            Stroke(center-camera.transform.right*.3f,center+camera.transform.right*.3f,.065f*fade,color);
+            Halo(p+Vector3.up*.25f,.6f+t*.8f,color*fade);
+        }
+        else if(signal.kind==4)
+        {
+            for(int i=0;i<5;i++)
+            {
+                float a=i*Mathf.PI*2/5;
+                Vector3 ray=new Vector3(Mathf.Cos(a),.3f,Mathf.Sin(a));
+                Stroke(p+ray*(.3f+t*.2f),p+ray*(.6f+t*1.2f),.075f*fade,color);
+            }
+        }
+        else if(signal.kind==1)
         {
             Vector3 center=p+Vector3.up*(height*.7f+t*.15f)+camera.transform.right*.62f-camera.transform.forward*.25f;
             Vector3 right=camera.transform.right*.32f*fade,up=camera.transform.up*.42f*fade;

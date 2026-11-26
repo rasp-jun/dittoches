@@ -5,8 +5,13 @@ public sealed partial class TacticalArena
 {
     // Reused across casts: no materials or GameObjects are allocated per projectile per frame.
     const int EffectBudget=1024;
-    readonly List<MeshRenderer> effectPool=new List<MeshRenderer>();
-    int effectCursor;
+    sealed class EffectVisual
+    {
+        public MeshRenderer renderer;public MeshFilter filter;public Transform transform;
+        public Mesh mesh;public Material material;public bool enabled;
+    }
+    readonly List<EffectVisual> effectPool=new List<EffectVisual>();
+    int effectCursor,activeEffectCount;
     Mesh effectSphere;
     sealed class Emission {public Vector3 point;public int generation;public bool anchored;}
     readonly Dictionary<int,Emission> emissions=new Dictionary<int,Emission>();
@@ -16,7 +21,8 @@ public sealed partial class TacticalArena
     void BeginEffects(){effectCursor=0;}
     void EndEffects()
     {
-        for(int i=effectCursor;i<effectPool.Count;i++)effectPool[i].enabled=false;
+        for(int i=effectCursor;i<activeEffectCount;i++){effectPool[i].renderer.enabled=false;effectPool[i].enabled=false;}
+        activeEffectCount=effectCursor;
         expiredEmissions.Clear();foreach(var pair in emissions)if(pair.Value.generation<generation-1)expiredEmissions.Add(pair.Key);
         foreach(int key in expiredEmissions)emissions.Remove(key);
     }
@@ -24,14 +30,20 @@ public sealed partial class TacticalArena
     void Effect(Mesh mesh,Vector3 position,Vector3 scale,Color tint,Quaternion rotation,Material surface=null)
     {
         if(effectCursor>=EffectBudget||scale.sqrMagnitude<.000001f)return;
-        MeshRenderer renderer;
+        EffectVisual visual;Material material=surface??glow;
         if(effectCursor==effectPool.Count)
-        {renderer=Shape("Skill effect",mesh,glow,position,scale);effectPool.Add(renderer);}
-        else renderer=effectPool[effectCursor];
-        effectCursor++;renderer.enabled=true;renderer.sharedMaterial=surface??glow;
-        renderer.GetComponent<MeshFilter>().sharedMesh=mesh;
-        renderer.transform.localPosition=position;renderer.transform.localScale=scale;
-        renderer.transform.localRotation=rotation;Tint(renderer,tint);
+        {
+            var renderer=Shape("Skill effect",mesh,material,position,scale);
+            visual=new EffectVisual{renderer=renderer,filter=renderer.GetComponent<MeshFilter>(),transform=renderer.transform,mesh=mesh,material=material,enabled=true};
+            effectPool.Add(visual);
+        }
+        else visual=effectPool[effectCursor];
+        effectCursor++;if(effectCursor>activeEffectCount)activeEffectCount=effectCursor;
+        if(!visual.enabled){visual.renderer.enabled=true;visual.enabled=true;}
+        if(visual.material!=material){visual.renderer.sharedMaterial=material;visual.material=material;}
+        if(visual.mesh!=mesh){visual.filter.sharedMesh=mesh;visual.mesh=mesh;}
+        visual.transform.localPosition=position;visual.transform.localScale=scale;
+        visual.transform.localRotation=rotation;Tint(visual.renderer,tint);
     }
     Mesh EffectSphere()
     {
@@ -125,13 +137,14 @@ public sealed partial class TacticalArena
         actor.portrait.transform.rotation=camera.transform.rotation*Quaternion.Euler(0,0,death>0?-55*death:lean);
         actor.contactShadow.transform.localScale=new Vector3(.43f*size,.01f,.30f*size)*(1-Mathf.Clamp(bob,0,.5f)*.45f);
     }
-    public void DrawSkill(DigimonSkillCatalog.Entry s,Vector3 origin,Vector3 target,float age,int castId=-1)
+    public void DrawSkill(DigimonSkillCatalog.Entry s,Vector3 origin,Vector3 target,float age,int castId=-1,string targetId=null,int targetStar=1,float targetSurface=0)
     {
         if(s==null||age<0||age>=s.Duration)return;
         Color color=s.Tint;Vector3 delta=target-origin,side=Side(delta);
-        Vector3 start=origin+Vector3.up*(.75f*s.size+s.hover),end=target+Vector3.up*.65f;
+        float targetHeight=CombatContactPresentation.Height(targetId,targetStar);targetSurface=Mathf.Max(targetSurface,CombatContactPresentation.Surface(targetId,targetStar));
+        Vector3 start=origin+Vector3.up*(.75f*s.size+s.hover),end=target+Vector3.up*targetHeight;
         start=ModelMuzzle(s.id,origin,start);
-        bool projectile=s.visual=="sun"||s.visual=="seven"||s.visual=="missiles"||s.visual=="fire"||s.visual=="bluefire"||s.visual=="flower"||s.visual=="electricorb"||s.visual=="darkorb"||s.visual=="meteors"||s.visual=="phoenix"||s.visual=="bubble"||s.visual=="air";
+        bool projectile=s.visual=="swords"||s.visual=="holyarrow"||s.visual=="javelin"||s.visual=="sun"||s.visual=="seven"||s.visual=="missiles"||s.visual=="fire"||s.visual=="bluefire"||s.visual=="flower"||s.visual=="electricorb"||s.visual=="darkorb"||s.visual=="meteors"||s.visual=="phoenix"||s.visual=="bubble"||s.visual=="air";
         Vector3 emitter;bool anchored;Emission emission=null;
         if(projectile&&age>=s.windup&&castId>=0&&emissions.TryGetValue(castId,out emission))
         {
@@ -147,8 +160,11 @@ public sealed partial class TacticalArena
         if(age<s.windup)
         {
             Halo(origin+Vector3.up*.07f,.3f+charge*.25f,color);
+            CombatCharge(s,origin,start,charge,color);
             if(s.visual=="seven")for(int i=0;i<7;i++)
             {float a=i*Mathf.PI*2/7;Orb(start+camera.transform.right*Mathf.Cos(a)*.75f+Vector3.up*(.55f+Mathf.Sin(a)*.65f),.13f*charge,color);}
+            else if(s.visual=="swords")for(int i=0;i<4;i++)
+            {Vector3 at=start+side*(i-1.5f)*.25f+Vector3.up*.18f;Stroke(at,at+Vector3.up*.48f*charge,.035f,color);Halo(at,.10f*charge,color,true);}
             else if(s.visual=="sun")Orb(start+(anchored?Vector3.zero:Vector3.up*1.1f),.65f*charge,color);
             else if(s.visual=="flower")for(int i=0;i<5;i++)
             {float a=i*Mathf.PI*2/5;Orb(start+side*Mathf.Cos(a)*.24f+Vector3.up*Mathf.Sin(a)*.24f,.09f*charge,color);}
@@ -166,6 +182,8 @@ public sealed partial class TacticalArena
                 Orb(p,.045f*close,Color.white);
             }
             Stroke(center-camera.transform.up*r*.8f,center+camera.transform.up*r*.8f,.05f*close,color);
+            CombatLaunch(CombatEffectStyle.Element.Light,start,delta,age-s.windup,.16f,color,true);
+            if(age>=s.Impact)DrawFinishedImpact(s,target,delta,age-s.Impact,0,color,targetHeight,targetSurface);
             return;
         }
         for(int shot=0;shot<s.shots;shot++)
@@ -181,11 +199,14 @@ public sealed partial class TacticalArena
                 Vector3 launch=start;
                 if(s.visual=="sun"&&!anchored)launch+=Vector3.up*1.1f;
                 if(s.visual=="missiles")launch+=side*(shot%2==0?-.28f:.28f);
+                if(s.id=="machinedramon")launch+=side*(shot%2==0?-.18f:.18f);
+                if(s.visual=="swords")launch+=side*(shot-1.5f)*.25f+Vector3.up*.18f;
                 if(s.visual=="seven")
                 {float a=shot*Mathf.PI*2/7;launch+=camera.transform.right*Mathf.Cos(a)*.75f+Vector3.up*(.55f+Mathf.Sin(a)*.65f);}
                 Vector3 p=Vector3.Lerp(launch,end,t);
                 if(s.visual=="sun"||s.visual=="meteors"||s.visual=="missiles")p+=Vector3.up*Mathf.Sin(t*Mathf.PI)*(s.visual=="sun"?.45f:.7f);
                 DrawFlight(s,launch,end,p,side,t,age,color);
+                CombatLaunch(CombatEffectStyle.Skill(s.visual),launch,end-launch,age-s.windup-shot*s.interval,.16f,color,true);
             }
             float impactAge=age-s.Impact-shot*s.interval;
             if(impactAge>=0&&impactAge<.3f)
@@ -194,13 +215,13 @@ public sealed partial class TacticalArena
                 Vector3 center=s.shape=="radial"?origin:target;
                 Color impactColor=Color.Lerp(color,Color.white,fade*.4f);impactColor.a=presentationQuality?fade:1;
                 Halo(center+Vector3.up*.09f,(.2f+impactAge*3)*Mathf.Min(1.5f,s.radius),impactColor);
-                DrawFinishedImpact(s,center,impactAge,shot,color);
-                if(s.visual=="ice")for(int j=0;j<5;j++)
+                DrawFinishedImpact(s,center,delta,impactAge,shot,color,s.shape=="radial"?CombatContactPresentation.Height(s.id):targetHeight,s.shape=="radial"?CombatContactPresentation.Surface(s.id):targetSurface);
+                if(!presentationQuality&&s.visual=="ice")for(int j=0;j<5;j++)
                 {
                     float a=j*Mathf.PI*2/5;Vector3 offset=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a))*.4f;
                     Effect(hex,center+offset+Vector3.up*.3f,new Vector3(.12f,.7f*fade,.12f),color,Quaternion.Euler(0,a*57,15));
                 }
-                else Orb(center+Vector3.up*.6f,.24f*fade,color);
+                else if(!presentationQuality)Orb(center+Vector3.up*.6f,.24f*fade,color);
             }
         }
     }
@@ -209,6 +230,20 @@ public sealed partial class TacticalArena
         if(DrawFinishedFlight(s,start,end,p,side,t,age,color))return;
         switch(s.visual)
         {
+            case "swords":
+                Vector3 blade=(end-start).normalized;
+                Stroke(p-blade*.46f,p,.045f,Color.Lerp(color,Color.white,.65f));
+                Stroke(p-blade*.35f-side*.14f,p-blade*.35f+side*.14f,.045f,color);
+                Stroke(p-blade*.35f,p-blade*.61f,.055f,new Color(.9f,.7f,.3f));
+                SoftSkillGlow(p,.19f,color,.55f);
+                break;
+            case "holybeam":
+                Stroke(start,p,.12f,color);Stroke(start,p,.035f,Color.white);Halo(p,.2f,color,true);break;
+            case "holyarrow":case "javelin":
+                Vector3 shaft=(end-start).normalized;
+                Stroke(p-shaft*.55f,p,.04f,color);Stroke(p,p-shaft*.18f+side*.13f,.04f,Color.white);Stroke(p,p-shaft*.18f-side*.13f,.04f,Color.white);
+                if(s.visual=="javelin")Halo(p-shaft*.3f,.17f,color,true);
+                break;
             case "bubble":case "air":
                 Halo(p,s.visual=="air"?.24f:.13f,color,true);
                 if(s.visual=="air")Halo(Vector3.Lerp(start,p,.83f),.32f,color,true);

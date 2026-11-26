@@ -3,6 +3,7 @@ using PlayerPrefs = PortablePreviewPrefs;
 #endif
 using System;
 using System.Collections;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -13,17 +14,18 @@ public sealed partial class MultiLauncher : MonoBehaviour
     [Serializable] public class UnitDef { public string id, name, sprite, role; public int cost; }
     [Serializable] public class Catalog { public UnitDef[] units; }
     [Serializable] public class Unit { public string id; public int star, slot; public int[] items; }
-    [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision,tamer,field,finisher; public float tamerX=3,tamerY=7; public bool ready,shopLocked,connectionKnown,connected; public float reconnectRemaining; public Unit[] board, bench; public string[] shop; public int[] inventory; }
+    [Serializable] public class Player { public string name; public int rating, hp, gold, level, xp, inventoryRevision,tamer,field,finisher,placement; public float tamerX=3,tamerY=7; public bool ready,shopLocked,connectionKnown,connected,publicBench,eliminated; public float reconnectRemaining; public Unit[] board, bench; public string[] shop; public int[] inventory; }
     [Serializable] public class Fighter { public int key, side, star,slot,attackRange,attacks,casts,combatStatsVersion; public string id; public float x, y, hp, maxHp, shield, mana, maxMana, attackAt, hitAt, stun; public int target; public bool lowShieldUsed,friendshipActive; public float crisisAt=-1;
         public float damageDone,basicDamageDone,skillDamageDone,damageTaken,shieldAbsorbed,healingDone,shieldingDone,combatAge,attackDamage,abilityPower,armor,magicResist,attackSpeed;
+        public float burnRemaining,burnRate,shredRemaining,armorShred,battleAge,synergyAt=-1,revivedAt=-1;public int synergyUsed,synergyKind;public bool revived;
         public Fighter Snapshot(){return (Fighter)MemberwiseClone();} }
     [Serializable] public class Frame { public float time; public Fighter[] units; }
     [Serializable] public class SkillEvent { public int serial,caster,target; public string id; public float started,sx,sy,tx,ty; }
-    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta,reportRound,roundWinner=-1; public float remaining,battleDuration; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; public Fighter[] lastCombat; public RoundResult roundResult; }
-    [Serializable] public class State { public string token, name, queue, error,acknowledgedRequestId; public bool duplicateRequest; public int rating, waiting,reliableCommands,combatActions; public Room room; }
-    [Serializable] public class Command { public bool shopLocked; public string name, key, mode, action, area, targetArea,requestId,expectedRoom,expectedPhase; public int expectedRound; public int slot, targetSlot, itemSlot, targetItemSlot, inventoryRevision,tamer,field,finisher; public float x,y; }
+    [Serializable] public class Room { public string id, mode, phase, result, message; public int round, side, ratingDelta,reportRound,roundWinner=-1,opponentSide,battleSide,aliveCount,placement,reportOpponentSide; public bool ghostOpponent; public float remaining,battleDuration,battleElapsed; public SkillEvent[] skillEvents; public Player[] players; public Frame[] frames; public Fighter[] lastCombat; public RoundResult roundResult; }
+    [Serializable] public class State { public string token, name, queue, error,acknowledgedRequestId; public bool duplicateRequest; public int rating, waiting,reliableCommands,combatActions,leagueVersion,queueTarget,tamerSyncVersion,tamerCount; public TamerPacket tamers; public Room room; }
+    [Serializable] public class Command { public bool shopLocked,tamerMove; public int tamerSequence; public string name, key, mode, action, area, targetArea,requestId,expectedRoom,expectedPhase,expectedUnit,expectedTarget; public int expectedRound; public int slot, targetSlot, itemSlot, targetItemSlot, inventoryRevision,tamer,field,finisher; public float x,y; }
 
-    string server = "http://127.0.0.1:7777", nickname = "테이머", token = "", notice = "서버에 접속한 뒤 일반 / 랭크 매칭을 시작하세요.";
+    string server = "http://127.0.0.1:7777", nickname = "테이머", token = "", notice = "솔로는 바로 플레이 · 일반 / 랭크 리그는 서버 연결 후 시작합니다.";
     string profile = "", selectedArea = "";
     int selectedSlot = -1;
     bool busy, solo, confirmLeave, connectionError;
@@ -68,9 +70,10 @@ public sealed partial class MultiLauncher : MonoBehaviour
         for (int i = 0; i + 1 < args.Length; i++) if (args[i] == "--profile") profile = args[i + 1];
         server = PlayerPrefs.GetString("multi.server", server);
         nickname = PlayerPrefs.GetString("multi.name." + profile, nickname);
-        catalog = JsonUtility.FromJson<Catalog>(Resources.Load<TextAsset>("MultiRoster").text);
-        artPack = Mathf.Clamp(PlayerPrefs.GetInt("multiSoloArtPack",0),0,1);
+        catalog = JsonUtility.FromJson<Catalog>(DigimonGameData.Read("MultiRoster"));
+        artPack = 0;
         lobbyLoadout=TamerLoadout.Load();
+        lobbyMode=Mathf.Clamp(PlayerPrefs.GetInt("multi.lobby.mode",0),0,3);
         lobbyBackground = Resources.Load<Texture2D>("UI/file-island-lobby-v2");
         if (lobbyBackground == null) lobbyBackground = Resources.Load<Texture2D>("UI/file-island-arena-v1");
         lobbyMascot = Resources.Load<Texture2D>("ArtVariants/LicensedFanArt/Koromon-v1");
@@ -85,9 +88,11 @@ public sealed partial class MultiLauncher : MonoBehaviour
         lobbyLoadout=TamerLoadout.Load();
     }
 
-    void EnterSolo()
+    void EnterSolo(bool trials=false)
     {
+        DisposeLobbyShowcase();
         token = ""; state = null; solo = true; ResetConnectionRecovery();
+        notice = "오프라인 모드 · 솔로 연습과 아구몬박사의 시험을 바로 플레이할 수 있습니다.";
         if (soloGame == null)
         {
             var root = new GameObject("Dittoches Solo");
@@ -95,13 +100,15 @@ public sealed partial class MultiLauncher : MonoBehaviour
             soloGame = root.AddComponent<NativeGame>();
         }
         soloGame.gameObject.SetActive(true);
+        if(trials)soloGame.EnterTrials(PlayerPrefs.GetInt("multi.trials.difficulty",0));else soloGame.EnterSoloMode();
         soloGame.ApplyEquippedLoadout();
     }
 
     void Update()
     {
+        SyncOnlineCombatAudio();TickTamerSync();
 #if DITTOCHES_PORTABLE_PREVIEW
-        if(promoCapture||portraitReview||PortablePreview.HasArgument("--online-smoke")||PortablePreview.HasArgument("--faithful-replay-smoke"))return;
+        if(promoCapture||portraitReview||(PortablePreview.HasArgument("--online-smoke")||PortablePreview.HasArgument("--league-smoke")||PortablePreview.HasArgument("--lobby-smoke"))||PortablePreview.HasArgument("--faithful-replay-smoke"))return;
 #endif
         PollConnection();
     }
@@ -180,6 +187,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void OnDestroy()
     {
+        DisposeLobbyShowcase();
         if(arena!=null){arena.Dispose();arena=null;}
         if(loadoutStudio!=null)loadoutStudio.Dispose();
         foreach(Texture2D texture in uiTextures) if(texture!=null) Destroy(texture);
@@ -187,6 +195,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     bool Btn(Rect rect, string label, bool enabled = true)
     {
+        if(artPack==0)return onlineInterface.Button(rect,new GUIContent(label),enabled&&!busy,false,rect.height<40?13:17);
         bool previous = GUI.enabled; GUI.enabled = previous && enabled && !busy;
         GUIStyle style=rect.height<40?(compactButton??(compactButton=new GUIStyle(button){fontSize=13,padding=new RectOffset(6,6,2,2)})):button;
         bool clicked = GUI.Button(rect, label, style); GUI.enabled = previous; return clicked;
@@ -194,6 +203,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     bool GoldBtn(Rect rect, string label)
     {
+        if(artPack==0)return onlineInterface.Button(rect,new GUIContent(label),!busy,true,20);
         bool previous=GUI.enabled; GUI.enabled=previous&&!busy;
         bool clicked=GUI.Button(rect,label,goldButton); GUI.enabled=previous; return clicked;
     }
@@ -211,11 +221,13 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void Card(Rect rect, Color fill, Color line)
     {
+        if(artPack==0){BattleHudTheme.Surface(rect,false,line);return;}
         Panel(new Rect(rect.x+4,rect.y+7,rect.width,rect.height),new Color(0,0,0,.28f)); Panel(rect,fill); Border(rect,line,1.5f);
     }
 
     void DrawBackdrop()
     {
+        if(artPack==0){Panel(new Rect(0,0,1600,1000),BattleHudTheme.Background);return;}
         Panel(new Rect(0,0,1600,1000),navy);
         for(int i=0;i<10;i++) Panel(new Rect(0,i*100,1600,100),Color.Lerp(new Color(.025f,.04f,.075f),new Color(.015f,.09f,.11f),i/12f));
         Panel(new Rect(0,0,7,1000),gold); Panel(new Rect(1593,0,7,1000),gold);
@@ -224,6 +236,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void Pill(Rect rect, string value, Color color)
     {
+        if(artPack==0){BattleHudTheme.Badge(rect,value,color,17);return;}
         Panel(rect,new Color(color.r,color.g,color.b,.16f)); Border(rect,new Color(color.r,color.g,color.b,.65f),1); GUI.Label(rect,value,stat);
     }
 
@@ -235,7 +248,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         // clicks must not move its fixture units while screenshots are captured.
         if(promoCapture)return;
         if(portraitReview){DrawPortraitReview();return;}
-        if(PortablePreview.HasArgument("--online-smoke")&&(Event.current.isMouse||Event.current.isKey))Event.current.Use();
+        if((PortablePreview.HasArgument("--online-smoke")||PortablePreview.HasArgument("--league-smoke")||PortablePreview.HasArgument("--lobby-smoke"))&&(Event.current.isMouse||Event.current.isKey))Event.current.Use();
 #endif
         Styles();
         Matrix4x4 old = GUI.matrix;
@@ -248,17 +261,21 @@ public sealed partial class MultiLauncher : MonoBehaviour
         ValidateOnlineRecruitInputInGUI();
         Event validationOriginalEvent=OnlineValidationEvent();
 #endif
+        // Rebuild the hover text from this frame's visible controls after field/modal changes.
+        if(Event.current.type==EventType.Repaint)GUI.tooltip="";
         Color oldColor=GUI.color; Panel(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),Color.black); GUI.color=oldColor;
+        if(artPack==0&&(state==null||state.room==null))SeasonLobbyArt.Background(new Rect(-offsetX/scale,-offsetY/scale,Screen.width/scale,Screen.height/scale),null,.78f);
         DrawBackdrop();
-        GUI.enabled=!showTraitGuide&&!showTeamPlan&&string.IsNullOrEmpty(onlineSkillId);
+        Event playHelpInput=PreparePlayHelpInput();
+        GUI.enabled=!showPlayHelp&&!showTraitGuide&&!showTeamPlan&&string.IsNullOrEmpty(onlineSkillId);
         if (state != null && state.room != null) DrawMatch(); else DrawLobby();
         GUI.enabled=true;
         Panel(new Rect(0,944,1600,56),new Color(.015f,.028f,.05f,.96f));
         Panel(new Rect(30,965,8,8),busy ? gold : connectionError ? new Color(.9f,.3f,.25f) : cyan);
-        GUI.Label(new Rect(50,951,1500,38), ConnectionStatusText(), small);
-        DrawOnlineSkillDetails();
-        if(artPack==0)onlineInterface.Tooltip(new Rect(0,0,1600,1000),onlineEquipmentDrag.Dragging||OnlineSaleVisible||showTraitGuide||showTeamPlan||state==null||state.room==null||confirmLeave||onlineItemGuide>=0||!string.IsNullOrEmpty(onlineSkillId));
-        DrawOnlineTraitGuide();DrawTeamPlan();
+        GUI.Label(new Rect(50,951,1368,38), ConnectionStatusText(), small);
+        if(!showPlayHelp)DrawOnlineSkillDetails();
+        if(artPack==0)onlineInterface.Tooltip(new Rect(0,0,1600,1000),showPlayHelp||onlineEquipmentDrag.Dragging||OnlineSaleVisible||showTraitGuide||showTeamPlan||state==null||state.room==null||state.room.phase=="finished"||confirmLeave||onlineItemGuide>=0||!string.IsNullOrEmpty(onlineSkillId));
+        if(!showPlayHelp){DrawOnlineTraitGuide();DrawTeamPlan();}DrawPlayHelp(playHelpInput);
 #if DITTOCHES_PORTABLE_PREVIEW
         if(validationOriginalEvent!=null)Event.current=validationOriginalEvent;
 #endif
@@ -267,6 +284,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void DrawLobby()
     {
+        if(artPack==0){DrawModernLobby();return;}
         if(lobbyTab==0) DrawHomeLobby();
         else
         {
@@ -298,20 +316,21 @@ public sealed partial class MultiLauncher : MonoBehaviour
         for(int i=0;i<tabs.Length;i++)
         {
             Rect r=new Rect(340+i*160,18,145,44);
-            if(tabIds[i]==lobbyTab) { Panel(r,new Color(gold.r,gold.g,gold.b,.92f)); GUI.Label(r,tabs[i],stat); }
+            if(tabIds[i]==lobbyTab) { BattleHudTheme.Surface(r,true,BattleHudTheme.Teal);BattleHudTheme.Label(r,tabs[i],18,BattleHudTheme.Teal,true,TextAnchor.MiddleCenter); }
             else if(GUI.Button(r,tabs[i],navButton)) lobbyTab=tabIds[i];
         }
         string displayName=state==null?"":state.name??"";
         if(displayName.Length>12)displayName=displayName.Substring(0,12)+"…";
         GUI.Label(new Rect(1020,29,320,27),state==null?"테이머":"테이머 · "+displayName,small);
         Rect serverTab=new Rect(1370,18,180,44);
-        if(lobbyTab==3) { Panel(serverTab,new Color(gold.r,gold.g,gold.b,.92f)); GUI.Label(serverTab,"서버 설정",stat); }
+        if(lobbyTab==3) { BattleHudTheme.Surface(serverTab,true,BattleHudTheme.Teal);BattleHudTheme.Label(serverTab,"서버 설정",18,BattleHudTheme.Teal,true,TextAnchor.MiddleCenter); }
         else if(GUI.Button(serverTab,"서버 설정",navButton)) lobbyTab=3;
         Panel(new Rect(0,77,1600,1),new Color(gold.r,gold.g,gold.b,.55f));
     }
 
     void DrawHomeLobby()
     {
+        if(artPack==0){DrawLeagueHome();return;}
         DrawLobbyBackground(1f); DrawLobbyAtmosphere(); DrawTopNavigation();
         Panel(new Rect(0,78,860,866),new Color(.006f,.018f,.038f,.78f));
         GUI.Label(new Rect(85,180,560,28),"FILE ISLAND  /  새로운 모험의 시작",eyebrow);
@@ -331,7 +350,6 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if(GUI.Button(legendCard,GUIContent.none,GUIStyle.none))lobbyTab=4;
         GUI.Label(new Rect(50,895,550,30),"FILE ISLAND LEAGUE    /    DIGITAL FRONTIER 0.3",eyebrow);
         GUI.Label(new Rect(1280,895,260,30),"●  솔로 플레이 가능",small);
-        if(Btn(new Rect(1370,820,180,48),artPack==0?"디지몬 버전":"오리지널 버전")) SetArtPack(1-artPack);
     }
 
     void DrawLobbyAtmosphere()
@@ -348,11 +366,12 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void DrawPlayLobby()
     {
+        if(artPack==0){DrawLeagueModes();return;}
         GUI.Label(new Rect(70,105,500,30),"GAME MODE",eyebrow);
         GUI.Label(new Rect(70,135,900,55),"플레이할 모드를 선택하세요",title);
         string[] labels = { "솔로 플레이", "일반 대전", "랭크 대전" };
         string[] tags = { "SOLO", "NORMAL", "RANKED" };
-        string[] descriptions = { "나만의 속도로 즐기는 파일 아일랜드 리그\n난이도와 캐릭터 버전을 선택할 수 있습니다.", "부담 없이 즐기는 온라인 1대1\n승패에 따른 RP 변동이 없습니다.", "실력을 겨루는 온라인 1대1\n승패가 서버 랭크에 반영됩니다." };
+        string[] descriptions = { "나만의 속도로 즐기는 파일 아일랜드 리그\n난이도를 선택하고 팀을 완성하세요.", "8명의 테이머가 겨루는 생존 리그\n상대를 정찰하고 마지막까지 살아남으세요.", "최종 순위로 실력을 겨루는 8인 리그\n1~8위 결과가 서버 랭크에 반영됩니다." };
         bool queued = state != null && !string.IsNullOrEmpty(state.queue);
         for (int i=0;i<3;i++)
         {
@@ -360,9 +379,9 @@ public sealed partial class MultiLauncher : MonoBehaviour
             Card(mode,new Color(surface2.r,surface2.g,surface2.b,.96f),line); Panel(new Rect(x,225,460,7),line);
             GUI.Label(new Rect(x+30,260,400,25),tags[i],eyebrow); GUI.Label(new Rect(x+30,300,400,55),labels[i],title);
             GUI.Label(new Rect(x+30,380,400,90),descriptions[i],text);
-            GUI.Label(new Rect(x+30,505,400,30),i==0?"AI 7명 · 서버 불필요":i==1?"2 PLAYERS · CASUAL":"2 PLAYERS · ELO RATING",small);
-            if(Btn(new Rect(x+30,595,400,62),i==0?"솔로 리그 입장":"대전 찾기",!queued&&(i==0||token.Length>0)))
-            { if(i==0) EnterSolo(); else Send("/queue",new Command{mode=i==1?"normal":"ranked"}); }
+            GUI.Label(new Rect(x+30,505,400,30),i==0?"AI 7명 · 서버 불필요":"8 PLAYERS · "+(i==1?"NORMAL":"RANKED"),small);
+            if(Btn(new Rect(x+30,595,400,62),i==0?"솔로 리그 입장":state!=null&&state.leagueVersion<1?"8인 서버 업데이트 필요":token.Length==0?"서버 연결하기":"8인 대전 찾기",!queued&&(i==0||token.Length==0||state!=null&&state.leagueVersion>=1)))
+            { if(i==0) EnterSolo(); else if(token.Length==0)lobbyTab=3;else Send("/queue",new Command{mode=i==1?"normal8":"ranked8"}); }
         }
         Card(new Rect(70,715,1460,70),surface,cyan);
         GUI.Label(new Rect(90,731,1140,42),"장착 외형  ·  "+lobbyLoadout.Summary,text);
@@ -373,7 +392,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if(queued)
         {
             Card(new Rect(70,800,1460,70),new Color(.05f,.11f,.14f),cyan);
-            GUI.Label(new Rect(105,817,1050,35),(state.queue=="ranked"?"RANKED":"NORMAL")+" · 상대 테이머를 찾는 중…",text);
+            GUI.Label(new Rect(105,817,1050,35),(state.queue.StartsWith("ranked")?"RANKED":"NORMAL")+" · 테이머 모집  "+state.waiting+" / "+Mathf.Max(2,state.queueTarget)+" · 모두 모이면 시작",text);
             if(Btn(new Rect(1240,812,260,46),"매칭 취소")) Send("/cancel");
         }
     }
@@ -407,8 +426,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
         int pageSize=15, pageCount=Mathf.CeilToInt(catalog.units.Length/(float)pageSize);
         codexPage=Mathf.Clamp(codexPage,0,pageCount-1);
         int start=codexPage*pageSize, count=Mathf.Min(pageSize,catalog.units.Length-start);
-        GUI.Label(new Rect(1180,145,170,35),artPack==0?"디지몬 버전":"오리지널 버전",centered);
-        if(Btn(new Rect(1360,138,170,45),"버전 전환")) SetArtPack(1-artPack);
+        GUI.Label(new Rect(1180,145,350,35),"디지몬 · 기술과 전투 역할",centered);
         for(int i=0;i<count;i++)
         {
             int col=i%5,row=i/5; Rect r=new Rect(70+col*294,260+row*190,270,165); UnitDef def=catalog.units[start+i];
@@ -431,14 +449,13 @@ public sealed partial class MultiLauncher : MonoBehaviour
         if(Btn(new Rect(610,850,150,48),"← 이전",codexPage>0)) codexPage--;
         GUI.Label(new Rect(770,852,160,44),$"{codexPage+1} / {pageCount}",centered);
         if(Btn(new Rect(940,850,150,48),"다음 →",codexPage<pageCount-1)) codexPage++;
-        if(artPack==1) GUI.Label(new Rect(1120,850,410,48),"오리지널 캐릭터는 현재 3종부터 순차 제작 중",small);
     }
 
     void SetArtPack(int value)
     {
-        artPack=Mathf.Clamp(value,0,1);
+        artPack=0;
         PlayerPrefs.SetInt("multiSoloArtPack",artPack); PlayerPrefs.Save();
-        notice=artPack==0?"디지몬 팬 버전으로 전환했습니다.":"오리지널 캐릭터 버전으로 전환했습니다.";
+        notice="디지몬 팬 버전입니다.";
     }
 
     string LobbyName(UnitDef def)
@@ -480,7 +497,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
     Unit At(Unit[] units, int slot) { return Array.Find(units, u => u.slot == slot); }
     void ClickSlot(string area, int slot, Unit unit)
     {
-        if(!OnlineManagementAllowed(state.room,OnlineMe)||!OnlineConnectionFresh()||busy)return;
+        if(OnlineScouting||!OnlineManagementAllowed(state.room,OnlineMe)||!OnlineConnectionFresh()||busy)return;
         if(EquipOnlineSelection(area,slot,unit))return;
         if(state.room.phase=="battle"&&(area=="board"||selectedArea=="board"))
         {selectedArea=unit==null?"":area;selectedSlot=unit==null?-1:slot;onlineReport=false;return;}
@@ -513,31 +530,50 @@ public sealed partial class MultiLauncher : MonoBehaviour
 
     void DrawMatch()
     {
-        ReconcileEquipmentSelection();
-        Room room = state.room; Player me = room.players[room.side], enemy = room.players[1 - room.side];
+        DisposeLobbyShowcase();
+        ReconcileEquipmentSelection();ReconcileScouting();
+        Room room = state.room; Player me = room.players[room.side], enemy = room.players[OpponentSide(room)];
+        if(artPack==0)ObserveMatchFinisher(room,me,enemy);
+        if(artPack==0&&MatchFinisherActive)enemy=room.players[matchFinisher.OpponentSide];
         if(onlineItemGuide>=0&&Event.current.type==EventType.KeyDown&&Event.current.keyCode==KeyCode.Escape){onlineItemGuide=-1;Event.current.Use();}
         if (room.phase == "finished") confirmLeave = false;
-        GUI.enabled = !showTraitGuide&&!showTeamPlan&&!confirmLeave&&onlineItemGuide<0&&string.IsNullOrEmpty(onlineSkillId);
+        GUI.enabled = !showPlayHelp&&!showTraitGuide&&!showTeamPlan&&!confirmLeave&&onlineItemGuide<0&&string.IsNullOrEmpty(onlineSkillId);
         bool fresh = !connectionError && !recoveringLogin && Time.unscaledTime - receivedAt < 6;
         bool editable = OnlineManagementAllowed(room,me) && fresh;
         float remaining = Mathf.Max(0, room.remaining - (Time.unscaledTime - receivedAt));
-        GUI.Label(new Rect(30,14,250,24),room.mode=="ranked"?"RANKED MATCH":"NORMAL MATCH",eyebrow);
-        GUI.Label(new Rect(30,36,570,42),$"ROUND {room.round}",title);
-        Pill(new Rect(610,23,190,43),room.phase=="prepare"?"준비 단계":room.phase=="battle"?"전투 중":"경기 종료",room.phase=="battle"?new Color(.85f,.28f,.22f):cyan);
-        Pill(new Rect(815,23,145,43),Mathf.CeilToInt(remaining)+"초",remaining<10?new Color(.9f,.35f,.22f):gold);
+        if(artPack==0)
+        {
+            DrawOnlineCommandHeader(room,remaining);
+        }
+        else
+        {
+            GUI.Label(new Rect(30,14,250,24),room.players.Length+"인 리그 / "+(room.mode.StartsWith("ranked")?"RANKED":"NORMAL"),eyebrow);
+            GUI.Label(new Rect(30,36,570,42),$"ROUND {room.round}",title);
+            Pill(new Rect(610,23,190,43),room.phase=="prepare"?"준비 단계":room.phase=="battle"?"전투 중":"경기 종료",room.phase=="battle"?new Color(.85f,.28f,.22f):cyan);
+            Pill(new Rect(815,23,145,43),Mathf.CeilToInt(remaining)+"초",remaining<10?new Color(.9f,.35f,.22f):gold);
+        }
         if(artPack==0&&Btn(new Rect(1150,20,195,46),"팀 계획"))OpenTeamPlan();
-        if (Btn(new Rect(1370,20,190,46),room.phase=="finished"?"로비로":"경기 포기"))
-        { if (room.phase == "finished") Send("/leave"); else confirmLeave = !confirmLeave; }
+        if (Btn(new Rect(1370,20,190,46),room.phase=="finished"||me.eliminated?"로비로":"경기 포기"))
+        { if (room.phase == "finished"||me.eliminated) Send("/leave"); else confirmLeave = !confirmLeave; }
+        if(artPack==0)DrawTamerCommandCard(me);
+        else{
         Card(new Rect(25,95,260,165),surface,new Color(gold.r,gold.g,gold.b,.5f));
         GUI.Label(new Rect(45,108,220,25),"나의 테이머",eyebrow); GUI.Label(new Rect(45,136,220,34),me.name,text);
         Pill(new Rect(43,180,102,36),"HP "+me.hp,new Color(.30f,.78f,.52f)); Pill(new Rect(155,180,108,36),me.rating+" RP",gold);
         GUI.Label(new Rect(45,225,220,25),artPack==0?$"{me.gold} G · 배치 {me.board.Length}/{OnlineFormationLimit(me)} · 대기 {me.bench.Length}/9":$"{me.gold} G    ·    LV {me.level}    ·    XP {me.xp}",small);
+        }
+        if(room.players.Length>2)DrawLeagueRoster(room);
+        else{
         Card(new Rect(1305,95,270,165),surface,new Color(.65f,.25f,.28f,.7f));
         GUI.Label(new Rect(1325,108,225,25),"OPPONENT",eyebrow); GUI.Label(new Rect(1325,136,225,34),enemy.name,text);
         Pill(new Rect(1323,180,102,36),"HP "+enemy.hp,new Color(.82f,.28f,.25f)); Pill(new Rect(1435,180,118,36),enemy.rating+" RP",gold);
         GUI.Label(new Rect(1325,225,225,25),OpponentConnectionText(enemy),small);
-        GUI.Label(new Rect(310,94,950,30),fresh?"상대 진영":"연결 복구 중 · 조작을 잠시 중지합니다.",eyebrow);
-        DrawPerspectiveMatch(room,me,enemy,editable,remaining);
+        }
+        DrawScoutingNavigation();
+        bool fieldEnabled=GUI.enabled;
+        if(OnlineRoundBannerVisible(room)&&OnlineRoundBannerRect.Contains(Event.current.mousePosition))GUI.enabled=false;
+        DrawPerspectiveMatch(room,me,enemy,editable,remaining);GUI.enabled=fieldEnabled;
+        DrawLeagueFieldStatus(room);
         if(artPack==0){DrawOnlineRoundResult(room);DrawRecruitmentReceipt(room);}
         GUI.Label(new Rect(310,790,500,22),artPack==0?"모집  ·  "+me.gold+" G":"RECRUIT SHOP",eyebrow);
         if(artPack==0)DrawOnlineShopLock(me,room,fresh);
@@ -565,23 +601,34 @@ public sealed partial class MultiLauncher : MonoBehaviour
         }
         DrawOnlineEquipment(me,editable);
         var formationPreview=OnlineFormationForecast(me,editable&&room.phase=="prepare");
-        if(formationPreview!=null){DrawOnlineUnitEquipment(me,room);FormationForecastUI.Draw(new Rect(1305,490,270,438),formationPreview);}
+        if(OnlineScouting)DrawScoutedDetails();
+        else if(formationPreview!=null){DrawOnlineUnitEquipment(me,room);FormationForecastUI.Draw(new Rect(1305,490,270,438),formationPreview);}
         else if(artPack!=0||!DrawOnlineReport(room,remaining))
         {DrawOnlineUnitEquipment(me,room);if(artPack==0)DrawOnlineTraits(me);}
         DrawOnlineEquipmentPreview(me,editable);
         DrawOnlineEquipmentGhost();
-        if (room.phase == "finished")
+        if (room.phase == "finished"&&!(artPack==0&&MatchFinisherActive))
         {
+            if(room.players.Length>2)DrawLeagueResult(room);
+            else{
             Card(new Rect(510,300,610,270),new Color(.035f,.07f,.12f,.99f),gold);
             GUI.Label(new Rect(560,335,510,60),"경기 결과  ·  "+room.result,title);
-            GUI.Label(new Rect(560, 420, 510, 65), room.mode == "ranked" ? $"랭크 변동 {room.ratingDelta:+0;-0;0} RP  /  현재 {state.rating} RP" : "일반 모드 · 랭크 점수 변동 없음", text);
+            GUI.Label(new Rect(560, 420, 510, 65), room.mode.StartsWith("ranked") ? $"랭크 변동 {room.ratingDelta:+0;-0;0} RP  /  현재 {state.rating} RP" : "일반 모드 · 랭크 점수 변동 없음", text);
+            }
         }
         GUI.enabled = true;
-        if(!confirmLeave)DrawOnlineEquipmentGuide();
+        if(!confirmLeave&&!showPlayHelp)DrawOnlineEquipmentGuide();
         if (confirmLeave && room.phase != "finished")
         {
-            Panel(new Rect(490, 330, 680, 250), new Color(.08f,.1f,.16f));
-            GUI.Label(new Rect(530, 360, 600, 80), "경기를 포기하면 패배 처리됩니다.\n랭크 모드에서는 RP에도 반영됩니다.", text);
+            if(artPack==0)
+            {
+                ArenaInterface.Fill(new Rect(0,0,1600,1000),new Color(.007f,.014f,.026f,.84f));
+                BattleHudTheme.Surface(new Rect(490,302,680,278),true,BattleHudTheme.Danger);
+                BattleHudTheme.Label(new Rect(530,320,600,22),"LEAVE MATCH",11,BattleHudTheme.Danger,true);
+                BattleHudTheme.Label(new Rect(528,354,605,43),"전장을 떠날까요?",29,BattleHudTheme.Text,true);
+                BattleHudTheme.Label(new Rect(531,412,599,44),"포기하면 패배로 처리됩니다. 랭크 경기에서는 RP에도 반영됩니다.",15,BattleHudTheme.Muted);
+            }
+            else {Panel(new Rect(490,330,680,250),new Color(.08f,.1f,.16f));GUI.Label(new Rect(530,360,600,80),"경기를 포기하면 패배 처리됩니다.\n랭크 모드에서는 RP에도 반영됩니다.",text);}
             if (Btn(new Rect(530, 470, 270, 65), "계속 플레이")) confirmLeave = false;
             if (Btn(new Rect(840, 470, 270, 65), "포기하고 로비로")) Send("/leave");
         }
@@ -598,7 +645,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             if (f.hp <= 0) continue;
             Fighter to = Array.Find(room.frames[next].units, u => u.key == f.key) ?? f;
             float x = Mathf.Lerp(f.x,to.x,progress-frame), y = Mathf.Lerp(f.y,to.y,progress-frame);
-            if (room.side == 1) { x = 6-x; y = 7-y; }
+            if (BattleSide(room) == 1) { x = 6-x; y = 7-y; }
             Vector2 head=arena.Project(TacticalArena.CellWorld(x,y)+Vector3.up*(artPack==0?TacticalArena.DigimonHeadHeight(f.id,f.star):1.4f));
             float width=Mathf.Clamp(arena.CellRect(Mathf.Clamp(Mathf.RoundToInt(y),0,7),3).width*.78f,52,88);
             float health=Mathf.Lerp(f.hp,to.hp,progress-frame)/Mathf.Max(1,f.maxHp);
@@ -610,7 +657,7 @@ public sealed partial class MultiLauncher : MonoBehaviour
             if(f.maxMana>0)Panel(new Rect(head.x-width/2,head.y+9,width*Mathf.Clamp01(Mathf.Lerp(f.mana,to.mana,progress-frame)/f.maxMana),3),new Color(.25f,.65f,1));
             if(f.side==room.side&&GUI.enabled&&Event.current.type==EventType.MouseDown&&Event.current.button==0&&new Rect(head.x-width/2,head.y-5,width,60).Contains(Event.current.mousePosition))
             {selectedArea="board";selectedSlot=f.slot;onlineReport=false;Event.current.Use();}
-            float castAge=ActiveCastAge(room,f.key,CombatTime(room,remaining));
+            float castAge=ActiveCastAge(room,f,CombatTime(room,remaining));
             var skill=artPack==0&&castAge>=0?DigimonSkillCatalog.Find(f.id):null;
             if(skill!=null)GUI.Label(new Rect(head.x-115,head.y-25,230,22),skill.name,centered);
             int segments=Mathf.Clamp(Mathf.CeilToInt(f.maxHp/250f),1,12);

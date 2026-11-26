@@ -14,7 +14,7 @@ public static class TeamPlan
     [Serializable] public sealed class Document {public int version=1,active;public Plan[] plans={new Plan(),new Plan(),new Plan()};}
     static Document data;
     static MultiLauncher.UnitDef[] roster;
-    public static MultiLauncher.UnitDef[] Roster {get{return roster??(roster=JsonUtility.FromJson<MultiLauncher.Catalog>(Resources.Load<TextAsset>("MultiRoster").text).units);}}
+    public static MultiLauncher.UnitDef[] Roster {get{return roster??(roster=JsonUtility.FromJson<MultiLauncher.Catalog>(DigimonGameData.Read("MultiRoster")).units);}}
     public static Document Data {get{if(data==null)data=Decode(PlayerPrefs.GetString(Key,""));return data;}}
     public static List<string> Units {get{return Data.plans[Data.active].units;}}
     public static Document Decode(string json)

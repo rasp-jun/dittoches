@@ -208,5 +208,124 @@
     "cost": 5,
     "sprite": "Seraphimon",
     "role": "마법사"
+  },
+  {
+    "id": "nyaromon",
+    "name": "야옹몬",
+    "cost": 1,
+    "sprite": "Nyaromon",
+    "role": "지원"
+  },
+  {
+    "id": "plotmon",
+    "name": "플로트몬",
+    "cost": 2,
+    "sprite": "Plotmon",
+    "role": "탱커"
+  },
+  {
+    "id": "tailmon",
+    "name": "가트몬",
+    "cost": 3,
+    "sprite": "Tailmon",
+    "role": "전사"
+  },
+  {
+    "id": "angewomon",
+    "name": "엔젤우몬",
+    "cost": 4,
+    "sprite": "Angewomon",
+    "role": "사수"
+  },
+  {
+    "id": "ophanimon",
+    "name": "오파니몬",
+    "cost": 5,
+    "sprite": "Ophanimon",
+    "role": "마법사"
+  },
+  {
+    "id": "kuwagamon",
+    "name": "쿠가몬",
+    "cost": 3,
+    "sprite": "Kuwagamon",
+    "role": "전사"
+  },
+  {
+    "id": "shellmon",
+    "name": "쉘몬",
+    "cost": 3,
+    "sprite": "Shellmon",
+    "role": "탱커"
+  },
+  {
+    "id": "devimon",
+    "name": "데블몬",
+    "cost": 3,
+    "sprite": "Devimon",
+    "role": "전사"
+  },
+  {
+    "id": "monochromon",
+    "name": "모노크로몬",
+    "cost": 3,
+    "sprite": "Monochromon",
+    "role": "탱커"
+  },
+  {
+    "id": "ogremon",
+    "name": "우가몬",
+    "cost": 3,
+    "sprite": "Ogremon",
+    "role": "전사"
+  },
+  {
+    "id": "meramon",
+    "name": "메라몬",
+    "cost": 3,
+    "sprite": "Meramon",
+    "role": "마법사"
+  },
+  {
+    "id": "leomon",
+    "name": "레오몬",
+    "cost": 3,
+    "sprite": "Leomon",
+    "role": "전사"
+  },
+  {
+    "id": "etemon",
+    "name": "에테몬",
+    "cost": 4,
+    "sprite": "Etemon",
+    "role": "지원"
+  },
+  {
+    "id": "andromon",
+    "name": "안드로몬",
+    "cost": 4,
+    "sprite": "Andromon",
+    "role": "탱커"
+  },
+  {
+    "id": "skullgreymon",
+    "name": "스컬그레이몬",
+    "cost": 4,
+    "sprite": "SkullGreymon",
+    "role": "사수"
+  },
+  {
+    "id": "piedmon",
+    "name": "피에몬",
+    "cost": 5,
+    "sprite": "Piedmon",
+    "role": "마법사"
+  },
+  {
+    "id": "machinedramon",
+    "name": "파워드라몬",
+    "cost": 5,
+    "sprite": "Machinedramon",
+    "role": "사수"
   }
 ]

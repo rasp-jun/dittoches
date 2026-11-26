@@ -87,10 +87,30 @@ public sealed partial class NativeGame
                     if(fps==30)frameRateReference=actor.transform.localPosition;
                     else Require((actor.transform.localPosition-frameRateReference).sqrMagnitude<.000001f,"impact amplitude independent of render FPS "+id);
                 }
+                foreach(int star in new[]{1,3})foreach(Vector3 incoming in new[]{Vector3.left,Vector3.right,Vector3.forward,Vector3.back})
+                {
+                    actor.SetSize(DigimonVisualScale.Height(id,star));resting=actor.transform.localPosition;
+                    actor.Pose(0,0,Vector3.back,null,-1,0,0,0,hitTime:-10);
+                    actor.Pose(.1f,0,Vector3.back,null,-1,0,0,0,hitTime:.1f,hitDirection:incoming);
+                    actor.Pose(.14f,0,Vector3.back,null,-1,0,0,0,hitTime:.1f,hitDirection:incoming);
+                    Vector3 offset=actor.transform.localPosition-actor.transform.localRotation*resting;
+                    Require(Vector3.Dot(offset,incoming)>.001f&&Mathf.Abs(offset.y)<.00001f&&offset.magnitude<=.066f,"incoming direction controls bounded grounded recoil independently of facing "+id);
+                    Vector3 contact=actor.transform.localPosition;
+                    actor.Pose(.141f,0,Vector3.back,null,-1,0,0,0,hitTime:.141f,hitDirection:-incoming);
+                    Require((actor.transform.localPosition-contact).magnitude<.003f,"opposite rapid hit starts from the previous offset without teleporting "+id);
+                    actor.Pose(.181f,0,Vector3.back,null,-1,0,0,0,hitTime:.141f,hitDirection:-incoming);
+                    offset=actor.transform.localPosition-actor.transform.localRotation*resting;
+                    Require(Vector3.Dot(offset,-incoming)>.001f,"opposite rapid hit settles toward its own incoming direction "+id);
+                    Vector3 settled=actor.transform.localPosition;
+                    actor.Pose(.181f,0,Vector3.back,null,-1,0,0,0,hitTime:.141f,hitDirection:incoming);
+                    Require((actor.transform.localPosition-settled).sqrMagnitude<.000001f,"same timestamp cannot redirect an already committed reaction "+id);
+                    actor.Pose(.6f,0,Vector3.back,null,-1,0,0,0,hitTime:.141f,hitDirection:incoming);
+                    Require((actor.transform.localPosition-resting).sqrMagnitude<.000001f,"directional recoil returns exactly to the original ground contact "+id);
+                }
             }
             finally{DestroyImmediate(parent);}
         }
-        Debug.Log("IMPACT MOTION COMPLETE: "+(validationChecks-before)+" checks / 34 models / 1 and 3 stars / attack and skill");
+        Debug.Log("IMPACT MOTION COMPLETE: "+(validationChecks-before)+" checks / "+DigimonModelLibrary.Roster.Length+" models / 1 and 3 stars / attack, skill and incoming directions");
         if(Array.IndexOf(Environment.GetCommandLineArgs(),"--impact-capture")>=0)CaptureImpactReview();
     }
     void CaptureImpactReview()

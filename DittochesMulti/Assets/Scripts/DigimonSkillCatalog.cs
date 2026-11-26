@@ -26,7 +26,9 @@ public static class DigimonSkillCatalog
         public int shots, targets,attackRange;
         public float Attack(int star,float bonus){return DigimonCombatMath.Attack(baseAttack,star,bonus);}
         public float Damage(int star,float attack,float ap){int i=DigimonCombatMath.StarIndex(star);return DigimonCombatMath.Skill(attack,ap,adRatio[i],apRatio[i]);}
-        public string ScalingRole { get {return adRatio[0]>0?(apRatio[0]>0?"혼합 딜러":"공격 딜러"):"마법 딜러";} }
+        public string ScalingRole { get {return adRatio[0]>0?(apRatio[0]>0?"복합 계수":"AD 계수"):"AP 계수";} }
+        public string ScalingStats(int star)
+        {int i=DigimonCombatMath.StarIndex(star);return adRatio[i]>0?(apRatio[i]>0?"공격력 + 주문력":"공격력"):"주문력";}
         public string DamageLabel { get {return damageType=="physical"?"물리":"마법";} }
         public float Impact { get { return windup+travel; } }
         public float Duration { get { return Impact+(shots-1)*interval+recovery; } }
@@ -39,13 +41,7 @@ public static class DigimonSkillCatalog
     {
         if(entries==null)
         {
-            TextAsset asset=Resources.Load<TextAsset>("DigimonSkills");
-#if DITTOCHES_PORTABLE_PREVIEW
-            string json=asset!=null?asset.text:PortablePreview.SkillJson();
-#else
-            if(asset==null)throw new InvalidOperationException("Missing Resources/DigimonSkills.json");
-            string json=asset.text;
-#endif
+            string json=DigimonGameData.Read("DigimonSkills");
             entries=new Dictionary<string,Entry>();
             foreach(Entry entry in JsonUtility.FromJson<Document>(json).skills)entries.Add(entry.id,entry);
         }

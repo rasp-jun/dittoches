@@ -7,7 +7,7 @@ public sealed partial class NativeGame
     readonly List<CombatLabelLayout.Entry> combatLabels=new List<CombatLabelLayout.Entry>();
     readonly Dictionary<Fighter,CombatLabelLayout.Entry> fighterLabels=new Dictionary<Fighter,CombatLabelLayout.Entry>();
     CombatSignals.Signal NativeCombatSignal(Fighter f)
-    {return CombatSignals.Evaluate(f.combatAge,f.lowShieldUsed,f.crisisAt,f.build.rampSpeed>0,!f.dead);}
+    {return CombatSignals.Evaluate(f.combatAge,f.lowShieldUsed,f.crisisAt,f.build.rampSpeed>0,!f.dead,f.synergyKind,f.synergyAt,f.battleAge);}
     void PrepareCombatLabels()
     {
         combatLabels.Clear();fighterLabels.Clear();

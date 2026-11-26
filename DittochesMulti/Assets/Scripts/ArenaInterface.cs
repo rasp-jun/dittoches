@@ -9,7 +9,7 @@ public sealed class ArenaInterface
     readonly Dictionary<int,GUIStyle> buttons=new Dictionary<int,GUIStyle>();
     string tooltip="";float tooltipSince;
     GUIStyle tooltipStyle;
-    public static readonly Color Gold=new Color(.84f,.69f,.37f),Ink=new Color(.025f,.045f,.056f);
+    public static readonly Color Gold=new Color(.96f,.76f,.40f),Ink=new Color(.035f,.051f,.078f);
     public static void Fill(Rect rect,Color color)
     {Color old=GUI.color;GUI.color=color;GUI.DrawTexture(rect,Texture2D.whiteTexture);GUI.color=old;}
     public static Color Rarity(int cost)
@@ -27,12 +27,15 @@ public sealed class ArenaInterface
     public bool Button(Rect rect,GUIContent content,bool enabled=true,bool selected=false,int fontSize=14)
     {
         bool previous=GUI.enabled,available=previous&&enabled;float hover=HoverAmount(rect,available);
-        Fill(rect,available?Color.Lerp(selected?Gold:new Color(.20f,.30f,.32f),new Color(.60f,.79f,.76f),hover*.8f):new Color(.12f,.19f,.21f));
-        Color normal=selected?new Color(.17f,.14f,.07f):new Color(.035f,.07f,.085f);
-        Fill(new Rect(rect.x+1,rect.y+1,rect.width-2,rect.height-2),Color.Lerp(normal,new Color(.095f,.18f,.18f),hover));
+        Color accent=selected?BattleHudTheme.Teal:BattleHudTheme.Line;
+        BattleHudTheme.Round(new Rect(rect.x,rect.y+2,rect.width,rect.height),new Color(0,0,0,.15f));
+        BattleHudTheme.Round(rect,available?Color.Lerp(accent,BattleHudTheme.Teal,hover*.8f):BattleHudTheme.Line);
+        Color normal=selected?new Color(.075f,.218f,.239f):BattleHudTheme.Raised;
+        BattleHudTheme.Round(new Rect(rect.x+1,rect.y+1,rect.width-2,rect.height-2),Color.Lerp(normal,new Color(.13f,.25f,.29f),hover));
+        if(selected&&available)BattleHudTheme.Round(new Rect(rect.x+8,rect.y+rect.height*.3f,3,rect.height*.4f),BattleHudTheme.Teal);
         GUIStyle style;if(!buttons.TryGetValue(fontSize,out style))
         {style=new GUIStyle(GUIStyle.none){fontSize=fontSize,fontStyle=FontStyle.Bold,alignment=TextAnchor.MiddleCenter};buttons.Add(fontSize,style);}
-        style.normal.textColor=available?(selected?new Color(1,.86f,.53f):new Color(.86f,.92f,.92f)):new Color(.36f,.43f,.44f);
+        style.normal.textColor=available?(selected?BattleHudTheme.Teal:BattleHudTheme.Text):new Color(.40f,.49f,.55f);
         style.hover.textColor=style.active.textColor=style.normal.textColor;
         GUI.enabled=available;bool clicked=GUI.Button(rect,content,style);GUI.enabled=previous;return clicked;
     }

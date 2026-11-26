@@ -1,0 +1,13 @@
+"""Write a local, source-linked visual review for the two new angel assets."""
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+BASE=ROOT/'ArtSource/LightLine-20261013'
+cards=[]
+for ident,title,note in [
+    ('angewomon','엔젤우몬 · Angewomon','원본 여덟 날개, 얼굴을 가린 헬멧, 긴 금발, 비대칭 의상, 문자 리본, 활 제어를 보존했습니다.'),
+    ('ophanimon','오파니몬 · Ophanimon','원본 금색/깃털 열 날개, 청록 갑주와 투구, 창과 방패, 긴 치맛자락을 보존했습니다. 창/방패는 실제 손 동작에 맞춰 원본 메시의 제어 좌표를 교정했습니다.')]:
+    imgs=''.join(f'<figure><a href="{ident}/{f}.png"><img src="{ident}/{f}.png"></a><figcaption>{label}</figcaption></figure>' for f,label in [('model-front','정면'),('model-side','측면'),('model-back','후면'),('model-preview','입체 보기'),('motion-attack','Attack'),('motion-skill','Skill'),('motion-guard','Guard'),('motion-down','Down')])
+    cards.append(f'''<section><h2>{title}</h2><p>{note}</p><div class="compare"><figure><a href="{ident}/official-reference.jpg"><img src="{ident}/official-reference.jpg"></a><figcaption>공식 도감 원화 · 비교용</figcaption></figure><figure><a href="{ident}/model-preview.png"><img src="{ident}/model-preview.png"></a><figcaption>실제 GLB 원본과 동일한 Blender 렌더</figcaption></figure></div><div class="grid">{imgs}</div><p><a href="{ident}/model.blend">편집 가능한 .blend</a> · <a href="{ident}/model.glb">게임용 GLB</a> · <a href="{ident}/source.json">출처·변환 기록</a> · <a href="{ident}/verification.json">검증 결과</a></p></section>''')
+html='''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>빛의 진화 계열 · 천사 모델 검토</title><style>body{font:16px/1.7 system-ui,sans-serif;margin:0;background:#09131f;color:#edeadf}main{max-width:1260px;margin:auto;padding:36px}h1{font-size:32px}h2{color:#68e1d6}p{color:#b6c8d2}a{color:#68e1d6}section{margin-top:40px;border-top:1px solid #294456;padding-top:18px}.compare,.grid{display:grid;gap:16px}.compare{grid-template-columns:1fr 1fr}.grid{grid-template-columns:repeat(4,1fr)}figure{margin:0;background:#112231;border-radius:14px;overflow:hidden}img{display:block;width:100%;aspect-ratio:1;object-fit:contain}figcaption{padding:10px 14px}@media(max-width:700px){main{padding:18px}.grid{grid-template-columns:1fr 1fr}}</style><main><h1>빛의 진화 계열 · 천사 모델 검토</h1><p>2026-10-13 · 무료 로컬 Blender 작업. 공개 Digimon Links 원본 모델의 메시·UV·텍스처·스킨을 보존했습니다. 원본 DAE의 올바른 바인드 포즈에 FBX 동작을 옮기고 게임의 열 가지 클립으로 구성했습니다. 도형 조립식 대체 모델을 사용하지 않았습니다.</p><p>Idle · Walk · Run · Attack · Skill · Hit · Victory · Guard · Dodge · Down. 외형과 원본 동작은 게임 원제작물이며, 이 프로젝트의 자체 창작물로 표시하지 않습니다. 외부 공개는 수행하지 않았습니다.</p>'''+''.join(cards)+'</main></html>'
+(BASE/'angels-review.html').write_text(html,encoding='utf-8')
+print(BASE/'angels-review.html')

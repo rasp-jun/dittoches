@@ -15,7 +15,7 @@ public sealed partial class MultiLauncher
     }
     RecruitReceipt RecruitResult(Room before,Room after,Command command)
     {
-        if(command==null||command.action!="buy"||before==null||after==null||before.id!=after.id||before.side!=after.side||before.round!=after.round||before.phase!="prepare"||after.phase!="prepare")return null;
+        if(command==null||command.action!="buy"||before==null||after==null||before.id!=after.id||before.side!=after.side||before.round!=after.round||before.phase!=after.phase||(after.phase!="prepare"&&after.phase!="battle"))return null;
         var prior=MatchPlayer(before);var next=MatchPlayer(after);int index=command.slot;
         if(prior==null||next==null||index<0||index>=prior.shop.Length||index>=next.shop.Length)return null;
         string id=prior.shop[index];var def=Def(id);
@@ -32,23 +32,31 @@ public sealed partial class MultiLauncher
     }
     void ReceiveRecruitment(Room before,Room after,string path,Command command)
     {
-        if(before==null||after==null||before.id!=after.id||before.round!=after.round||after.phase!="prepare")recruitReceipt=null;
+        if(before==null||after==null||before.id!=after.id||before.side!=after.side||before.round!=after.round||before.phase!=after.phase||(after.phase!="prepare"&&after.phase!="battle")){recruitReceipt=null;onlineMergeArrivals.Clear();}
+        if(path=="/action"&&command!=null&&(command.action=="move"||command.action=="sell"))onlineMergeArrivals.Clear();
         if(path!="/action")return;
         var result=RecruitResult(before,after,command);if(result==null)return;
-        result.until=Time.unscaledTime+3.4f;recruitReceipt=result;
+        result.until=Time.unscaledTime+StarUpgradeUI.ReceiptDuration;recruitReceipt=result;
+        if(artPack==0)StarUpgradeAudio.Request(result.star);
+        ReceiveMergeArrival(before,after,result);
     }
     float OnlinePromotion(Unit unit,string area)
     {
         var r=recruitReceipt;
         if(r==null||r.star<2||r.area!=area||r.slot!=unit.slot||r.id!=unit.id||r.star!=unit.star)return 0;
-        return Mathf.Clamp01((r.until-Time.unscaledTime-1.9f)/1.5f);
+        float duration=StarUpgradeUI.Duration(r.star);
+        return Mathf.Clamp01((r.until-Time.unscaledTime-(StarUpgradeUI.ReceiptDuration-duration))/duration);
     }
     void DrawRecruitmentReceipt(Room room)
     {
-        if(room.phase!="prepare"||recruitReceipt==null)return;
+        if((room.phase!="prepare"&&room.phase!="battle")||recruitReceipt==null||OnlineScouting)return;
         float left=recruitReceipt.until-Time.unscaledTime;if(left<=0)return;
+        if(recruitReceipt.star>=2)
+        {
+            StarUpgradeUI.DrawPromotionNotice(new Rect(500,244,750,70),Def(recruitReceipt.id).name,recruitReceipt.star,room.phase=="battle",left);
+        }
         Color saved=GUI.color;GUI.color=new Color(saved.r,saved.g,saved.b,saved.a*Mathf.Clamp01(left/.35f));
-        Rect r=new Rect(500,94,780,28);ArenaInterface.Fill(r,new Color(.035f,.095f,.10f,.97f));
+        Rect r=OnlineRoundBannerRect;ArenaInterface.Fill(r,new Color(.035f,.095f,.10f,.97f));
         ArenaInterface.Fill(new Rect(r.x,r.y,r.width,2),new Color(.92f,.76f,.35f));
         GUI.Label(r,recruitReceipt.text,centered);GUI.color=saved;
     }

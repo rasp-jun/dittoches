@@ -67,3 +67,34 @@ TECHNIQUES['patamon']['Attack'].update(effect='impact',origin='head')
 TECHNIQUES['seraphimon']['Attack']['origin']='leftHand'
 TECHNIQUES['tokomon']['Skill']['rigNote']='입을 벌리는 별도 관절이 없는 원본 모델로, 머리와 몸의 물기 동작을 표현합니다.'
 TECHNIQUES['kuwagamon']['Skill']['rigNote']='좌우 집게의 독립 관절이 없는 원본 모델로, 목·상체·아래턱과 집게 타격 효과를 조합합니다.'
+
+# 2026-10-13 additions. Keep every reviewed original-34 spec above unchanged.
+# Timings are taken from LightLine-20261013/{small,angel}-techniques.json.
+# These assets use their separate source-preserving LightLine authoring tools;
+# the pattern names describe the actual motion, not a request to rebuild them
+# through the older procedural choreography pipeline.
+LIGHT_LINE_ROWS=[
+ ('nyaromon','몸통 박치기','bump',1.3,'폭스 테일','Fox Tail','fox_tail',2.0,'arc','#f5d178','tail','몸을 틀어 꼬리를 당겼다가 차례로 휘둘러 후려칩니다.'),
+ ('plotmon','앞발 덮치기','pounce',1.3,'퍼피 하울','Puppy Howl','puppy_howl',2.0,'sound','#ffedb0','mouth','앞발을 디디고 고개를 들어 초음파 울음을 냅니다.'),
+ ('tailmon','라이트닝 포','claw',1.3,'고양이 펀치','Cat Punch / Lightning Paw','cat_punch',2.0,'claws','#fbe68b','hands','장갑을 가슴 앞으로 당겼다가 좌우 발톱 장갑을 교대로 크게 내지릅니다.'),
+ ('angewomon','천상의 손날','holy_strike',40/30,'홀리 아로우','Celestial Arrow / Holy Arrow','celestial_arrow',2.4,'holybeam','#fff1bf','rightHand','원본 특수 동작에 맞춰 활을 당긴 뒤 성스러운 화살을 발사합니다.'),
+ ('ophanimon','에덴의 창 타격','lance',40/30,'에덴즈 자벨린',"Eden's Javelin",'eden_javelin',2.4,'holybeam','#ffe89b','rightHand','원본 창을 손에 고정한 채 들어 올려 겨누고 신성한 빛을 발사합니다.'),
+]
+for row in LIGHT_LINE_ROWS:
+    ident=row[0]
+    assert ident not in TECHNIQUES,ident
+    spec=row_to_spec(row);spec['checked']='2026-10-13'
+    spec['source']='https://digimon.net/reference_en/detail.php?directory_name='+('ofanimon' if ident=='ophanimon' else ident)
+    spec['motionBasis']=('공개 Digimon Links 원본 DAE 메시·리그·UV·가중치를 보존하고 원본 FBX 동작을 리타기팅; 단위·무기 좌표 보정' if ident in ('angewomon','ophanimon') else '공개 실제 메시와 UV를 보존하고 별도 Blender 리그·가중치·공식 기술 기반 동작을 작성')
+    TECHNIQUES[ident]=spec
+TECHNIQUES['nyaromon']['Attack'].update(origin='head',release=.43,end=.89,canonical_name=False)
+TECHNIQUES['nyaromon']['Skill'].update(release=.56,end=.96,joint='TailEnd')
+TECHNIQUES['plotmon']['Attack'].update(origin='head',release=.43,end=.89,canonical_name=False)
+TECHNIQUES['plotmon']['Skill'].update(release=.57,end=.96,rigNote='원본 입 내부를 보존했으며 별도 입벌림 관절은 없습니다. 머리와 귀의 움직임으로 울음을 표현합니다.')
+TECHNIQUES['tailmon']['Attack'].update(origin='hands',release=.37,secondary_release=.62,end=.93,aliases='Lightning Paw',canonical_name=True)
+TECHNIQUES['tailmon']['Skill'].update(release=.46,secondary_release=.69,end=.94)
+TECHNIQUES['angewomon']['Attack'].update(origin='rightHand',effect='arc',release=.48,canonical_name=False,sourceAction='attack01')
+TECHNIQUES['angewomon']['Skill'].update(release=.58,end=.92,weaponBone='J_bow_C',sourceAction='special01',rigNote='활 제어는 원본 J_elbow_r의 자식 J_bow_C이며 rightHand 방출점을 사용합니다.')
+TECHNIQUES['ophanimon']['Attack'].update(origin='rightHand',effect='arc',release=.48,canonical_name=False,sourceAction='attack01',weaponBone='md149_yari')
+TECHNIQUES['ophanimon']['Skill'].update(release=.64,end=.92,sourceAction='special01',weaponBone='md149_yari',rigNote='창 md149_yari는 원본 J_hand_R, 방패 md149_tate는 J_wrist_L 동작에 맞춰 정렬했습니다.')
+assert len(TECHNIQUES)==len(ROWS)+len(LIGHT_LINE_ROWS)==39

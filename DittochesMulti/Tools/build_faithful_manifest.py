@@ -29,8 +29,15 @@ def glb_info(path):
                 skins=len(doc.get('skins',[])),animations=[a.get('name','Motion '+str(i+1)) for i,a in enumerate(doc.get('animations',[]))])
 
 
-def main():
+def build_catalog():
     entries=[];pending=[]
+    # New source-preserving asset sets may live outside FaithfulGallery.
+    # Retain their reviewed paths instead of dropping them when regenerating
+    # the original catalog backed by the historical DESIGNS registry.
+    previous=json.loads((OUT/'manifest.json').read_text(encoding='utf-8-sig')) if (OUT/'manifest.json').exists() else {}
+    original_ids={row[0] for row in DESIGNS}
+    additions=[row for row in previous.get('entries',[]) if row['id'] not in original_ids]
+    assert len({row['id'] for row in additions})==len(additions),'Duplicate additional model IDs'
     for id,name,*_ in DESIGNS:
         folder=OUT/id
         if not (folder/'model.glb').exists() or not (folder/'source.json').exists():
@@ -64,11 +71,28 @@ def main():
         if id in camera and not authored:
             entry['cameraDirection'],entry['frontAngle']=camera[id]
         entries.append(entry)
+    for reviewed in additions:
+        path=(OUT/reviewed['model']).resolve()
+        assert path.is_relative_to((ROOT/'ArtSource').resolve()),reviewed['model']
+        if not path.is_file() or not (path.parent/'source.json').is_file():
+            pending.append({'id':reviewed['id'],'name':reviewed['name'],'status':'검토한 원본 자산 경로 확인 필요'})
+            continue
+        source=json.loads((path.parent/'source.json').read_text(encoding='utf-8-sig'))
+        entry=dict(reviewed);entry.update(glb_info(path))
+        entry['source']=source.get('source_url',entry.get('source',''))
+        entry['author']=source.get('author',source.get('uploaded_by',entry.get('author','')))
+        entry['license']=source.get('license',entry.get('license','출처 확인 중'))
+        entries.append(entry)
     # The default view starts with the clearest finished silhouette, not an empty T-pose.
     order=['wargreymon','agumon','greymon','garurumon','kabuterimon','atlur']
     entries.sort(key=lambda e: order.index(e['id']) if e['id'] in order else len(order))
     result={'title':'디지몬 원작 외형 비교','status':'모션·외형 검토본 · 게임 적용 전',
-            'entries':entries,'pending':pending,'scope':len(DESIGNS),'prepared':len(entries)}
+            'entries':entries,'pending':pending,'scope':len(DESIGNS)+len(additions),'prepared':len(entries)}
+    return result
+
+
+def main():
+    result=build_catalog();entries=result['entries'];pending=result['pending']
     OUT.mkdir(parents=True,exist_ok=True)
     (OUT/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     techniques={e['id']:e['techniques'] for e in entries if e.get('techniques')}
@@ -78,7 +102,7 @@ def main():
         'limitations':['Structure checks do not certify original likeness or motion quality.'],
         'assets':[{k:e[k] for k in ['id','sha256','triangles','images','skins','animations']} for e in entries]},
         ensure_ascii=False,indent=2),encoding='utf-8')
-    print('Prepared',len(entries),'of',len(DESIGNS),'species;',len(pending),'pending')
+    print('Prepared',len(entries),'of',result['scope'],'species;',len(pending),'pending')
 
 
 if __name__=='__main__':main()

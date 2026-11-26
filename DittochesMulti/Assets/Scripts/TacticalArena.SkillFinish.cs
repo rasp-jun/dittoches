@@ -50,10 +50,25 @@ public sealed partial class TacticalArena
     bool DrawFinishedFlight(DigimonSkillCatalog.Entry skill,Vector3 start,Vector3 end,Vector3 p,Vector3 side,float t,float age,Color color)
     {
         if(!EnsureSkillFinish())return false;
+        if(DrawRibbonFlight(skill,start,end,p,side,t,age,color))return true;
+        if(DrawCombatFlight(skill,start,end,p,side,t,age,color))return true;
         Vector3 forward=(end-start).normalized;
+        if(skill.visual=="holyarrow"||skill.visual=="javelin")
+        {
+            bool spear=skill.visual=="javelin";float length=spear?.74f:.52f;
+            Quaternion along=Quaternion.FromToRotation(Vector3.up,forward);
+            Stroke(p-forward*length,p,.035f,Color.Lerp(color,Color.white,.55f));
+            Effect(SkillTip(),p-forward*.08f,new Vector3(spear?.13f:.095f,.24f,spear?.13f:.095f),Color.Lerp(color,Color.white,.6f),along,stone);
+            if(spear){Halo(p-forward*.34f,.17f,color,true);Stroke(p-forward*.35f-side*.22f,p-forward*.35f+side*.22f,.04f,color);}
+            else for(int sign=-1;sign<=1;sign+=2)Stroke(p-forward*length,p-forward*(length-.18f)+side*sign*.14f,.03f,color);
+            SoftSkillGlow(p,.20f,color,.45f);
+            for(int i=1;i<=4;i++)SoftSkillGlow(p-forward*(length+i*.10f),.1f,color,.32f*(1-i/5f));
+            return true;
+        }
         if(skill.visual=="fire"||skill.visual=="bluefire")
         {
-            Orb(p,.15f,color);
+            CombatTrail(p,forward,.42f,.18f,color);
+            SoftSkillGlow(p,.19f,color,.65f);SoftSkillGlow(p,.065f,Color.Lerp(color,Color.white,.8f),.85f);
             for(int i=1;i<=4;i++)
             {
                 float f=i/4f;Vector3 tail=p-forward*(.13f+i*.105f)+Vector3.up*(.035f+Mathf.Sin(age*21+i)*.055f)*f;
@@ -88,22 +103,10 @@ public sealed partial class TacticalArena
         }
         return false;
     }
-    void DrawFinishedImpact(DigimonSkillCatalog.Entry skill,Vector3 center,float age,int shot,Color color)
+    void DrawFinishedImpact(DigimonSkillCatalog.Entry skill,Vector3 center,Vector3 direction,float age,int shot,Color color,float height=.65f,float surface=0)
     {
         if(age<0||age>=.3f||!EnsureSkillFinish())return;
-        float t=age/.3f,fade=(1-t)*(1-t);
-        SoftSkillGlow(center+Vector3.up*.5f,.23f+t*.55f,color,.65f*fade);
-        // Small deterministic bursts leave the silhouette and health bars readable.
-        int count=skill.visual=="bubble"?3:6;
-        for(int i=0;i<count;i++)
-        {
-            float angle=i*Mathf.PI*2/count+shot*.73f;
-            Vector3 direction=new Vector3(Mathf.Cos(angle),.5f+(i%2)*.45f,Mathf.Sin(angle)).normalized;
-            Vector3 p=center+Vector3.up*.35f+direction*(.12f+t*.65f)-Vector3.up*t*t*.18f;
-            Color spark=Color.Lerp(color,Color.white,.48f);spark.a=fade*.8f;
-            Vector3 length=direction*(.055f+fade*.085f);
-            Effect(cube,p, new Vector3(.018f,.018f,length.magnitude),spark,Quaternion.LookRotation(direction),transparentSkillMaterial);
-        }
+        CombatImpact(CombatEffectStyle.Skill(skill.visual),center+Vector3.up*height,direction,age/.3f,Mathf.Clamp(skill.radius*.22f,.20f,.37f),shot,color,true,surface);
     }
 #if DITTOCHES_PORTABLE_PREVIEW
     public bool SkillSphereFacesOutward()
@@ -119,7 +122,7 @@ public sealed partial class TacticalArena
     {
         for(int i=0;i<effectPool.Count;i++)
         {
-            var renderer=effectPool[i];
+            var renderer=effectPool[i].renderer;
             if(i>=effectCursor){if(renderer.enabled)return false;continue;}
             Vector3 p=renderer.transform.localPosition,scale=renderer.transform.localScale;
             if(!renderer.enabled||float.IsNaN(p.sqrMagnitude)||float.IsInfinity(p.sqrMagnitude)||scale.magnitude>15||renderer.sharedMaterial==null)return false;

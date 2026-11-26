@@ -1,0 +1,333 @@
+{
+  "units": [
+    {
+      "id": "koromon",
+      "name": "코로몬",
+      "cost": 1,
+      "sprite": "Koromon",
+      "role": "전사"
+    },
+    {
+      "id": "tsunomon",
+      "name": "뿔몬",
+      "cost": 1,
+      "sprite": "Tunomon",
+      "role": "사수"
+    },
+    {
+      "id": "mochimon",
+      "name": "모티몬",
+      "cost": 1,
+      "sprite": "Mochimon",
+      "role": "탱커"
+    },
+    {
+      "id": "tanemon",
+      "name": "시드몬",
+      "cost": 1,
+      "sprite": "Tanemon",
+      "role": "지원"
+    },
+    {
+      "id": "pyocomon",
+      "name": "어니몬",
+      "cost": 1,
+      "sprite": "Pyocomon",
+      "role": "마법사"
+    },
+    {
+      "id": "tokomon",
+      "name": "토코몬",
+      "cost": 1,
+      "sprite": "Tokomon",
+      "role": "지원"
+    },
+    {
+      "id": "agumon",
+      "name": "아구몬",
+      "cost": 2,
+      "sprite": "Agumon",
+      "role": "전사"
+    },
+    {
+      "id": "gabumon",
+      "name": "파피몬",
+      "cost": 2,
+      "sprite": "Gabumon",
+      "role": "사수"
+    },
+    {
+      "id": "tentomon",
+      "name": "텐타몬",
+      "cost": 2,
+      "sprite": "Tentomon",
+      "role": "탱커"
+    },
+    {
+      "id": "palmon",
+      "name": "팔몬",
+      "cost": 2,
+      "sprite": "Palmon",
+      "role": "지원"
+    },
+    {
+      "id": "piyomon",
+      "name": "피요몬",
+      "cost": 2,
+      "sprite": "Piyomon",
+      "role": "마법사"
+    },
+    {
+      "id": "patamon",
+      "name": "파닥몬",
+      "cost": 2,
+      "sprite": "Patamon",
+      "role": "지원"
+    },
+    {
+      "id": "togemon",
+      "name": "니드몬",
+      "cost": 3,
+      "sprite": "Togemon",
+      "role": "탱커"
+    },
+    {
+      "id": "garurumon",
+      "name": "가루몬",
+      "cost": 3,
+      "sprite": "Garurumon",
+      "role": "전사"
+    },
+    {
+      "id": "greymon",
+      "name": "그레이몬",
+      "cost": 3,
+      "sprite": "Greymon",
+      "role": "탱커"
+    },
+    {
+      "id": "kabuterimon",
+      "name": "캅테리몬",
+      "cost": 3,
+      "sprite": "Kabuterimon",
+      "role": "마법사"
+    },
+    {
+      "id": "angemon",
+      "name": "엔젤몬",
+      "cost": 3,
+      "sprite": "Angemon",
+      "role": "전사"
+    },
+    {
+      "id": "birdramon",
+      "name": "버드라몬",
+      "cost": 3,
+      "sprite": "Birdramon",
+      "role": "사수"
+    },
+    {
+      "id": "metalgreymon",
+      "name": "메탈그레이몬",
+      "cost": 4,
+      "sprite": "Metal_Greymon",
+      "role": "사수"
+    },
+    {
+      "id": "weregarurumon",
+      "name": "워가루몬",
+      "cost": 4,
+      "sprite": "Were_Garurumon",
+      "role": "전사"
+    },
+    {
+      "id": "lilimon",
+      "name": "릴리몬",
+      "cost": 4,
+      "sprite": "Lilimon",
+      "role": "지원"
+    },
+    {
+      "id": "holyangemon",
+      "name": "홀리엔젤몬",
+      "cost": 4,
+      "sprite": "Holy_Angemon",
+      "role": "마법사"
+    },
+    {
+      "id": "atlur",
+      "name": "아트라캅테리몬",
+      "cost": 4,
+      "sprite": "Atlur_Kabuterimon",
+      "role": "탱커"
+    },
+    {
+      "id": "garudamon",
+      "name": "가루다몬",
+      "cost": 4,
+      "sprite": "Garudamon",
+      "role": "사수"
+    },
+    {
+      "id": "herakle",
+      "name": "헤라클레스캅테리몬",
+      "cost": 5,
+      "sprite": "Herakle_Kabuterimon",
+      "role": "탱커"
+    },
+    {
+      "id": "hououmon",
+      "name": "페닉스몬",
+      "cost": 5,
+      "sprite": "Hououmon",
+      "role": "마법사"
+    },
+    {
+      "id": "wargreymon",
+      "name": "워그레이몬",
+      "cost": 5,
+      "sprite": "War_Greymon",
+      "role": "전사"
+    },
+    {
+      "id": "metalgarurumon",
+      "name": "메탈가루몬",
+      "cost": 5,
+      "sprite": "Metal_Garurumon",
+      "role": "사수"
+    },
+    {
+      "id": "rosemon",
+      "name": "로제몬",
+      "cost": 5,
+      "sprite": "Rosemon",
+      "role": "지원"
+    },
+    {
+      "id": "seraphimon",
+      "name": "세라피몬",
+      "cost": 5,
+      "sprite": "Seraphimon",
+      "role": "마법사"
+    },
+    {
+      "id": "nyaromon",
+      "name": "야옹몬",
+      "cost": 1,
+      "sprite": "Nyaromon",
+      "role": "지원"
+    },
+    {
+      "id": "plotmon",
+      "name": "플로트몬",
+      "cost": 2,
+      "sprite": "Plotmon",
+      "role": "탱커"
+    },
+    {
+      "id": "tailmon",
+      "name": "가트몬",
+      "cost": 3,
+      "sprite": "Tailmon",
+      "role": "전사"
+    },
+    {
+      "id": "angewomon",
+      "name": "엔젤우몬",
+      "cost": 4,
+      "sprite": "Angewomon",
+      "role": "사수"
+    },
+    {
+      "id": "ophanimon",
+      "name": "오파니몬",
+      "cost": 5,
+      "sprite": "Ophanimon",
+      "role": "마법사"
+    },
+    {
+      "id": "kuwagamon",
+      "name": "쿠가몬",
+      "cost": 3,
+      "sprite": "Kuwagamon",
+      "role": "전사"
+    },
+    {
+      "id": "shellmon",
+      "name": "쉘몬",
+      "cost": 3,
+      "sprite": "Shellmon",
+      "role": "탱커"
+    },
+    {
+      "id": "devimon",
+      "name": "데블몬",
+      "cost": 3,
+      "sprite": "Devimon",
+      "role": "전사"
+    },
+    {
+      "id": "monochromon",
+      "name": "모노크로몬",
+      "cost": 3,
+      "sprite": "Monochromon",
+      "role": "탱커"
+    },
+    {
+      "id": "ogremon",
+      "name": "우가몬",
+      "cost": 3,
+      "sprite": "Ogremon",
+      "role": "전사"
+    },
+    {
+      "id": "meramon",
+      "name": "메라몬",
+      "cost": 3,
+      "sprite": "Meramon",
+      "role": "마법사"
+    },
+    {
+      "id": "leomon",
+      "name": "레오몬",
+      "cost": 3,
+      "sprite": "Leomon",
+      "role": "전사"
+    },
+    {
+      "id": "etemon",
+      "name": "에테몬",
+      "cost": 4,
+      "sprite": "Etemon",
+      "role": "지원"
+    },
+    {
+      "id": "andromon",
+      "name": "안드로몬",
+      "cost": 4,
+      "sprite": "Andromon",
+      "role": "탱커"
+    },
+    {
+      "id": "skullgreymon",
+      "name": "스컬그레이몬",
+      "cost": 4,
+      "sprite": "SkullGreymon",
+      "role": "사수"
+    },
+    {
+      "id": "piedmon",
+      "name": "피에몬",
+      "cost": 5,
+      "sprite": "Piedmon",
+      "role": "마법사"
+    },
+    {
+      "id": "machinedramon",
+      "name": "파워드라몬",
+      "cost": 5,
+      "sprite": "Machinedramon",
+      "role": "사수"
+    }
+  ]
+}

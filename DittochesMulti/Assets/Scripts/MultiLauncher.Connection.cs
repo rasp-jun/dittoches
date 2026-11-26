@@ -39,6 +39,19 @@ public sealed partial class MultiLauncher
         return "LV "+enemy.level+" · "+(enemy.ready?"준비 완료":"준비 중");
     }
 
+    static string UnitCommandSignature(Unit unit)
+    {return unit==null?"-":unit.id+":"+unit.star+":"+string.Join(",",unit.items??new int[0]);}
+
+    void CaptureUnitCommand(string path,Command command)
+    {
+        if(path!="/action"||(command.action!="move"&&command.action!="sell"&&command.action!="equip"))return;
+        var me=OnlineMe;if(me==null)return;
+        if(string.IsNullOrEmpty(command.expectedUnit)&&(command.area=="board"||command.area=="bench"))
+            command.expectedUnit=UnitCommandSignature(At(command.area=="board"?me.board:me.bench,command.slot));
+        if(command.action=="move"&&string.IsNullOrEmpty(command.expectedTarget)&&(command.targetArea=="board"||command.targetArea=="bench"))
+            command.expectedTarget=UnitCommandSignature(At(command.targetArea=="board"?me.board:me.bench,command.targetSlot));
+    }
+
     IEnumerator Request(string path,Command command)
     {
         if(busy)yield break;
@@ -51,6 +64,7 @@ public sealed partial class MultiLauncher
             Room room=state.room;command.expectedRoom=room==null?"":room.id;
             command.expectedRound=room==null?0:room.round;command.expectedPhase=room==null?"":room.phase;
         }
+        CaptureUnitCommand(path,command);
         // Freeze both body and credentials for all attempts of this logical command.
         byte[] body=Encoding.UTF8.GetBytes(JsonUtility.ToJson(command));
         string requestToken=token,endpoint=server+path;
@@ -93,6 +107,8 @@ public sealed partial class MultiLauncher
                     ReconcileMatchSelection(state==null?null:state.room,response.room);
                     state=response;token=response.token;receivedAt=Time.unscaledTime;
                     lastRoundTripMs=(Time.realtimeSinceStartup-started)*1000;
+                    if(response.tamerSyncVersion>=1)ReceiveTamers(response.tamers,lastRoundTripMs*.0005f);
+                    else ReceiveLegacyTamers();
                     if(path=="/login"){recoveryKey=command.key;recoveryName=command.name;}
                     recoveringLogin=false;connectionError=false;connectionFailures=0;
                     ReconcileEquipmentSelection();
@@ -104,6 +120,8 @@ public sealed partial class MultiLauncher
                         if(capacity>previousCapacity)notice="배치 한도 +"+(capacity-previousCapacity)+" · 현재 최대 "+capacity+"명";
                         else if(command.action=="combine_items")notice="장비 합성 완료 · 보관함에서 확인하세요";
                         else if(command.action=="equip")notice="장비 적용 완료 · 시너지와 능력치를 반영했습니다";
+                        else if(command.action=="move")notice=command.area==command.targetArea?"유닛 위치를 변경했습니다":command.targetArea=="bench"?"대기석으로 회수했습니다":"전장에 배치했습니다";
+                        else if(command.action=="sell")notice="유닛 판매 완료 · 골드와 장비를 반환했습니다";
                     }
                     if(state.room==null||state.room.phase=="finished"){selectedSlot=-1;selectedArea="";}
                     if(path=="/leave")confirmLeave=false;
@@ -127,6 +145,7 @@ public sealed partial class MultiLauncher
 
     void Send(string path,Command command=null)
     {
+        if(path=="/queue"&&!LobbyTamerSupported){notice="새 테이머를 사용하려면 8인 서버를 업데이트하고 다시 시작하세요.";return;}
         if(!busy&&!connectionError&&!recoveringLogin)StartCoroutine(Request(path,command??new Command()));
     }
 }

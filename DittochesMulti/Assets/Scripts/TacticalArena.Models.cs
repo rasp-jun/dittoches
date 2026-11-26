@@ -20,7 +20,7 @@ public sealed partial class TacticalArena
         Shape("Model review floor",cube,floor,origin+Vector3.up*.065f,new Vector3(60,.065f,60));
         studioShadow=Material(new Color(.105f,.13f,.17f),true);
     }
-    bool PoseModel(Actor actor,string id,float speed,float time,DigimonSkillCatalog.Entry skill,float castAge,float attack,float death,int star)
+    bool PoseModel(Actor actor,string id,float speed,float time,DigimonSkillCatalog.Entry skill,float castAge,float attack,float death,int star,float heightOverride=-1)
     {
         if(!DigimonModelLibrary.PreviewEnabled&&FaithfulModelData.Available(id))
         {
@@ -34,10 +34,12 @@ public sealed partial class TacticalArena
             if(!actor.faithful.gameObject.activeSelf)actor.faithful.gameObject.SetActive(true);
             actor.portrait.enabled=false;
             Vector3 facing=actor.hasFacing?actor.facing:-actor.faithful.transform.forward;actor.hasFacing=false;
-            actor.faithful.SetSize(DigimonVisualScale.Height(id,star));
+            float regularHeight=DigimonVisualScale.Height(id,star);
+            actor.faithful.SetSize(heightOverride>0?heightOverride:regularHeight);
             float shadow=DigimonVisualScale.Shadow(id);
+            if(heightOverride>0)shadow*=heightOverride/regularHeight;
             actor.contactShadow.transform.localScale=new Vector3(shadow,.01f,shadow*.72f);
-            actor.faithful.Pose(time,speed,facing,skill,castAge,attack,death,actor.attackSerial,actor.attackCooldown,actor.attackInRange,actor.hitAmount,actor.hitTime);
+            actor.faithful.Pose(time,speed,facing,skill,castAge,attack,death,actor.attackSerial,actor.attackCooldown,actor.attackInRange,actor.hitAmount,actor.hitTime,actor.hitDirection);
             return true;
         }
         if(!DigimonModelLibrary.HasModel(id))return false;
@@ -70,8 +72,8 @@ public sealed partial class TacticalArena
     }
     public void FaceActor(object key,Vector3 direction)
     {Actor actor;if(actors.TryGetValue(key,out actor)){actor.facing=direction;actor.hasFacing=true;}}
-    public void CombatMotion(object key,int attackSerial,float cooldown,bool inRange,float hitTime=float.NaN)
-    {Actor actor;if(actors.TryGetValue(key,out actor)){actor.attackSerial=attackSerial;actor.attackCooldown=cooldown;actor.attackInRange=inRange;actor.hitTime=hitTime;}}
+    public void CombatMotion(object key,int attackSerial,float cooldown,bool inRange,float hitTime=float.NaN,Vector3 hitDirection=default(Vector3))
+    {Actor actor;if(actors.TryGetValue(key,out actor)){actor.attackSerial=attackSerial;actor.attackCooldown=cooldown;actor.attackInRange=inRange;actor.hitTime=hitTime;actor.hitDirection=hitDirection;}}
     public void ResetModelPose(object key)
     {Actor actor;if(actors.TryGetValue(key,out actor)&&actor.rig!=null)actor.rig.ResetPose();}
     public bool ModelBounds(object key,out Bounds bounds)

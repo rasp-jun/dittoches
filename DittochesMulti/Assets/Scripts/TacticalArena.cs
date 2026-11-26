@@ -13,11 +13,14 @@ public sealed partial class TacticalArena : IDisposable
     readonly GameObject root;
     readonly Camera camera;
     readonly RenderTexture target;
+    readonly IDisposable faithfulCacheLease;
     readonly List<UnityEngine.Object> resources = new List<UnityEngine.Object>();
     readonly Dictionary<object, Actor> actors = new Dictionary<object, Actor>();
     readonly Dictionary<Texture, Material> portraits = new Dictionary<Texture, Material>();
     readonly List<object> expired = new List<object>();
     readonly MeshRenderer[] tiles = new MeshRenderer[56], seats = new MeshRenderer[9];
+    readonly Color[] tileTint=new Color[56],seatTint=new Color[9];
+    readonly bool[] tileTintValid=new bool[56],seatTintValid=new bool[9];
     readonly MaterialPropertyBlock properties = new MaterialPropertyBlock();
     readonly Material stone, trim, grass, dark, glow, shadow;
     readonly Mesh hex, cube, quad, disc, ringMesh;
@@ -32,9 +35,14 @@ public sealed partial class TacticalArena : IDisposable
         public MeshRenderer[] sparkles;
         public DigimonRig rig;
         public FaithfulModelActor faithful;
+        public WorldMotionTracker<int> tamerMovement;
         public int faithfulGeneration=-1;
         public int attackSerial=-1;
+        public int basicSerial=-1,basicGeneration=-1;
+        public float basicAge,basicSurface;
+        public Vector3 basicFrom,basicTo;
         public float attackCooldown=-1,hitAmount,hitTime=float.NaN;
+        public Vector3 hitDirection;
         public bool attackInRange;
         public Vector3 facing;
         public bool hasFacing;
@@ -78,6 +86,7 @@ public sealed partial class TacticalArena : IDisposable
         camera.targetTexture = target; camera.aspect = viewport.width / viewport.height;
         if(refined)BuildIsland();else BuildEnvironment();
         CaptureField();
+        faithfulCacheLease=FaithfulModelData.RetainIdleCache();
     }
 
     Material Material(Color color, bool unlit = false, Texture texture = null)
@@ -217,11 +226,18 @@ public sealed partial class TacticalArena : IDisposable
     }
     void Tint(MeshRenderer renderer,Color color)
     {
+#if DITTOCHES_PORTABLE_PREVIEW
+        propertyBlockWrites++;
+#endif
         properties.Clear();properties.SetColor("_Color",color);renderer.SetPropertyBlock(properties);
     }
+    void TintTile(int index,Color color)
+    {if(tileTintValid[index]&&tileTint[index]==color)return;Tint(tiles[index],color);tileTint[index]=color;tileTintValid[index]=true;}
+    void TintSeat(int index,Color color)
+    {if(seatTintValid[index]&&seatTint[index]==color)return;Tint(seats[index],color);seatTint[index]=color;seatTintValid[index]=true;}
     public void BeginFrame(int selectedCell,int hoveredCell,int selectedBench,bool placing)
     {
-        generation++;BeginEffects();
+        generation++;BeginEffects();finisherCameraOffset=Vector3.zero;finisherCameraPush=0;AnimateField();
         for(int i=0;i<tiles.Length;i++)
         {
             bool own=i>=28;
@@ -229,15 +245,15 @@ public sealed partial class TacticalArena : IDisposable
             if(placing&&own)color=new Color(.31f,.55f,.48f);
             if(i==selectedCell)color=new Color(1,.76f,.24f);
             if(i==hoveredCell&&own)color=new Color(.45f,1,.86f);
-            Tint(tiles[i],color);
+            TintTile(i,color);
         }
-        for(int i=0;i<seats.Length;i++)Tint(seats[i],i==selectedBench?new Color(1,.8f,.3f):new Color(.57f,.43f,.22f));
+        for(int i=0;i<seats.Length;i++)TintSeat(i,i==selectedBench?new Color(1,.8f,.3f):new Color(.57f,.43f,.22f));
     }
     public void HighlightDestination(int cell,int seat,bool valid)
     {
         Color color=valid?new Color(.35f,1f,.75f):new Color(1f,.25f,.18f);
-        if(cell>=0&&cell<tiles.Length)Tint(tiles[cell],color);
-        if(seat>=0&&seat<seats.Length)Tint(seats[seat],color);
+        if(cell>=0&&cell<tiles.Length)TintTile(cell,color);
+        if(seat>=0&&seat<seats.Length)TintSeat(seat,color);
     }
     public void SetActor(object key,Vector3 point,Texture texture,Color team,float scale=1,float flash=0)
     {
@@ -288,16 +304,16 @@ public sealed partial class TacticalArena : IDisposable
         {
             if(i==cell)continue;
             float x=i%7-col,y=i/7-row;
-            if(x*x+y*y<=range*range)Tint(tiles[i],i>=28?new Color(.25f,.55f,.64f):new Color(.48f,.4f,.66f));
+            if(x*x+y*y<=range*range)TintTile(i,i>=28?new Color(.25f,.55f,.64f):new Color(.48f,.4f,.66f));
         }
     }
     public void HighlightHexAttackRange(float col,float row,int range)
     {
         for(int i=0;i<tiles.Length;i++)
             if(DigimonCombatMath.InAttackRange(col,row,i%7,i/7,range))
-                Tint(tiles[i],new Color(.12f,.75f,1f));
+                TintTile(i,new Color(.12f,.75f,1f));
         int x=Mathf.RoundToInt(col),y=Mathf.RoundToInt(row);
-        if(x>=0&&x<7&&y>=0&&y<8)Tint(tiles[y*7+x],new Color(.72f,.57f,.26f));
+        if(x>=0&&x<7&&y>=0&&y<8)TintTile(y*7+x,new Color(.72f,.57f,.26f));
     }
     public void DecorateActor(object key,bool selected,float promotion,float hit=0,float healing=0,float shielding=0,bool invalid=false)
     {
@@ -383,7 +399,10 @@ public sealed partial class TacticalArena : IDisposable
         expired.Clear();
         foreach(var pair in actors)if(pair.Value.generation!=generation)expired.Add(pair.Key);
         foreach(object key in expired){Release(actors[key].root);actors.Remove(key);}
-        EndEffects();camera.Render();
+        EndEffects();
+        Vector3 position=camera.transform.localPosition;float fov=camera.fieldOfView;
+        try{camera.transform.localPosition=position+finisherCameraOffset;camera.fieldOfView=fov-finisherCameraPush;FitAtmosphere();camera.Render();}
+        finally{camera.transform.localPosition=position;camera.fieldOfView=fov;}
     }
     Mesh Own(Mesh mesh)
     {
@@ -439,8 +458,13 @@ public sealed partial class TacticalArena : IDisposable
     static void Release(UnityEngine.Object value){if(value==null)return;GameObject node=value as GameObject;if(node!=null)node.SetActive(false);if(Application.isPlaying)UnityEngine.Object.Destroy(value);else UnityEngine.Object.DestroyImmediate(value);}
     public void Dispose()
     {
-        if(disposed)return;disposed=true;camera.targetTexture=null;target.Release();Release(target);Release(root);
-        foreach(var resource in resources)Release(resource);actors.Clear();portraits.Clear();
+        if(disposed)return;disposed=true;
+        try
+        {
+            camera.targetTexture=null;target.Release();Release(target);Release(root);
+            foreach(var resource in resources)Release(resource);actors.Clear();portraits.Clear();
+        }
+        finally{if(faithfulCacheLease!=null)faithfulCacheLease.Dispose();}
     }
 }
 

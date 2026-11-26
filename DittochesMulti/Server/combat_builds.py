@@ -26,6 +26,7 @@ def level(trait, ids):
 
 
 def resolve(unit_id, team_ids, equipment=()):
+    equipment = list(equipment)
     bonus = {}
     def add(values):
         for key, value in values.items():
@@ -42,6 +43,12 @@ def resolve(unit_id, team_ids, equipment=()):
     for item in equipment:
         if type(item) is int and 0 <= item < len(ITEMS) and ITEMS[item]['kind'] != 'utility':
             add(ITEMS[item]['bonus'])
+    equipped = min(3, sum(type(i) is int and 0 <= i < len(ITEMS) and ITEMS[i]['kind'] != 'utility' for i in equipment))
+    for stat, per_item in (('hp', 'equippedHp'), ('attack', 'equippedAttack')):
+        if bonus.get(per_item, 0):
+            bonus[stat] = bonus.get(stat, 0) + bonus[per_item]*equipped
+    if equipped == 3:
+        bonus['castShield'] = bonus.get('castShield', 0)+bonus.get('fullGearShield', 0)
     return bonus
 
 
@@ -84,6 +91,8 @@ def initialize(fighters):
         f['hp'] = f['maxHp']
         f.update(attacks=0, casts=0, lowShieldUsed=False, crisisAt=-1, friendshipActive=value(f,'rampSpeed')>0, regenClock=0, combatAge=0, shield=0, damageDone=0,
                  basicDamageDone=0, skillDamageDone=0, damageTaken=0, shieldAbsorbed=0, healingDone=0, shieldingDone=0)
+        f.update(burnRemaining=0, burnClock=0, burnRate=0, burnOwner=-1, shredRemaining=0, armorShred=0,
+                 synergyUsed=0, synergyAt=-1, synergyKind=0, battleAge=0, revived=False, revivedAt=-1)
         f['mana'] = min(f['maxMana'], f['mana']+value(f, 'startMana'))
         shield(f, f, f['maxHp']*value(f, 'startShield'))
 
@@ -129,15 +138,26 @@ def on_cast(source, fighters):
         heal(source, target, target['maxHp']*value(source, 'castHeal'))
     if value(source, 'castShield'):
         shield(source, source, source['maxHp']*value(source, 'castShield'))
+    if allies and value(source, 'castAllyShield'):
+        target = min(allies, key=lambda f: (f['hp']/f['maxHp'], f['key']))
+        shield(source, target, target['maxHp']*value(source, 'castAllyShield'))
+    source['mana'] = min(source['maxMana'], source['mana']+value(source, 'castMana'))
+    recipients = sorted((f for f in allies if f is not source and f['mana'] < f['maxMana']),
+                        key=lambda f: (f['mana']/f['maxMana'], f['key']))[:2]
+    for target in recipients:
+        target['mana'] = min(target['maxMana'], target['mana']+value(source, 'castAllyMana'))
 
 
 def damage(source, target, amount, basic=False, damage_type='physical'):
     if target['hp'] <= 0:
         return 0
-    amount = mitigate(amount,value(target,'armor'),value(target,'magicResist'),damage_type)
-    amount *= 1-min(.6, max(0, value(target, 'reduction')))
+    amount = mitigate(amount,effective_armor(target),value(target,'magicResist'),damage_type)
+    opening = value(target, 'openingReduction') if target.get('battleAge', 0) < 8-1e-6 else 0
+    amount *= 1-min(.6, max(0, value(target, 'reduction')+opening))
     if target['hp'] >= target['maxHp']*.7:
         amount *= 1+value(source, 'highHealthDamage')
+    if target['hp'] <= target['maxHp']*(.35+1e-7):
+        amount *= 1+value(source, 'lowHealthDamage')
     absorbed = min(target.get('shield', 0), amount)
     target['shield'] = target.get('shield', 0)-absorbed
     actual = min(target['hp'], max(0, amount-absorbed))
@@ -147,6 +167,8 @@ def damage(source, target, amount, basic=False, damage_type='physical'):
     source[kind] = source.get(kind, 0)+actual
     target['damageTaken'] = target.get('damageTaken', 0)+actual
     target['shieldAbsorbed'] = target.get('shieldAbsorbed', 0)+absorbed
+    if target['hp'] <= 0 and source['hp'] > 0:
+        source['mana'] = min(source['maxMana'], source['mana']+value(source, 'killMana'))
     if 0 < target['hp'] <= target['maxHp']*(.35+1e-7) and not target.get('lowShieldUsed', False) and (value(target, 'lowShield') or value(target, 'lowHeal')):
         target['lowShieldUsed'] = True
         target['crisisAt'] = target.get('combatAge',0)
@@ -158,3 +180,113 @@ def damage(source, target, amount, basic=False, damage_type='physical'):
         if target['hp'] > 0 and source.get('attacks', 0)%3 == 0:
             target['stun'] = max(target.get('stun', 0), value(source, 'thirdStun'))
     return actual
+
+
+def effective_armor(f):
+    return value(f, 'armor')*(1-f.get('armorShred', 0))
+
+
+def on_skill_hit(source, target):
+    if target['hp'] <= 0:
+        return
+    shred = value(source, 'armorShred')
+    if shred > 0 and shred >= target.get('armorShred', 0):
+        target.update(armorShred=shred, shredRemaining=4)
+    apply_burn(source, target)
+
+
+def apply_burn(source, target):
+    burn = value(source, 'burn')
+    if target['hp'] > 0 and burn > 0 and burn >= target.get('burnRate', 0):
+        if target.get('burnRemaining', 0) <= 0:
+            target['burnClock'] = 0
+        target.update(burnRate=burn, burnRemaining=3, burnOwner=source['key'])
+
+
+def tick_effects(fighters, dt, now):
+    """Advance existing debuffs before new hits. Refreshes never postpone a due tick."""
+    by_key = {f['key']: f for f in fighters}
+    for f in fighters:
+        f['battleAge'] = now
+        if f['hp'] <= 0:
+            f.update(burnRemaining=0, burnClock=0, burnRate=0, shredRemaining=0, armorShred=0)
+            continue
+        f['shredRemaining'] = max(0, f.get('shredRemaining', 0)-dt)
+        if f['shredRemaining'] < 1e-6:
+            f['armorShred'] = 0
+        active = min(dt, f.get('burnRemaining', 0))
+        f['burnClock'] = f.get('burnClock', 0)+active
+        f['burnRemaining'] = max(0, f.get('burnRemaining', 0)-dt)
+        while f['burnClock']+1e-6 >= 1:
+            f['burnClock'] -= 1
+            owner = by_key.get(f.get('burnOwner'))
+            if owner is not None:
+                damage(owner, f, f['maxHp']*f.get('burnRate', 0), damage_type='magic')
+                f['hitAt'] = now
+        if f['burnRemaining'] < 1e-6:
+            f.update(burnRate=0, burnClock=0, burnRemaining=0)
+
+
+def third_splash(source, target, fighters, now):
+    from combat_stats import attack, hex_distance
+    if source.get('attacks', 0) <= 0 or source['attacks']%3 or not value(source, 'thirdSplash'):
+        return
+    victims = sorted((f for f in fighters if f is not target and f['side'] != source['side'] and f['hp'] > 0
+                      and hex_distance(f['x'], f['y'], target['x'], target['y']) <= 1+1e-6),
+                     key=lambda f: (hex_distance(f['x'], f['y'], target['x'], target['y']), f['key']))[:2]
+    for f in victims:
+        damage(source, f, attack(source)*value(source, 'thirdSplash'))
+        f['hitAt'] = now
+
+
+def team_crisis(fighters, definitions, now):
+    """Latch all sides first, rescue before blasts; no team resurrects after a full wipe."""
+    pending = []
+    for side in sorted({f['side'] for f in fighters}):
+        team = [f for f in fighters if f['side'] == side]
+        if not any(f['hp'] > 0 for f in team) or sum(f['hp'] for f in team) > sum(f['maxHp'] for f in team)*(.4+1e-7):
+            continue
+        for field, bit, kind in (('teamRally', 1, 3), ('teamSalvation', 4, 5), ('teamInferno', 2, 4)):
+            if any(f.get('synergyUsed', 0)&bit for f in team):
+                continue
+            carriers = [f for f in team if value(f, field) > 0]
+            if not carriers:
+                continue
+            source = min(carriers, key=lambda f: (f['hp'] <= 0, -value(f, field), f['key']))
+            for f in team:
+                f['synergyUsed'] = f.get('synergyUsed', 0)|bit
+                f.update(synergyAt=now, synergyKind=kind)
+            pending.append((field, source, team))
+    for field, source, team in sorted(pending, key=lambda p: p[0] == 'teamInferno'):
+        if field == 'teamRally':
+            for f in team:
+                if f['hp'] > 0 and value(f, field) > 0:
+                    f['stun'] = 0
+                    heal(source, f, f['maxHp']*value(source, field))
+                    shield(source, f, f['maxHp']*value(source, field))
+                    f['mana'] = min(f['maxMana'], f['mana']+30)
+        elif field == 'teamSalvation':
+            dead = sorted((f for f in team if f['hp'] <= 0),
+                          key=lambda f: (-definitions[f['id']]['cost'], -f['star'], f['key']))
+            if dead:
+                f = dead[0]
+                f.update(hp=f['maxHp']*value(source, field), shield=0, mana=0, stun=0, cooldown=.25,
+                         castUntil=now, target=-1, revived=True, revivedAt=now, burnRemaining=0, burnRate=0,
+                         burnClock=0, armorShred=0, shredRemaining=0)
+                source['healingDone'] = source.get('healingDone', 0)+f['hp']
+            for f in team:
+                shield(source, f, f['maxHp']*.15)
+        else:
+            for f in fighters:
+                if f['side'] != source['side'] and f['hp'] > 0:
+                    damage(source, f, f['maxHp']*value(source, field), damage_type='magic')
+                    apply_burn(source, f)
+                    f['hitAt'] = now
+    # One visible announcement per side. The full team retains its spent flags.
+    for side in {source['side'] for _,source,_ in pending}:
+        team = [f for f in fighters if f['side']==side]
+        kind = team[0]['synergyKind']
+        for f in team:f['synergyKind']=0
+        living = sorted((f for f in team if f['hp']>0),
+                        key=lambda f: (not f.get('revived',False),-definitions[f['id']]['cost'],-f['star'],f['key']))
+        if living:living[0]['synergyKind']=kind

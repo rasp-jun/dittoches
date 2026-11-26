@@ -30,7 +30,7 @@ class CosmeticTests(unittest.TestCase):
     def test_invalid_selection_preserves_queue_and_previous_loadout(self):
         self.request('/queue', dict(mode='normal', tamer=2, field=1, finisher=2))
         before = copy.deepcopy(self.game.queues)
-        for key, maximum in [('tamer', 4), ('field', 3), ('finisher', 3)]:
+        for key, maximum in [('tamer', 12), ('field', 3), ('finisher', 3)]:
             for value in [-1, maximum, True, 1.0, '1', None]:
                 with self.subTest(key=key, value=value):
                     with self.assertRaises(Rejected):
@@ -58,7 +58,7 @@ class CosmeticTests(unittest.TestCase):
             before = copy.deepcopy(room)
             self.request('/tamer-move', dict(x=2.5, y=4.5, tamer=3, hp=999))
             expected = before['players'][0]
-            expected.update(tamerX=2.5, tamerY=4.5)
+            expected.update(tamerX=2.5, tamerY=4.5, tamerSequence=room['players'][0]['tamerSequence'], _tamerMotion=room['players'][0]['_tamerMotion'])
             self.assertEqual(room, before)
 
     def test_bounds_invalid_numbers_and_rate_do_not_mutate_game(self):
@@ -83,3 +83,21 @@ class CosmeticTests(unittest.TestCase):
         response = self.request('/queue', dict(mode='normal'), 1)
         for player in response['room']['players']:
             self.assertEqual([player[k] for k in ('tamer', 'field', 'finisher')], [0, 0, 0])
+
+    def test_all_tamers_queue_without_changing_their_identifiers(self):
+        for tamer in range(12):
+            with self.subTest(tamer=tamer):
+                response = self.request('/queue', dict(mode='normal8', tamer=tamer, field=2, finisher=1))
+                self.assertEqual(response['tamerCount'], 12)
+                self.assertEqual(self.game.sessions[self.tokens[0]]['cosmetics']['tamer'], tamer)
+                self.request('/cancel')
+
+    def test_new_tamers_are_public_and_survive_reconnect(self):
+        self.request('/queue', dict(mode='normal', tamer=7))
+        self.request('/queue', dict(mode='normal', tamer=11), 1)
+        other = self.request('/state', who=1)['room']['players'][0]
+        self.assertEqual(other['tamer'], 7)
+        self.assertEqual(other['inventory'], [])
+        self.request('/tamer-move', dict(x=5, y=6))
+        own = self.game.request('/login', dict(name='again', key=self.keys[0]))['room']['players'][0]
+        self.assertEqual((own['tamer'], own['tamerX'], own['tamerY']), (7, 5, 6))

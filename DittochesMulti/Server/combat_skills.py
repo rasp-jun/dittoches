@@ -78,6 +78,7 @@ def advance_cast(cast, fighters, now):
         victims.sort(key=lambda f: ((f['x']-cast['tx'])**2+(f['y']-cast['ty'])**2, f['key']))
         for f in victims[:skill['targets']]:
             builds.damage(source, f, cast['damage']/skill['shots'],damage_type=skill['damageType'])
+            builds.on_skill_hit(source, f)
             f['stun'] = max(f.get('stun', 0), skill['stun'])
             f['hitAt'] = now
             if f['hp'] > 0 and skill['visual'] == 'gate':
@@ -130,6 +131,7 @@ def simulate(fighters, definitions, equipment_events=()):
                 ally.update(attackDamage=stats.attack(ally), abilityPower=stats.ability_power(ally),
                             armor=builds.value(ally,'armor'), magicResist=builds.value(ally,'magicResist'))
         if step:
+            builds.tick_effects(fighters, step_time, now)
             for f in fighters:
                 f['stun'] = max(0, f['stun']-step_time)
             for cast in casts:
@@ -173,14 +175,22 @@ def simulate(fighters, definitions, equipment_events=()):
                     f['cooldown'] = 1/stats.attack_speed(f)
             for source, target, damage in hits:
                 builds.damage(source, target, damage, basic=True)
+                builds.third_splash(source, target, fighters, now)
                 target['hitAt'] = now
                 if target['hp'] > 0:
                     target['mana'] = min(target['maxMana'], target['mana']+5)
+            # Cancel unreleased casts before a miracle can revive their caster.
+            for cast in casts:
+                if not cast['released'] and next(f for f in fighters if f['key']==cast['caster'])['hp'] <= 0:
+                    cast['cancelled'] = True
+            builds.team_crisis(fighters, definitions, now)
         living_sides = {f['side'] for f in fighters if f['hp'] > 0}
         projectiles = any(c['released'] and not c['cancelled'] and c['hits'] < SKILLS[c['id']]['shots'] for c in casts)
         finished = len(living_sides) < 2 and not projectiles
         if step % 4 == 0 or finished or step == 480:
-            for f in fighters:f['attackSpeed']=stats.attack_speed(f)
+            for f in fighters:
+                f['attackSpeed']=stats.attack_speed(f)
+                f['armor']=builds.effective_armor(f)
             frames.append(dict(time=now, units=[{k: v for k, v in f.items() if k not in ('cooldown', 'castUntil', 'build', 'regenClock', 'items')} for f in fighters]))
         if finished:
             break

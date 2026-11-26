@@ -17,7 +17,7 @@ public sealed partial class NativeGame
     {
         Event e=Event.current;Vector2 point=e.mousePosition;
         int target=PickFormationTarget(point);
-        if(!battling)for(int i=lootOrbs.Count-1;i>=0;i--)if(LootRect(lootOrbs[i]).Contains(point)){target=100+i;break;}
+        if(!battling&&scoutedRival<0)for(int i=lootOrbs.Count-1;i>=0;i--)if(LootRect(lootOrbs[i]).Contains(point)){target=100+i;break;}
         bool down=e.type==EventType.MouseDown&&e.button==0,up=e.type==EventType.MouseUp&&e.button==0;
         bool guide=showRecipeGuide&&Time.unscaledTime<recipeGuideUntil&&RecipeGuideRect.Contains(point);
         guide|=traitFocus!=null&&Time.unscaledTime<traitGuideUntil&&TraitGuideRect.Contains(point);
@@ -36,7 +36,7 @@ public sealed partial class NativeGame
         if(arena==null){arena=new TacticalArena(SoloArenaViewport,artPack==0);arenaArtPack=artPack;}
         if(artPack==0){if(tamerLoadout==null)ApplyEquippedLoadout();arena.SetField(tamerLoadout.field);}
     }
-    private void OnDisable() { if(tamerStudio!=null){tamerStudio.Dispose();tamerStudio=null;} if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;equipmentDrag.Reset();selectedItem=-1;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();battleTraces.Clear();skillCasts.Clear(); }
+    private void OnDisable() { CombatAudio.Cancel();nativeAudioActive=false;StarUpgradeAudio.Cancel(); TrialOnDisable(); if(tamerStudio!=null){tamerStudio.Dispose();tamerStudio=null;} if(arena!=null){arena.Dispose();arena=null;}dragSource=-1;draggingUnit=false;equipmentDrag.Reset();selectedItem=-1;arenaPointer.Reset();formationPositions.Clear();healthTrails.Clear();promotions.Clear();nativeMergeArrivals.Clear();battleTraces.Clear();skillCasts.Clear(); }
     private void OnApplicationFocus(bool focused){if(!focused){dragSource=-1;draggingUnit=false;equipmentDrag.Reset();selectedItem=-1;arenaPointer.Reset();}}
     private void OnDestroy() { if(tamerStudio!=null)tamerStudio.Dispose(); if(arena!=null){arena.Dispose();arena=null;} }
     private Vector3 LegacyWorld(Vector2 p)
@@ -60,11 +60,14 @@ public sealed partial class NativeGame
     private void DrawPerspectiveBoard()
     {
         EnsureArena();
+        if(artPack==0&&scoutedRival>=0){DrawSoloScoutedField();DrawSoloScoutingNavigation();return;}
+        if(artPack==0&&Event.current.type==EventType.Repaint)arena.SetField(tamerLoadout.field);
         bool scouting=!battling&&scoutedRival>=0, blocked=showCarousel||hp<=0;
         Unit[] visible=scouting?scoutBoard:board;
+        var mergeFocus=NativeRecruitHover(Event.current.mousePosition,GUI.enabled);
         if(Event.current.type==EventType.Repaint)
         {
-            legendPos=Vector2.SmoothDamp(legendPos,legendTarget,ref legendVelocity,battling?.30f:.18f,battling?430f:720f,Time.deltaTime);
+            if(!NativeFinisherActive)legendPos=Vector2.SmoothDamp(legendPos,legendTarget,ref legendVelocity,battling?.30f:.18f,battling?430f:720f,Time.deltaTime);
             int hover=blocked||scouting||battling?-1:PickFormationTarget(Event.current.mousePosition);
             if(hover>=56)hover=-1;
             int sourceCell=draggingUnit?(dragFromBoard?dragSource+28:-1):selectedBoard>=0?selectedBoard+28:-1;
@@ -103,14 +106,16 @@ public sealed partial class NativeGame
             foreach(Unit stale in promotions.Keys.Where(u=>promotions[u]<=Time.unscaledTime||(!board.Contains(u)&&!bench.Contains(u))).ToArray())promotions.Remove(stale);
             float celebration=Mathf.Clamp01((legendCelebrateUntil-Time.unscaledTime)/.8f);
             if(win&&!battling&&Time.unscaledTime<resultNoticeUntil)celebration=Mathf.Max(celebration,.65f);
-            if(artPack==0)arena.SetTamer(this,legend,LegacyWorld(legendPos),LegacyWorld(legendTarget),legendVelocity.magnitude/550f,Time.unscaledTime,celebration);
+            if(artPack==0)DrawNativeTamers(celebration);
             else arena.SetTactician(this,LegacyWorld(legendPos),LegacyWorld(legendTarget),Tex(LegendPortrait(legend)),LegendColor(),
                 legendVelocity.magnitude/550f,legendVelocity.x,Time.unscaledTime,celebration);
-            if(battling&&artPack==0){DrawDigimonSkills();foreach(var f in fighters)if(!f.dead)arena.DrawCombatSignal(FighterWorld(f),NativeCombatSignal(f),TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star));}
-            if(artPack==0)DrawNativeFinisher();
+            if(battling&&artPack==0){DrawBasicAttacks();DrawDigimonSkills();foreach(var f in fighters)if(!f.dead)arena.DrawCombatSignal(FighterWorld(f),NativeCombatSignal(f),TacticalArena.DigimonHeadHeight(f.unit.def.id,f.unit.star));}
+            DrawNativeMergeArrivals();
+            MergeFocusUI.Ground(arena,mergeFocus,battling,NativeMergePosition);
             arena.Render();
         }
         GUI.DrawTexture(SoloArenaViewport,arena.Texture,ScaleMode.StretchToFill,false);
+        if(artPack==0&&NativeFinisherActive)nativeFinisher.Labels(arena,Time.unscaledTime,SoloArenaViewport);
         string heading=battling?battleText:scouting?RivalNames[scoutedRival]+" / SCOUT":RoundType()+" / "+board.Count(u=>u!=null)+" / "+FormationLimit;
         if(artPack!=0)GUI.Label(new Rect(295,96,1040,26),heading,center);
         GUI.Label(new Rect(SoloArenaViewport.x+20,SoloArenaViewport.y+12,300,22),scouting?heading:artPack==0?TamerLoadout.Fields[tamerLoadout.field]+" / ARENA":"FILE ISLAND / ARENA",small);
@@ -156,25 +161,42 @@ public sealed partial class NativeGame
             Color old=GUI.color;GUI.color=c;GUI.Label(r,"◆",title);GUI.color=old;
 
         }
+        if(artPack==0)DrawSoloScoutingNavigation();
+        if(mergeFocus!=null)MergeFocusUI.Labels(arena,SoloArenaViewport,mergeFocus,UnitName(RosterById[mergeFocus.result.id]),battling,NativeMergePosition);
         DrawFormationStatus();
         UpdateLegendInput();
-        Rect nameplate=arena.LabelRect(LegacyWorld(legendPos),12);
+        if(!NativeFinisherActive||artPack!=0){Rect nameplate=arena.LabelRect(LegacyWorld(legendPos),12);
         DrawRect(new Rect(nameplate.x-6,nameplate.y-1,nameplate.width+12,23),new Color(.018f,.035f,.055f,.88f));
         DrawRect(new Rect(nameplate.x-6,nameplate.y+21,nameplate.width+12,2),LegendColor());
-        GUI.Label(nameplate,Legends[legend],center);
+        GUI.Label(nameplate,artPack==0?TamerLoadout.Tamers[legend]:Legends[legend],center);}
         if(artPack!=0&&!string.IsNullOrEmpty(lastCombatSummary))GUI.Label(new Rect(305,808,1020,20),lastCombatSummary,small);
-        if(!battling&&Time.unscaledTime<resultNoticeUntil)
+        if(TrialsMode&&!battling&&!TrialFinished&&LastTrialRound!=null&&Time.unscaledTime<resultNoticeUntil)
+            DrawTrialRoundToast();
+        else if(!battling&&Time.unscaledTime<resultNoticeUntil)
         {
-            float x=artPack==0?SoloArenaViewport.center.x-255:560,y=artPack==0?144:198;
-            GUI.Box(new Rect(x,y,510,74),GUIContent.none,card);
-            if(artPack==0)DrawRect(new Rect(x,y,510,2),win?new Color(.39f,.87f,.73f):new Color(.9f,.37f,.29f));
-            GUI.Label(new Rect(x+20,y+3,470,36),win?"전투 승리":"전투 패배",title);
-            GUI.Label(new Rect(x+20,y+41,470,28),lastReward,center);
+            float x=artPack==0?SoloArenaViewport.center.x-255:560,y=artPack==0?194:198;
+            if(artPack==0&&NativeFinisherActive)
+                BattleHudTheme.Badge(new Rect(SoloArenaViewport.center.x-255,106,510,31),(win?"전투 승리":"전투 패배")+"   ·   "+lastReward,win?BattleHudTheme.Gold:BattleHudTheme.Danger,16);
+            else if(artPack==0)
+            {
+                Color outcome=win?BattleHudTheme.Gold:BattleHudTheme.Danger;
+                BattleHudTheme.Surface(new Rect(x,y,510,74),true,outcome);
+                LobbyVisuals.Crest(new Rect(x+12,y+11,51,51),win?"courage":"hope",outcome);
+                BattleHudTheme.Label(new Rect(x+80,y+8,410,29),win?"전투 승리":"전투 패배",24,outcome,true);
+                BattleHudTheme.FitLabel(new Rect(x+80,y+43,410,24),lastReward,14,BattleHudTheme.Text,false);
+            }
+            else
+            {
+                GUI.Box(new Rect(x,y,510,74),GUIContent.none,card);
+                GUI.Label(new Rect(x+20,y+3,470,36),win?"전투 승리":"전투 패배",title);
+                GUI.Label(new Rect(x+20,y+41,470,28),lastReward,center);
+            }
         }
         if(battling)
         {
             MiniBar(new Rect(SoloArenaViewport.center.x-325,artPack==0?838:803,650,4),battleProgress,accent);
-            if(Time.unscaledTime-battleStartedAt<1.1f)GUI.Label(new Rect(artPack==0?SoloArenaViewport.center.x-255:565,artPack==0?156:300,510,artPack==0?44:60),"전투 시작",title);
+            if(TrialsMode)DrawTrialBattleCue();
+            else if(Time.unscaledTime-battleStartedAt<1.1f)GUI.Label(new Rect(artPack==0?SoloArenaViewport.center.x-255:565,artPack==0?156:300,510,artPack==0?44:60),"전투 시작",title);
         }
     }
     private void DrawPerspectiveFighter(Fighter f)
@@ -206,6 +228,7 @@ public sealed partial class NativeGame
     }
     private void DrawPerspectiveBench()
     {
+        if(artPack==0&&scoutedRival>=0)return;
         for(int i=0;i<9;i++)
         {
             Rect r=BenchRect(i);

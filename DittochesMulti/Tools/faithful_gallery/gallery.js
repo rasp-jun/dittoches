@@ -8,7 +8,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const $ = (id) => document.getElementById(id);
 const manifestURL = new URL('/ArtSource/FaithfulGallery/manifest.json', location.href);
-const state = { entries: [], pending: [], scope: 34, selected: null, loading: false, ready: false, errors: [], clips: [], meshCount: 0, triangles: 0, frames: 0 };
+const state = { entries: [], pending: [], scope: 0, selected: null, loading: false, ready: false, errors: [], clips: [], meshCount: 0, triangles: 0, frames: 0 };
 let renderer, scene, camera, controls, current, mixer, activeAction, clips = [], sequence = 0;
 let currentBox = new THREE.Box3(), filtered = [], floor, keyLight, clock = new THREE.Clock();
 let motionIndex = 0;

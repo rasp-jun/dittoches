@@ -19,7 +19,7 @@ public static class RecruitmentAdvice
     public static string Copies(int singles,int doubles)
     {
         if(singles>=2)return doubles>=2?"구매 → ★★★ 연속 합성":"구매 → ★★ 자동 합성";
-        return singles+doubles>0?"★ "+singles+"/3 · ★★ "+doubles+"/3":"같은 유닛 3개로 ★★";
+        return singles+doubles>0?StarUpgradeUI.Progress(singles,doubles):"같은 유닛 3개로 ★★";
     }
     public static string Result(string name,int star,int cost,int returnedItems)
     {
